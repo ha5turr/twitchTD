@@ -111,7 +111,22 @@ export function drawEnemy(g, kind) {
 }
 
 // drawTower draws a building centred on (0, 0) at full health.
-export function drawTower(g, kind, rarity, level) {
+export function drawTower(g, kind, rarity, level, pixel = false) {
+  const pips = () => {
+    // Pips under the icon repeat the level for colour-blind viewers.
+    for (let i = 0; i < level; i++) g.circle(-16 + i * 8, 38, 2.5).fill(rarity);
+  };
+  if (pixel && (kind === 'trap' || kind === 'wall')) {
+    // The pack's spikes and crates fill the cell; keep only the rarity frame.
+    g.roundRect(-46, -46, 92, 92, 6).stroke({ width: 3, color: rarity, alpha: 0.9 });
+    pips();
+    return;
+  }
+  if (pixel && TOWER_ART[kind]) {
+    g.roundRect(-34, -34, 68, 68, 10).fill(0x1b1a1f).stroke({ width: 4, color: rarity });
+    pips();
+    return;
+  }
   if (kind === 'trap') {
     // Spikes flush with the road, no stone base: it is a trap after all.
     for (let i = 0; i < 3; i++) {
@@ -162,4 +177,65 @@ export function drawProjectile(g, kind) {
   if (kind === 'magic') g.circle(0, 0, 8).fill(0xc9a6ff).circle(0, 0, 4).fill(0xffffff);
   else if (kind === 'fire') g.circle(0, 0, 9).fill(0xff6a1a).circle(0, 0, 5).fill(0xffd36a);
   else g.circle(0, 0, 4).fill(0xffe3a8);
+}
+
+// Pixel art from the 0x72 pack. Kinds missing here (spiders, rats, ghosts,
+// frost spirits and their bosses, war drums) keep the vector drawings above.
+export const ENEMY_ART = {
+  skeleton: { name: 'skelet_run', scale: 3 },
+  ghoul: { name: 'tiny_zombie_run', scale: 3 },
+  cultist: { name: 'orc_shaman_run', scale: 3 },
+  troll: { name: 'ogre_run', scale: 2.4 },
+  mummy: { name: 'zombie', scale: 3.2 },
+  necromancer: { name: 'necromancer', scale: 3 },
+  iceskel: { name: 'ice_zombie', scale: 3.2 },
+  bone_knight: { name: 'big_zombie_run', scale: 3.6 },
+  cult_leader: { name: 'masked_orc_run', scale: 4.4 },
+  cave_troll: { name: 'ogre_run', scale: 3.6, tint: 0xb8b8a0 },
+  lich: { name: 'necromancer', scale: 5, tint: 0xd0a8ff },
+  ice_golem: { name: 'ice_zombie', scale: 6.4 },
+  frost_demon: { name: 'big_demon_run', scale: 3.6, tint: 0xa8dcff },
+};
+
+// Building icons from the pack, drawn over the stone base.
+export const TOWER_ART = {
+  arrow: { name: 'weapon_bow', scale: 2.2, y: 26 },
+  magic: { name: 'weapon_green_magic_staff', scale: 2.2, y: 32 },
+  fire: { name: 'wall_fountain_mid_red', scale: 3, y: 24 },
+  shrine: { name: 'wall_fountain_mid_blue', scale: 3, y: 24 },
+};
+
+// Mercenaries look like the pack's heroes, one per class.
+export const HERO_ART = {
+  ranger: 'elf_m', mage: 'wizzard_m', pyro: 'wizzard_f', cleric: 'angel',
+  rogue: 'lizard_m', bard: 'elf_f', warrior: 'knight_m',
+};
+
+// towerArt builds the pack's sprites for a building, or null to keep vector.
+export function towerArt(kind, makeSprite) {
+  const c = new PIXI.Container();
+  if (kind === 'trap') {
+    for (let j = 0; j < 2; j++) {
+      for (let i = 0; i < 2; i++) {
+        const s = makeSprite('floor_spikes', 3, 0.08);
+        s.position.set(-24 + i * 48, j * 48);
+        c.addChild(s);
+      }
+    }
+    return c;
+  }
+  if (kind === 'wall') {
+    for (const [x, y] of [[-22, 44], [22, 44], [0, 8]]) {
+      const s = makeSprite('crate', 2.6);
+      s.position.set(x, y);
+      c.addChild(s);
+    }
+    return c;
+  }
+  const art = TOWER_ART[kind];
+  if (!art) return null;
+  const s = makeSprite(art.name, art.scale);
+  s.position.set(0, art.y);
+  c.addChild(s);
+  return c;
 }

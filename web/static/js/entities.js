@@ -2,7 +2,8 @@
 // glide toward the latest position so motion stays smooth at 60 fps.
 import { CELL, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
-import { ENEMIES, TOWERS, drawEnemy, drawTower, drawProjectile } from './sprites.js';
+import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile } from './sprites.js';
+import { hasTileset, sprite, frames } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
@@ -90,8 +91,19 @@ class EnemyView {
     const st = ENEMIES[e.kind] ?? ENEMIES.skeleton;
     this.r = st.r * CELL;
     this.root = new Container();
-    this.body = new Graphics();
-    drawEnemy(this.body, e.kind);
+    const art = hasTileset() && ENEMY_ART[e.kind];
+    if (art) {
+      // A pixel sprite centred on the enemy's point, feet below it.
+      this.body = sprite(art.name, art.scale, 0.15);
+      this.body.y = this.body.height / 2;
+      this.baseTint = art.tint ?? 0xffffff;
+      this.body.tint = this.baseTint;
+      this.r = this.body.height / 2;
+    } else {
+      this.body = new Graphics();
+      drawEnemy(this.body, e.kind);
+      this.baseTint = 0xffffff;
+    }
     // Status effects: a frost ring while slowed, a shield arc for the bone knight.
     this.fx = new Graphics();
     this.root.addChild(this.body, this.fx);
@@ -130,10 +142,15 @@ class EnemyView {
 
   frame(k, t) {
     const r = this.root;
-    r.x += (this.target.x - r.x) * k;
+    const dx = this.target.x - r.x;
+    r.x += dx * k;
     r.y += (this.target.y - r.y) * k;
+    if (Math.abs(dx) > 0.5 && this.body.anchor) {
+      // Sprites face the way they walk.
+      this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
+    }
     // Burning enemies flicker orange.
-    this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : 0xffffff;
+    this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
     this.bar.position.set(r.x, r.y - this.r - (this.boss ? 34 : 14));
   }
 
@@ -149,7 +166,12 @@ class TowerView {
     const p = toPx(t.x, t.y);
     this.cx = p.x + CELL / 2;
     this.cy = p.y + CELL / 2;
-    this.root = new Graphics();
+    // Graphics cannot hold children in Pixi 8, so the base and the pack's
+    // sprites sit side by side in a container.
+    this.root = new Container();
+    this.g = new Graphics();
+    this.root.addChild(this.g);
+    this.art = null;
     this.root.position.set(this.cx, this.cy);
     // A web of silk or frost drawn while a boss keeps the building disabled.
     this.web = new Graphics();
@@ -204,7 +226,7 @@ class TowerView {
     if (t.lvl === this.level && t.built === this.built) return;
     this.level = t.lvl;
     this.built = t.built;
-    const g = this.root;
+    const g = this.g;
     g.clear();
     if (!t.built) {
       // Construction site: scaffolding and a ghost of the future building.
@@ -212,7 +234,11 @@ class TowerView {
       g.moveTo(-28, 28).lineTo(28, -28).moveTo(-28, -28).lineTo(28, 28).stroke({ width: 3, color: 0x6b5638, alpha: 0.8 });
       return;
     }
-    drawTower(g, this.kind, RARITY[Math.min(t.lvl, 5) - 1], t.lvl);
+    if (!this.art && hasTileset()) {
+      this.art = towerArt(this.kind, sprite);
+      if (this.art) this.root.addChildAt(this.art, this.kind === 'trap' || this.kind === 'wall' ? 0 : 1);
+    }
+    drawTower(g, this.kind, RARITY[Math.min(t.lvl, 5) - 1], t.lvl, !!this.art);
   }
 
   frame(t) {
@@ -224,7 +250,7 @@ class TowerView {
   }
 
   destroy() {
-    this.root.destroy();
+    this.root.destroy({ children: true });
     this.web.destroy();
     this.name.destroy();
     this.bar.destroy();
@@ -240,10 +266,21 @@ class WorkerView {
   constructor(w, layer) {
     const color = nickColor(w.name);
     this.root = new Container();
-    this.body = new Graphics();
-    drawFigure(this.body, color, w.class);
-    this.body.circle(12, -6, 4).fill(0xffd27a).stroke({ width: 1.5, color: 0x000000 }); // lantern
-    this.root.addChild(this.body);
+    const hero = hasTileset() && HERO_ART[w.class];
+    if (hero) {
+      // The pack's hero for the class; it runs while walking.
+      this.idle = frames(`${hero}_idle`);
+      this.run = frames(`${hero}_run`) ?? this.idle;
+      this.body = sprite(`${hero}_idle`, 2.5, 0.15);
+      this.height = this.body.height;
+    } else {
+      this.body = new Graphics();
+      drawFigure(this.body, color, w.class);
+      this.height = 46;
+    }
+    const lantern = new Graphics();
+    lantern.circle(14, -8, 4).fill(0xffd27a).stroke({ width: 1.5, color: 0x000000 });
+    this.root.addChild(this.body, lantern);
     this.tool = new Graphics();
     this.tool.rect(-2, -16, 4, 16).fill(0x7a5a3a).rect(-6, -18, 12, 5).fill(0x9aa0a8);
     this.tool.position.set(-10, -6);
@@ -274,15 +311,25 @@ class WorkerView {
   frame(k, dt) {
     this.t += dt;
     const r = this.root;
-    r.x += (this.target.x - r.x) * k;
+    const dx = this.target.x - r.x;
+    r.x += dx * k;
     r.y += (this.target.y - r.y) * k;
     const moving = this.state === 'walk' || this.state === 'return' || this.state === 'flee';
-    this.body.y = moving ? -Math.abs(Math.sin(this.t * 10)) * 4 : 0;
+    if (this.idle) {
+      const want = moving ? this.run : this.idle;
+      if (this.body.textures !== want) {
+        this.body.textures = want;
+        this.body.play();
+      }
+      if (Math.abs(dx) > 0.5) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
+    } else {
+      this.body.y = moving ? -Math.abs(Math.sin(this.t * 10)) * 4 : 0;
+    }
     this.tool.rotation = this.state === 'build' ? Math.sin(this.t * 14) * 0.9 : 0.3;
     this.stars.visible = this.state === 'flee' || this.state === 'rest';
-    this.stars.position.set(r.x, r.y - 70);
+    this.stars.position.set(r.x, r.y - this.height - 24);
     this.stars.rotation = Math.sin(this.t * 6) * 0.3;
-    this.name.position.set(r.x, r.y - 48);
+    this.name.position.set(r.x, r.y - this.height - 2);
   }
 
   destroy() {

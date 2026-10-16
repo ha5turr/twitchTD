@@ -1,20 +1,28 @@
 // Static map layer: ground, path, obstacles, torches and the chess labels.
 import { BIOMES, CELL, COLS, ROWS, TOP, LEFT, toPx, FONT_UI } from './layout.js';
+import { hasTileset, texture, sprite, PX } from './tileset.js';
 
-const { Container, Graphics, Text } = PIXI;
+const { Container, Graphics, Text, Sprite } = PIXI;
 
 export function buildMap(map) {
   const pal = BIOMES[map.biome] ?? BIOMES.ruins;
   const root = new Container();
+  const tiles = new Container();
+  root.addChild(tiles);
   const g = new Graphics();
   root.addChild(g);
+  const pixel = hasTileset();
 
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
       const c = map.cells[y][x];
       const p = toPx(x, y);
-      const ground = (x + y) % 2 ? pal.ground : pal.groundAlt;
-      g.rect(p.x, p.y, CELL, CELL).fill(c === '#' ? pal.path : ground);
+      if (pixel) {
+        floorTiles(tiles, p, x, y, c === '#' ? pal.pathTint : pal.groundTint);
+      } else {
+        const ground = (x + y) % 2 ? pal.ground : pal.groundAlt;
+        g.rect(p.x, p.y, CELL, CELL).fill(c === '#' ? pal.path : ground);
+      }
     }
   }
   drawPathEdges(g, map, pal);
@@ -23,9 +31,12 @@ export function buildMap(map) {
   for (let y = 0; y <= ROWS; y++) g.moveTo(LEFT, TOP + y * CELL).lineTo(LEFT + COLS * CELL, TOP + y * CELL);
   g.stroke({ width: 1, color: 0xffffff, alpha: 0.05 });
 
+  const props = new Container(); // obstacles stand above the grid lines
+  root.addChild(props);
   for (let y = 0; y < ROWS; y++) {
     for (let x = 0; x < COLS; x++) {
-      if (map.cells[y][x] === 'o') drawObstacle(g, map.biome, pal, x, y);
+      if (map.cells[y][x] !== 'o') continue;
+      if (!pixel || !obstacleSprites(props, map.biome, pal, x, y)) drawObstacle(g, map.biome, pal, x, y);
     }
   }
   for (const [x, y] of map.torches) {
@@ -33,6 +44,58 @@ export function buildMap(map) {
     drawTorch(g, t.x, t.y);
   }
   return root;
+}
+
+// cellHash gives each cell a stable pseudo-random number for tile variety.
+const cellHash = (x, y, k = 0) => (((x * 73856093) ^ (y * 19349663) ^ (k * 83492791)) >>> 0) % 1000;
+
+// floorTiles covers a cell with 2x2 floor tiles, mostly plain, sometimes cracked.
+function floorTiles(layer, p, x, y, tint) {
+  const half = CELL / 2;
+  for (let j = 0; j < 2; j++) {
+    for (let i = 0; i < 2; i++) {
+      const h = cellHash(x * 2 + i, y * 2 + j);
+      const name = h < 700 ? 'floor_1' : `floor_${2 + (h % 7)}`;
+      const s = new Sprite(texture(name));
+      s.scale.set(PX);
+      s.position.set(p.x + i * half, p.y + j * half);
+      s.tint = tint;
+      layer.addChild(s);
+    }
+  }
+}
+
+// obstacleSprites draws an obstacle from the pack; false means "no art for
+// this biome", and the caller draws the vector version instead.
+function obstacleSprites(layer, biome, pal, x, y) {
+  const p = toPx(x, y);
+  const cx = p.x + CELL / 2;
+  const bottom = p.y + CELL;
+  const put = (name, px, py, scale = PX, tint = 0xffffff) => {
+    const s = sprite(name, scale);
+    s.position.set(px, py);
+    s.tint = tint;
+    layer.addChild(s);
+    return s;
+  };
+  switch (biome) {
+    case 'dungeon': { // a block of wall: top row on the upper half, face below
+      const half = CELL / 2;
+      for (let i = 0; i < 2; i++) {
+        put('wall_top_mid', p.x + i * half + half / 2, p.y + half);
+        put(cellHash(x, y, i) < 150 ? 'wall_banner_red' : 'wall_mid', p.x + i * half + half / 2, bottom);
+      }
+      return true;
+    }
+    case 'ruins': // a lone column, a little shorter so it stays in its cell
+      put('column', cx, bottom - 4, 2, pal.pathTint);
+      return true;
+    case 'crypt': // coffins of crates with skulls
+      put('crate', cx - 10, bottom - 12, PX, 0xb0b8b0);
+      if (cellHash(x, y) < 600) put('skull', cx + 26, bottom - 10, 2);
+      return true;
+  }
+  return false; // the ice caves keep their vector crystals: the pack has no ice
 }
 
 function drawPathEdges(g, map, pal) {

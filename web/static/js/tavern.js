@@ -7,13 +7,15 @@
 //   fireplace · fame board · tables with seats · bar counter
 import { H, TOP, LEFT, CELL, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure, CLASSES } from './figures.js';
+import { HERO_ART } from './sprites.js';
+import { hasTileset, sprite, frames } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
 const COLS_X = [64, 192, 320];
 const ROW_Y0 = 480;
-const ROW_DY = 72;
-const ROWS = 7;
+const ROW_DY = 84;
+const ROWS = 6;
 const SEATS = COLS_X.length * ROWS;
 const BAR_Y = 1006; // counter top edge
 const SPEED = 170; // px per second
@@ -60,16 +62,33 @@ export class Tavern {
     // Two long tables between the seat columns.
     for (const x of [128, 256]) {
       g.roundRect(x - 20, ROW_Y0 - 40, 40, ROWS * ROW_DY - 8, 8).fill(0x5a3a1f).stroke({ width: 3, color: 0x2a1b0f });
-      for (let r = 0; r < ROWS; r++) g.rect(x - 8, ROW_Y0 - 26 + r * ROW_DY, 16, 10).fill(0x8a6a3a); // mugs
+      for (let r = 0; r < ROWS; r++) {
+        const y = ROW_Y0 - 16 + r * ROW_DY;
+        const flask = hasTileset() && sprite(['flask_red', 'flask_yellow', 'flask_green', 'flask_blue'][r % 4], 2);
+        if (flask) {
+          flask.position.set(x, y);
+          this.world.addChild(flask);
+        } else {
+          g.rect(x - 8, y - 10, 16, 10).fill(0x8a6a3a); // mugs
+        }
+      }
     }
-    // Bar counter with the barkeeper behind it.
-    const keeper = new Graphics();
-    drawFigure(keeper, 0x7a3a2a, '');
-    keeper.position.set(LEFT / 2, BAR_Y + 56);
+    // Bar counter with the barkeeper behind it: a dwarf, as taverns go.
+    const keeper = hasTileset() ? sprite('dwarf_m_idle', 2, 0.1) : new Graphics();
+    if (!hasTileset()) drawFigure(keeper, 0x7a3a2a, '');
+    keeper.position.set(LEFT / 2, BAR_Y + 62);
     this.world.addChild(keeper);
     g.rect(16, BAR_Y, LEFT - 48, 30).fill(0x5a3a1f).stroke({ width: 3, color: 0x2a1b0f });
     g.rect(16, BAR_Y, LEFT - 48, 6).fill(0x7a5230);
-    for (let i = 0; i < 6; i++) g.rect(30 + i * 52, BAR_Y - 14, 14, 14).fill(0x8a6a3a);
+    for (let i = 0; i < 6; i++) {
+      const bottle = hasTileset() && sprite(i % 2 ? 'flask_big_red' : 'flask_big_yellow', 2);
+      if (bottle) {
+        bottle.position.set(37 + i * 52, BAR_Y + 2);
+        this.world.addChild(bottle);
+      } else {
+        g.rect(30 + i * 52, BAR_Y - 14, 14, 14).fill(0x8a6a3a);
+      }
+    }
   }
 
   setMap(map) {
@@ -141,9 +160,7 @@ class Merc {
     this.cls = c.class;
     this.color = nickColor(c.name);
     this.root = new Container();
-    this.body = new Graphics();
-    drawFigure(this.body, this.color, this.cls);
-    this.root.addChild(this.body);
+    this.makeBody();
     this.mug = new Graphics();
     this.mug.roundRect(8, -20, 10, 12, 2).fill(0xc8a165).stroke({ width: 2, color: 0x000000 });
     this.mug.rect(9, -22, 8, 4).fill(0xfff6d8);
@@ -180,8 +197,7 @@ class Merc {
     if (c.class !== this.cls || this.redraw) {
       this.cls = c.class;
       this.redraw = false;
-      this.body.clear();
-      drawFigure(this.body, this.color, this.cls);
+      this.makeBody();
     }
     if (out && !this.out) {
       this.mode = 'out';
@@ -191,6 +207,24 @@ class Merc {
       this.mode = 'seat';
     }
     this.out = out;
+  }
+
+  // makeBody draws the class's hero from the pack, or the vector figure.
+  makeBody() {
+    if (this.body) this.body.destroy();
+    const hero = hasTileset() && HERO_ART[this.cls];
+    if (hero) {
+      this.idle = frames(`${hero}_idle`);
+      this.run = frames(`${hero}_run`) ?? this.idle;
+      this.body = sprite(`${hero}_idle`, 2, 0.12);
+      this.height = this.body.height;
+    } else {
+      this.idle = this.run = null;
+      this.body = new Graphics();
+      drawFigure(this.body, this.color, this.cls);
+      this.height = 46;
+    }
+    this.root.addChildAt(this.body, 0);
   }
 
   drink(what) {
@@ -236,7 +270,16 @@ class Merc {
     // Drunk mercenaries sway, very drunk ones sing.
     const sway = Math.min(this.drunk, 6);
     this.body.rotation = sway ? Math.sin(this.t * 2.5) * 0.05 * sway : 0;
-    this.body.y = walking ? -Math.abs(Math.sin(this.t * 10)) * 3 : Math.sin(this.t * 1.5) * 0.8;
+    if (this.idle) {
+      const want = walking ? this.run : this.idle;
+      if (this.body.textures !== want) {
+        this.body.textures = want;
+        this.body.play();
+      }
+      if (walking && Math.abs(dx) > 1) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
+    } else {
+      this.body.y = walking ? -Math.abs(Math.sin(this.t * 10)) * 3 : Math.sin(this.t * 1.5) * 0.8;
+    }
     this.mug.visible = this.mode === 'drinking';
     this.mug.rotation = this.mode === 'drinking' ? -0.4 - Math.abs(Math.sin(this.t * 4)) * 0.6 : 0;
 
@@ -245,9 +288,9 @@ class Merc {
     else if (this.drunk >= 4) bubble = Math.floor(this.t * 2) % 2 ? '♪ ♫' : '♫ ♪';
     this.bubble.text = bubble;
     this.bubble.visible = !!bubble;
-    this.bubble.position.set(r.x, r.y - 78);
-    this.nameText.position.set(r.x, r.y - 50);
-    this.goldText.position.set(r.x, r.y - 36);
+    this.bubble.position.set(r.x, r.y - this.height - 32);
+    this.nameText.position.set(r.x, r.y - this.height - 14);
+    this.goldText.position.set(r.x, r.y - this.height);
   }
 
   destroy() {

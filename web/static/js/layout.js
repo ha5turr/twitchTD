@@ -21,18 +21,22 @@ export const BIOMES = {
   ruins: {
     name: 'Руины', ground: 0x2a2f2a, groundAlt: 0x262b26, path: 0x4a4436, pathEdge: 0x5d5543,
     obstacle: 0x5b5f5a, ambient: 0x7c88a8, light: 0xb8c4e0,
+    pathTint: 0xd8ccb0, groundTint: 0x6a7a5e, // mossy stone
   },
   dungeon: {
     name: 'Подземелье', ground: 0x24211f, groundAlt: 0x211e1c, path: 0x3f3a35, pathEdge: 0x534c44,
     obstacle: 0x14110f, ambient: 0x6e6468, light: 0xffa64d,
+    pathTint: 0xffffff, groundTint: 0x6e6460,
   },
   crypt: {
     name: 'Крипта', ground: 0x1f2421, groundAlt: 0x1c201e, path: 0x37403a, pathEdge: 0x48544b,
     obstacle: 0x4a4f4c, ambient: 0x627568, light: 0x7dff9a,
+    pathTint: 0xc0d0c4, groundTint: 0x5a6a60,
   },
   ice: {
     name: 'Ледяные пещеры', ground: 0x1f2a33, groundAlt: 0x1c262e, path: 0x5a7385, pathEdge: 0x7f9bb0,
     obstacle: 0x9fc4dc, ambient: 0x7890aa, light: 0x8fd4ff,
+    pathTint: 0xc8e4ff, groundTint: 0x6a88a8,
   },
 };
 

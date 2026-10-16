@@ -7,6 +7,7 @@ import { Tavern } from './tavern.js';
 import { connect } from './net.js';
 import { Sound, EVENT_SOUNDS } from './audio.js';
 import { Particles } from './particles.js';
+import { loadTileset } from './tileset.js';
 
 const { Application, Container } = PIXI;
 
@@ -19,6 +20,7 @@ async function start() {
     document.fonts.load('400 20px Philosopher', sample),
     document.fonts.load('16px "Press Start 2P"', sample),
   ]).catch(() => {});
+  await loadTileset();
 
   const app = new Application();
   await app.init({ width: W, height: H, background: 0x07080b, antialias: true });
