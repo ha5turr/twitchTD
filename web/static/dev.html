@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Twitch TD — консоль</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 15px system-ui, sans-serif; background: #111214; color: #e8e2d4; }
+  main { display: grid; grid-template-columns: 1fr 340px; gap: 16px; padding: 16px; }
+  iframe { width: 100%; aspect-ratio: 16 / 9; border: 1px solid #333; background: #000; }
+  form, .row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  input, select, button { font: inherit; padding: 6px 10px; background: #1d1f23; color: inherit; border: 1px solid #3a3d44; border-radius: 6px; }
+  button { cursor: pointer; }
+  button:hover { background: #2a2d33; }
+  input[name=text] { flex: 1; min-width: 0; }
+  h2 { font-size: 16px; margin: 0 0 8px; }
+  #log { height: 50vh; overflow: auto; font: 13px ui-monospace, monospace; background: #0b0c0d; border: 1px solid #333; padding: 8px; white-space: pre-wrap; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <iframe src="index.html" title="Оверлей"></iframe>
+  <section>
+    <h2>Сообщение в чат</h2>
+    <form id="chat">
+      <input name="user" value="streamer" size="10" aria-label="Ник">
+      <label><input type="checkbox" name="mod" checked> мод</label>
+      <input name="text" placeholder="!build C4 arrow" aria-label="Текст">
+      <button>Отправить</button>
+    </form>
+    <h2>Управление</h2>
+    <div class="row">
+      <button data-cmd="!tdwave">Волна сейчас</button>
+      <button data-cmd="!tdpause">Пауза</button>
+      <select id="biome" aria-label="Биом">
+        <option value="">случайный биом</option>
+        <option value="ruins">Руины</option>
+        <option value="dungeon">Подземелье</option>
+        <option value="crypt">Крипта</option>
+        <option value="ice">Ледяные пещеры</option>
+      </select>
+      <button id="newmap">Новая карта</button>
+    </div>
+    <h2>События</h2>
+    <div id="log"></div>
+  </section>
+</main>
+<script type="module">
+  import { connect } from './js/net.js';
+  const log = document.getElementById('log');
+  const line = (s) => { log.textContent = s + '\n' + log.textContent.slice(0, 20000); };
+  const net = connect({
+    map: (m) => line(`карта: ${m.biome}, seed ${m.seed}`),
+    state: (s) => (s.events ?? []).forEach((e) => line(`${e.kind}${e.user ? ' @' + e.user : ''}${e.text ? ': ' + e.text : ''}${e.amount ? ' (' + e.amount + ')' : ''}`)),
+  });
+  const form = document.getElementById('chat');
+  const send = (text) => net.send({ t: 'chat', user: form.user.value, mod: form.mod.checked, text });
+  form.onsubmit = (e) => { e.preventDefault(); send(form.text.value); form.text.select(); };
+  document.querySelectorAll('[data-cmd]').forEach((b) => (b.onclick = () => send(b.dataset.cmd)));
+  document.getElementById('newmap').onclick = () => send('!tdnew ' + document.getElementById('biome').value);
+</script>
+</body>
+</html>

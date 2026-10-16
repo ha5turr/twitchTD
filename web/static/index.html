@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Twitch TD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Philosopher:wght@400;700&family=Press+Start+2P&display=swap&subset=cyrillic" rel="stylesheet">
+<style>
+  html, body { margin: 0; height: 100%; background: #07080b; overflow: hidden; }
+  /* Fit 1920x1080 into any window; OBS uses the source size directly. */
+  #stage canvas { width: 100vw; height: 56.25vw; max-height: 100vh; max-width: 177.78vh; display: block; margin: auto; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script src="https://cdn.jsdelivr.net/npm/pixi.js@8.6.6/dist/pixi.min.js"></script>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

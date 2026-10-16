@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "twitchtd-sim",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "12", "-web", "web/static"],
+      "port": 8787
+    }
+  ]
+}

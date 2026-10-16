@@ -1,0 +1,4 @@
+/twitchtd
+*.exe
+config.json
+*.db
