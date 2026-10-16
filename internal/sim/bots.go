@@ -50,8 +50,12 @@ func bot(ctx context.Context, name string, seed uint64, chat func(game.ChatMessa
 				send(fmt.Sprintf("!build %s %s", cell, kind))
 				built = append(built, cell)
 			}
-		case roll < 0.95 && len(built) > 0:
+		case roll < 0.85 && len(built) > 0:
 			send("!up " + built[r.IntN(len(built))])
+		case roll < 0.93:
+			send("!drink " + []string{"эль", "эль", "медовуха", "зелье"}[r.IntN(4)])
+		case roll < 0.95:
+			send("!class " + []string{"маг", "следопыт", "бард", "жрец"}[r.IntN(4)])
 		default:
 			send("!me")
 		}

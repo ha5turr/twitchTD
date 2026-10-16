@@ -33,6 +33,10 @@ type Config struct {
 	StunRadius     float64 `json:"stunRadius"` // cells
 	StunRestSec    float64 `json:"stunRestSec"`
 
+	ClassBonus    float64              `json:"classBonus"` // extra damage of a class's signature building
+	Drinks        map[string]DrinkSpec `json:"drinks"`
+	DrunkDecaySec float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
+
 	// Bots and service accounts whose messages are ignored entirely.
 	IgnoreUsers []string `json:"ignoreUsers"`
 
@@ -77,7 +81,7 @@ func DefaultConfig() Config {
 		TickRate:             20,
 		BuildPhaseSec:        35,
 		FirstBuildPhaseSec:   60,
-		GameOverSec:          12,
+		GameOverSec:          18,
 		SpawnIntervalSec:     0.9,
 		WallsHP:              1000,
 		StartGold:            120,
@@ -95,14 +99,21 @@ func DefaultConfig() Config {
 		MaxOrders:            3,
 		StunRadius:           0.45,
 		StunRestSec:          2,
-		IgnoreUsers:          []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts"},
-		BaseHP:               30,
-		HPGrowth:             1.12,
-		ChatterHPCoef:        0.25,
-		BaseCount:            6,
-		CountPerWave:         2,
-		BossHPMult:           15,
-		BossEvery:            5,
+		ClassBonus:           0.2,
+		Drinks: map[string]DrinkSpec{
+			"ale":    {Name: "Эль", Price: 10, Mugs: 1},
+			"mead":   {Name: "Медовуха", Price: 25, Mugs: 2},
+			"potion": {Name: "Чёрное зелье", Price: 60, Mugs: 4},
+		},
+		DrunkDecaySec: 90,
+		IgnoreUsers:   []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts"},
+		BaseHP:        30,
+		HPGrowth:      1.12,
+		ChatterHPCoef: 0.25,
+		BaseCount:     6,
+		CountPerWave:  2,
+		BossHPMult:    15,
+		BossEvery:     5,
 		Enemies: map[string]EnemySpec{
 			"normal":  {HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
 			"fast":    {HPMult: 0.55, Speed: 2.0, WallDPS: 4, Bounty: 3},

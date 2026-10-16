@@ -1,5 +1,5 @@
-// Top bar, tavern, floating numbers and banners.
-import { W, H, TOP, LEFT, CELL, toPx, BIOMES, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
+// Top bar, the tavern wall, floating numbers, banners and the game over screen.
+import { W, H, TOP, LEFT, CELL, COLS, ROWS, toPx, BIOMES, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 
 const { Container, Graphics, Text } = PIXI;
 
@@ -8,19 +8,23 @@ const ui = (size, fill = 0xf2e6c9, extra = {}) => ({
 });
 
 const PHASE = { build: 'Стройка', wave: 'Волна идёт', gameover: 'Таверна пала' };
+const FIELD_CX = LEFT + (COLS * CELL) / 2;
+const FIELD_CY = TOP + (ROWS * CELL) / 2;
 
 export class Hud {
   constructor() {
-    this.world = new Container(); // tavern interior, lit by the lightmap
+    this.world = new Container(); // the wall, lit by the lightmap
     this.ui = new Container(); // everything that must stay readable
     this.floaters = [];
-    this.plates = new Map();
 
-    this.tavern = new Graphics();
-    this.world.addChild(this.tavern);
-    this.drawTavern();
     this.walls = new Graphics();
     this.world.addChild(this.walls);
+    this.fire = new Graphics();
+    this.world.addChild(this.fire);
+    this.wallRatio = 1;
+    this.hitFlash = 0;
+    this.lastWalls = null;
+    this.t = 0;
 
     const bar = new Graphics();
     bar.rect(0, 0, W, TOP).fill(0x15130f);
@@ -33,22 +37,23 @@ export class Hud {
     this.wallsBar = new Graphics();
     this.wallsBar.position.set(W / 2 - 360, 46);
     this.ui.addChild(this.wallsBar);
-    this.wallsText = this.text('', ui(24), W / 2, 22, 0.5);
+    this.wallsText = this.text('', ui(24), W / 2, 78, 0.5);
     this.biomeText = this.text('', ui(30), W - 32, 18, 1);
     this.infoText = this.text('', ui(22, 0xc9b98f), W - 32, 66, 1);
 
     this.bossBar = new Graphics();
-    this.bossBar.position.set(LEFT + 368, TOP + 16);
-    this.bossText = this.text('', ui(22, 0xffd6d6), LEFT + 768, TOP + 14, 0.5);
+    this.bossBar.position.set(FIELD_CX - 400, TOP + 16);
+    this.bossText = this.text('', ui(22, 0xffd6d6), FIELD_CX, TOP + 14, 0.5);
     this.ui.addChild(this.bossBar);
 
-    this.platesLayer = new Container();
-    this.ui.addChild(this.platesLayer);
     this.floatLayer = new Container();
     this.ui.addChild(this.floatLayer);
-    this.banner = this.text('', ui(84, 0xf2e6c9, { stroke: { color: 0x000000, width: 10 } }), LEFT + 768, TOP + 380, 0.5);
-    this.subBanner = this.text('', ui(36, 0xc9b98f), LEFT + 768, TOP + 470, 0.5);
+    this.banner = this.text('', ui(84, 0xf2e6c9, { stroke: { color: 0x000000, width: 10 } }), FIELD_CX, TOP + 380, 0.5);
+    this.subBanner = this.text('', ui(36, 0xc9b98f), FIELD_CX, TOP + 470, 0.5);
     this.bannerTime = 0;
+
+    this.summary = new SummaryPanel();
+    this.ui.addChild(this.summary.root);
   }
 
   text(s, style, x, y, ax = 0) {
@@ -57,22 +62,6 @@ export class Hud {
     t.position.set(x, y);
     this.ui.addChild(t);
     return t;
-  }
-
-  drawTavern() {
-    const g = this.tavern;
-    g.rect(0, TOP, LEFT, H - TOP).fill(0x3a2716);
-    for (let y = TOP; y < H; y += 32) g.rect(0, y, LEFT, 2).fill(0x2a1b0f); // planks
-    for (let x = 0; x < LEFT; x += 96) g.rect(x, TOP, 2, H - TOP).fill({ color: 0x2a1b0f, alpha: 0.6 });
-    // Fireplace at the top, bar counter at the bottom: both stay clear of a
-    // webcam placed in the middle of the left edge.
-    g.rect(LEFT / 2 - 70, TOP + 8, 140, 70).fill(0x2b2b2b);
-    g.rect(LEFT / 2 - 50, TOP + 28, 100, 50).fill(0x120c08);
-    g.ellipse(LEFT / 2, TOP + 66, 34, 14).fill(0xff8a3a);
-    g.ellipse(LEFT / 2, TOP + 62, 18, 10).fill(0xffd27a);
-    g.rect(24, H - 110, LEFT - 72, 34).fill(0x5a3a1f);
-    g.rect(24, H - 110, LEFT - 72, 6).fill(0x7a5230);
-    for (let i = 0; i < 5; i++) g.rect(44 + i * 58, H - 70, 26, 34).fill(0x2a1b0f); // stools
   }
 
   setMap(map) {
@@ -88,21 +77,24 @@ export class Hud {
     if (st.paused) phase = 'Пауза';
     this.phaseText.text = phase;
     this.infoText.text = `наёмников ${st.active}   seed ${this.map?.seed ?? ''}`;
+    if (this.lastWalls !== null && st.walls < this.lastWalls) this.hitFlash = 0.35;
+    this.lastWalls = st.walls;
     this.drawWalls(st.walls, st.wallsMax);
     this.drawBoss(st.enemies.find((e) => e.kind === 'boss'));
-    this.updatePlates(st.chatters, new Set((st.workers ?? []).map((w) => w.name)));
+    if (st.phase === 'gameover' && st.summary) this.summary.show(st.summary, st.timer);
+    else this.summary.hide();
     for (const ev of st.events ?? []) this.onEvent(ev);
   }
 
   drawWalls(hp, maxHp) {
     const f = Math.max(0, hp / maxHp);
+    this.wallRatio = f;
     const color = f > 0.5 ? 0x6fbf5a : f > 0.25 ? 0xe0b03a : 0xe04a3a;
     const b = this.wallsBar;
     b.clear();
     b.roundRect(0, 0, 720, 28, 6).fill(0x000000).stroke({ width: 2, color: 0x5a4a35 });
     b.roundRect(3, 3, 714 * f, 22, 4).fill(color);
     this.wallsText.text = `Стены таверны ${Math.ceil(hp)} / ${maxHp}`;
-    this.wallsText.y = 78;
 
     // The wall itself, on the border between tavern and field, cracks as it drops.
     const w = this.walls;
@@ -113,7 +105,7 @@ export class Hud {
       const gy = TOP + this.gateY * CELL;
       w.rect(LEFT - 18, gy - 40, 22, 80).fill(0x5a3a1f).stroke({ width: 3, color: 0x2a2420 });
     }
-    const cracks = Math.floor((1 - f) * 8);
+    const cracks = Math.floor((1 - f) * 10);
     for (let i = 0; i < cracks; i++) {
       const y = TOP + 60 + ((i * 397) % (H - TOP - 120));
       w.moveTo(LEFT - 14, y).lineTo(LEFT - 4, y + 14).lineTo(LEFT - 10, y + 28);
@@ -132,38 +124,6 @@ export class Hud {
     b.roundRect(0, 18, 800, 22, 6).fill({ color: 0x000000, alpha: 0.75 }).stroke({ width: 2, color: 0x7a1d1d });
     b.roundRect(3, 21, 794 * f, 16, 4).fill(0xc23232);
     this.bossText.text = 'Босс';
-  }
-
-  // Nameplates for active chatters: name, then gold. A plate dims while its
-  // mercenary is out on the field.
-  updatePlates(chatters, outside) {
-    const active = chatters.filter((c) => c.active);
-    const seen = new Set();
-    active.forEach((c, i) => {
-      seen.add(c.name);
-      let p = this.plates.get(c.name);
-      if (!p) {
-        p = new Plate(c.name);
-        this.plates.set(c.name, p);
-        this.platesLayer.addChild(p.root);
-      }
-      const col = i % 2;
-      const row = Math.floor(i / 2);
-      p.root.position.set(20 + col * 176, TOP + 104 + row * 66);
-      p.root.visible = row < 11;
-      p.setGold(c.gold);
-      p.root.alpha = outside.has(c.name) ? 0.45 : 1;
-    });
-    for (const [name, p] of this.plates) {
-      if (!seen.has(name)) {
-        p.root.destroy({ children: true });
-        this.plates.delete(name);
-      }
-    }
-  }
-
-  plateOf(name) {
-    return this.plates.get(name);
   }
 
   onEvent(ev) {
@@ -185,26 +145,18 @@ export class Hud {
       case 'stun':
         this.floatAt(ev.x, ev.y - 0.6, 'оглушён!', 0xff9a6a, FONT_UI, 22);
         break;
-      case 'resumed':
-        this.showBanner(`Продолжаем: волна ${ev.amount}`, BIOMES[ev.text]?.name ?? '', 4);
-        break;
       case 'waveStart':
         this.showBanner(ev.text === 'boss' ? 'Босс приближается' : `Волна ${ev.amount}`, ev.text === 'boss' ? 'каждая пятая волна' : '');
         break;
       case 'waveCleared':
         this.showBanner('Волна отбита', 'наёмникам выплачена награда', 2.2);
         break;
-      case 'gameOver':
-        this.showBanner('Таверна пала', `продержались ${ev.amount} волн`, 10);
-        break;
       case 'newGame':
         this.showBanner(BIOMES[ev.text]?.name ?? 'Новая карта', 'новая карта, стройте оборону', 4);
         break;
-      case 'card': {
-        const p = this.plateOf(ev.user);
-        if (p) p.flash();
+      case 'resumed':
+        this.showBanner(`Продолжаем: волна ${ev.amount}`, BIOMES[ev.text]?.name ?? '', 4);
         break;
-      }
     }
   }
 
@@ -224,6 +176,7 @@ export class Hud {
   }
 
   frame(dt) {
+    this.t += dt;
     this.floaters = this.floaters.filter((f) => {
       f.life -= dt;
       f.t.y -= 40 * dt;
@@ -234,48 +187,92 @@ export class Hud {
     this.bannerTime -= dt;
     const a = Math.max(0, Math.min(1, this.bannerTime * 2));
     this.banner.alpha = this.subBanner.alpha = a;
-    for (const p of this.plates.values()) p.frame(dt);
-  }
-}
-
-class Plate {
-  constructor(name) {
-    this.root = new Container();
-    const color = nickColor(name);
-    const body = new Graphics();
-    body.circle(14, 26, 12).fill(color).stroke({ width: 2, color: 0x000000 });
-    body.rect(6, 36, 16, 14).fill(color).stroke({ width: 2, color: 0x000000 });
-    this.root.addChild(body);
-    this.glow = new Graphics();
-    this.glow.roundRect(-4, 4, 172, 56, 8).stroke({ width: 3, color: 0xffd24a });
-    this.glow.alpha = 0;
-    this.root.addChild(this.glow);
-    const short = name.length > 14 ? name.slice(0, 13) + '…' : name;
-    const n = new Text({ text: short, style: { fontFamily: FONT_UI, fontSize: 18, fontWeight: '700', fill: color, stroke: { color: 0x000000, width: 4 } } });
-    n.position.set(32, 8);
-    this.root.addChild(n);
-    this.gold = new Text({ text: '', style: { fontFamily: FONT_PIXEL, fontSize: 13, fill: 0xffd24a, stroke: { color: 0x000000, width: 4 } } });
-    this.gold.position.set(32, 34);
-    this.root.addChild(this.gold);
-    this.value = -1;
-    this.flashTime = 0;
+    this.hitFlash = Math.max(0, this.hitFlash - dt);
+    this.walls.tint = this.hitFlash > 0 ? 0xff8080 : 0xffffff;
+    this.drawFire();
   }
 
-  setGold(v) {
-    if (v !== this.value) {
-      this.value = v;
-      this.gold.text = `${v} з`;
+  // Below a quarter of its hit points the wall burns: flames grow as it drops.
+  drawFire() {
+    const g = this.fire;
+    g.clear();
+    if (this.wallRatio >= 0.25) return;
+    const strength = 1 - this.wallRatio / 0.25;
+    for (let i = 0; i < 9; i++) {
+      const y = TOP + 70 + i * 104;
+      const h = (18 + 22 * strength) * (0.75 + 0.25 * Math.sin(this.t * 9 + i * 1.7));
+      g.poly([LEFT - 20, y, LEFT - 7, y - h, LEFT + 6, y]).fill({ color: 0xff6a1a, alpha: 0.9 });
+      g.poly([LEFT - 14, y, LEFT - 7, y - h * 0.6, LEFT, y]).fill({ color: 0xffd36a, alpha: 0.95 });
     }
   }
 
-  flash() {
-    this.flashTime = 5;
+  // Light sources for the lighting layer: the burning wall glows.
+  lights() {
+    if (this.wallRatio >= 0.25) return [];
+    const out = [];
+    for (let i = 0; i < 9; i += 2) out.push({ x: LEFT - 7, y: TOP + 60 + i * 104, r: 150, color: 0xff7a2a, a: 0.8 });
+    return out;
+  }
+}
+
+// SummaryPanel is the game over screen: how far the tavern held and the
+// three best by damage, kills and mugs drunk.
+class SummaryPanel {
+  constructor() {
+    this.root = new Container();
+    this.root.visible = false;
+    const pw = 1000;
+    const ph = 520;
+    this.root.position.set(FIELD_CX - pw / 2, FIELD_CY - ph / 2);
+    const bg = new Graphics();
+    bg.roundRect(0, 0, pw, ph, 14).fill({ color: 0x0d0b09, alpha: 0.92 }).stroke({ width: 4, color: 0x7a1d1d });
+    this.root.addChild(bg);
+    const add = (style, x, y, ax = 0.5) => {
+      const t = new Text({ text: '', style });
+      t.anchor.set(ax, 0);
+      t.position.set(x, y);
+      this.root.addChild(t);
+      return t;
+    };
+    this.title = add(ui(64, 0xe8c9a0), pw / 2, 26);
+    this.sub = add(ui(28, 0xc9b98f), pw / 2, 110);
+    this.cols = ['Урон', 'Убийства', 'Выпито'].map((name, i) => {
+      const x = 180 + i * 320;
+      add(ui(30, 0xf2e6c9), x, 180).text = name;
+      return [0, 1, 2].map((r) => ({
+        n: add(ui(24, 0xffffff), x, 236 + r * 70),
+        v: add({ fontFamily: FONT_PIXEL, fontSize: 14, fill: 0xffd24a, stroke: { color: 0x000000, width: 4 } }, x, 268 + r * 70),
+      }));
+    });
+    this.next = add(ui(24, 0xc9b98f), pw / 2, ph - 54);
   }
 
-  frame(dt) {
-    this.flashTime = Math.max(0, this.flashTime - dt);
-    this.glow.alpha = Math.min(1, this.flashTime);
+  show(s, timer) {
+    this.root.visible = true;
+    this.title.text = 'Таверна пала';
+    this.sub.text = `продержались ${s.wave} ${plural(s.wave, 'волну', 'волны', 'волн')} · ${BIOMES[s.biome]?.name ?? ''}`;
+    [s.damage, s.kills, s.drinks].forEach((list, i) => {
+      this.cols[i].forEach((cell, r) => {
+        const e = list?.[r];
+        cell.n.text = e ? `${['I', 'II', 'III'][r]}. ${e.name}` : r === 0 ? '—' : '';
+        cell.n.style.fill = e ? nickColor(e.name) : 0x777777;
+        cell.v.text = e ? String(e.value) : '';
+      });
+    });
+    this.next.text = `новая карта через ${Math.ceil(Math.max(0, timer))} с`;
   }
+
+  hide() {
+    this.root.visible = false;
+  }
+}
+
+function plural(n, one, few, many) {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
 }
 
 function fmtTime(s) {

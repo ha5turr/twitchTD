@@ -1,6 +1,7 @@
 // Dynamic entities. The server sends positions 20 times a second; sprites
 // glide toward the latest position so motion stays smooth at 60 fps.
 import { CELL, toPx, ENEMY_STYLE, TOWER_STYLE, RARITY, FONT_UI, nickColor } from './layout.js';
+import { drawFigure } from './figures.js';
 
 const { Container, Graphics, Text } = PIXI;
 
@@ -206,10 +207,8 @@ class WorkerView {
     const color = nickColor(w.name);
     this.root = new Container();
     this.body = new Graphics();
-    this.body.circle(0, -18, 9).fill(color).stroke({ width: 2, color: 0x000000 });
-    this.body.roundRect(-8, -10, 16, 18, 4).fill(color).stroke({ width: 2, color: 0x000000 });
-    this.body.rect(9, -14, 4, 12).fill(0x6b4a2a); // lantern pole
-    this.body.circle(11, -16, 4).fill(0xffd27a);
+    drawFigure(this.body, color, w.class);
+    this.body.circle(12, -6, 4).fill(0xffd27a).stroke({ width: 1.5, color: 0x000000 }); // lantern
     this.root.addChild(this.body);
     this.tool = new Graphics();
     this.tool.rect(-2, -16, 4, 16).fill(0x7a5a3a).rect(-6, -18, 12, 5).fill(0x9aa0a8);
@@ -247,9 +246,9 @@ class WorkerView {
     this.body.y = moving ? -Math.abs(Math.sin(this.t * 10)) * 4 : 0;
     this.tool.rotation = this.state === 'build' ? Math.sin(this.t * 14) * 0.9 : 0.3;
     this.stars.visible = this.state === 'flee' || this.state === 'rest';
-    this.stars.position.set(r.x, r.y - 52);
+    this.stars.position.set(r.x, r.y - 70);
     this.stars.rotation = Math.sin(this.t * 6) * 0.3;
-    this.name.position.set(r.x, r.y - 32);
+    this.name.position.set(r.x, r.y - 48);
   }
 
   destroy() {

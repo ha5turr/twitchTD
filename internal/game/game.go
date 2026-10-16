@@ -65,9 +65,18 @@ type Projectile struct {
 type Chatter struct {
 	Name     string // display name
 	Gold     int
-	Kills    int
+	Kills    int // all time
+	Drinks   int // all time
+	Class    string
+	Drunk    float64 // mugs in the blood, wears off over time
 	LastSeen time.Time
 	lastPaid time.Time
+
+	// This game only; shown on the game over screen.
+	GameDamage  float64
+	GameKills   int
+	GameDrinks  int
+	classLocked bool // the class was changed this game
 }
 
 // Event is a one-off happening the overlay animates (floating text, sounds).
@@ -112,6 +121,7 @@ type Game struct {
 	rng        *rand.Rand
 	events     []Event
 	mapChanged bool
+	summary    *Summary
 }
 
 func New(cfg Config, seed uint64) *Game {
@@ -152,10 +162,12 @@ func (g *Game) NewGame(biome Biome) {
 	g.Workers = map[string]*Worker{}
 	g.Projectiles = nil
 	g.queue = nil
+	g.summary = nil
 	for _, c := range g.Chatters {
 		if !g.Cfg.KeepGold {
 			c.Gold = g.Cfg.StartGold
 		}
+		c.GameDamage, c.GameKills, c.GameDrinks, c.classLocked = 0, 0, 0, false
 	}
 	g.mapChanged = true
 	g.emit(Event{Kind: "newGame", Text: string(biome)})
@@ -228,6 +240,7 @@ func (g *Game) Tick(dt float64) {
 	if g.Paused {
 		return
 	}
+	g.soberUp(dt)
 	switch g.Phase {
 	case PhaseBuild:
 		g.Timer -= dt
@@ -254,6 +267,8 @@ func (g *Game) Tick(dt float64) {
 		g.Walls = 0
 		g.Phase = PhaseGameOver
 		g.Timer = g.Cfg.GameOverSec
+		g.Workers = map[string]*Worker{}
+		g.summary = g.makeSummary()
 		g.emit(Event{Kind: "gameOver", Amount: g.Wave})
 	}
 }
@@ -367,7 +382,7 @@ func (g *Game) tickTowers(dt float64) {
 		t.cooldown = 1 / spec.Rate
 		g.Projectiles = append(g.Projectiles, &Projectile{
 			ID: g.id(), Pos: tc, Target: target.ID, Aim: target.Pos,
-			Damage: spec.Damage * math.Pow(spec.UpgMult, float64(t.Level-1)),
+			Damage: spec.Damage * math.Pow(spec.UpgMult, float64(t.Level-1)) * g.classBonus(t.Owner, t.Kind),
 			Magic:  spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
 		})
 	}
@@ -408,14 +423,19 @@ func (g *Game) hit(e *Enemy, p *Projectile) {
 	if !p.Magic {
 		dmg *= 1 - g.Cfg.Enemies[e.Kind].Armor
 	}
+	c := g.Chatters[p.Owner]
+	if c != nil {
+		c.GameDamage += min(dmg, e.HP) // overkill does not count
+	}
 	e.HP -= dmg
 	if e.HP > 0 {
 		return
 	}
 	g.Enemies = slices.DeleteFunc(g.Enemies, func(x *Enemy) bool { return x == e })
 	bounty := g.Cfg.Enemies[e.Kind].Bounty
-	if c := g.Chatters[p.Owner]; c != nil {
+	if c != nil {
 		c.Kills++
+		c.GameKills++
 		bounty = g.addGold(c, bounty)
 	}
 	g.emit(Event{Kind: "kill", User: p.Owner, X: e.Pos.X, Y: e.Pos.Y, Amount: bounty, Text: e.Kind})
@@ -437,7 +457,7 @@ func (g *Game) addGold(c *Chatter, amount int) int {
 func (g *Game) chatter(key, display string) *Chatter {
 	c := g.Chatters[key]
 	if c == nil {
-		c = &Chatter{Name: display, Gold: g.Cfg.StartGold}
+		c = &Chatter{Name: display, Gold: g.Cfg.StartGold, Class: Classes[g.rng.IntN(len(Classes))].Key}
 		g.Chatters[key] = c
 		g.emit(Event{Kind: "join", User: display})
 	}

@@ -50,6 +50,8 @@ type StateMsg struct {
 	Walls    float64       `json:"walls"`
 	WallsMax float64       `json:"wallsMax"`
 	Paused   bool          `json:"paused"`
+	Cap      int           `json:"walletCap"`
+	Limit    int           `json:"towerLimit"`
 	Active   int           `json:"active"`
 	Enemies  []EnemyView   `json:"enemies"`
 	Towers   []TowerView   `json:"towers"`
@@ -57,6 +59,7 @@ type StateMsg struct {
 	Chatters []ChatterView `json:"chatters"`
 	Workers  []WorkerView  `json:"workers"`
 	Events   []Event       `json:"events,omitempty"`
+	Summary  *Summary      `json:"summary,omitempty"` // only on the game over screen
 }
 
 type EnemyView struct {
@@ -81,6 +84,7 @@ type TowerView struct {
 
 type WorkerView struct {
 	Name  string      `json:"name"`
+	Class string      `json:"class"`
 	X     float64     `json:"x"`
 	Y     float64     `json:"y"`
 	State WorkerState `json:"state"`
@@ -98,6 +102,9 @@ type ChatterView struct {
 	Gold   int    `json:"gold"`
 	Towers int    `json:"towers"`
 	Kills  int    `json:"kills"`
+	Drinks int    `json:"drinks"`
+	Class  string `json:"class"`
+	Drunk  int    `json:"drunk"`
 	Active bool   `json:"active"`
 }
 
@@ -107,7 +114,7 @@ func round2(f float64) float64 { return math.Round(f*100) / 100 }
 func (g *Game) StateMessage() StateMsg {
 	s := StateMsg{
 		T: "state", Phase: g.Phase, Timer: round2(g.Timer), Wave: g.Wave,
-		Walls: math.Ceil(g.Walls), WallsMax: g.Cfg.WallsHP, Paused: g.Paused,
+		Walls: math.Ceil(g.Walls), WallsMax: g.Cfg.WallsHP, Paused: g.Paused, Cap: g.Cfg.WalletCap, Limit: g.Cfg.TowerLimit,
 		Active: g.ActiveChatters(), Events: g.TakeEvents(),
 		Enemies: []EnemyView{}, Towers: []TowerView{}, Proj: []ProjView{}, Chatters: []ChatterView{},
 		Workers: []WorkerView{},
@@ -130,14 +137,26 @@ func (g *Game) StateMessage() StateMsg {
 	}
 	activeCut := g.Now().Add(-activeWindow(g.Cfg))
 	for key, c := range g.Chatters {
-		if key == StreamerName {
+		active := c.LastSeen.After(activeCut)
+		// Wallets loaded from the database stay out of the snapshot until
+		// their owner shows up, so the tavern holds only people present.
+		if key == StreamerName || !active && owners[key] == 0 && g.Workers[key] == nil {
 			continue
 		}
-		s.Chatters = append(s.Chatters, ChatterView{c.Name, c.Gold, owners[key], c.Kills, c.LastSeen.After(activeCut)})
+		s.Chatters = append(s.Chatters, ChatterView{
+			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active,
+		})
+	}
+	if g.Phase == PhaseGameOver {
+		s.Summary = g.summary
 	}
 	sort.Slice(s.Chatters, func(i, j int) bool { return s.Chatters[i].Name < s.Chatters[j].Name })
 	for _, w := range g.Workers {
-		s.Workers = append(s.Workers, WorkerView{w.Name, round2(w.Pos.X), round2(w.Pos.Y), w.State})
+		class := ""
+		if c := g.Chatters[w.Owner]; c != nil {
+			class = c.Class
+		}
+		s.Workers = append(s.Workers, WorkerView{w.Name, class, round2(w.Pos.X), round2(w.Pos.Y), w.State})
 	}
 	sort.Slice(s.Workers, func(i, j int) bool { return s.Workers[i].Name < s.Workers[j].Name })
 	return s

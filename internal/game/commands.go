@@ -50,9 +50,14 @@ func (g *Game) HandleChat(m ChatMessage) {
 	case "!sell", "!продать":
 		g.cmdSell(c, key, args)
 	case "!me", "!я":
-		g.reply(c.Name, fmt.Sprintf("золото %d/%d, построек %d/%d, убийств %d",
-			c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills))
-		g.emit(Event{Kind: "card", User: c.Name})
+		cl, _ := classByKey(c.Class)
+		g.reply(c.Name, fmt.Sprintf("%s, золото %d/%d, построек %d/%d, убийств %d",
+			strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills))
+		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
+	case "!class", "!класс":
+		g.cmdClass(c, args)
+	case "!drink", "!d", "!выпить", "!пить":
+		g.cmdDrink(c, key, args)
 	case "!towers", "!башни":
 		var parts []string
 		for _, k := range []string{"arrow", "magic"} {
@@ -234,6 +239,12 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		if p, _, ok := cellArg(args); ok {
 			if t := g.Towers[p]; t != nil {
 				g.removeTower(t)
+			}
+		}
+	case "!tdwalls": // set the walls' hit points, e.g. to repair them by hand
+		if len(args) == 1 {
+			if n, err := strconv.Atoi(args[0]); err == nil {
+				g.Walls = min(max(float64(n), 0), g.Cfg.WallsHP)
 			}
 		}
 	case "!tdgold":

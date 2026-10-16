@@ -25,10 +25,12 @@ type SavedTower struct {
 }
 
 type SavedChatter struct {
-	Login string
-	Name  string
-	Gold  int
-	Kills int
+	Login  string
+	Name   string
+	Gold   int
+	Kills  int
+	Drinks int
+	Class  string
 }
 
 func (g *Game) Export() Save {
@@ -37,7 +39,7 @@ func (g *Game) Export() Save {
 		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost})
 	}
 	for key, c := range g.Chatters {
-		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold, c.Kills})
+		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold, c.Kills, c.Drinks, c.Class})
 	}
 	return s
 }
@@ -46,7 +48,10 @@ func (g *Game) Export() Save {
 func (g *Game) LoadChatters(cs []SavedChatter) {
 	for _, sc := range cs {
 		c := g.chatter(sc.Login, sc.Name)
-		c.Gold, c.Kills = sc.Gold, sc.Kills
+		c.Gold, c.Kills, c.Drinks = sc.Gold, sc.Kills, sc.Drinks
+		if _, ok := classByKey(sc.Class); ok {
+			c.Class = sc.Class
+		}
 	}
 	g.events = nil // no "join" banners for people who are not here yet
 }

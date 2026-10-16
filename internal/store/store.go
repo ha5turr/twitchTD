@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -36,7 +37,7 @@ func Open(path string) (*Store, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	if _, err := db.Exec(schema); err != nil {
+	if err := migrate(db); err != nil {
 		db.Close()
 		return nil, err
 	}
@@ -58,14 +59,14 @@ func (s *Store) Load() (save game.Save, ok bool, err error) {
 	if err != nil {
 		return save, false, err
 	}
-	rows, err := s.db.Query(`SELECT login, name, gold, kills FROM chatters`)
+	rows, err := s.db.Query(`SELECT login, name, gold, kills, drinks, class FROM chatters`)
 	if err != nil {
 		return save, ok, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var c game.SavedChatter
-		if err := rows.Scan(&c.Login, &c.Name, &c.Gold, &c.Kills); err != nil {
+		if err := rows.Scan(&c.Login, &c.Name, &c.Gold, &c.Kills, &c.Drinks, &c.Class); err != nil {
 			return save, ok, err
 		}
 		save.Chatters = append(save.Chatters, c)
@@ -90,17 +91,34 @@ func (s *Store) Save(save game.Save) error {
 		ON CONFLICT(key) DO UPDATE SET value = excluded.value`, string(raw)); err != nil {
 		return err
 	}
-	stmt, err := tx.Prepare(`INSERT INTO chatters(login, name, gold, kills, updated) VALUES(?, ?, ?, ?, ?)
-		ON CONFLICT(login) DO UPDATE SET name = excluded.name, gold = excluded.gold, kills = excluded.kills, updated = excluded.updated`)
+	stmt, err := tx.Prepare(`INSERT INTO chatters(login, name, gold, kills, drinks, class, updated) VALUES(?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(login) DO UPDATE SET name = excluded.name, gold = excluded.gold, kills = excluded.kills,
+			drinks = excluded.drinks, class = excluded.class, updated = excluded.updated`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 	now := time.Now().Unix()
 	for _, c := range chatters {
-		if _, err := stmt.Exec(c.Login, c.Name, c.Gold, c.Kills, now); err != nil {
+		if _, err := stmt.Exec(c.Login, c.Name, c.Gold, c.Kills, c.Drinks, c.Class, now); err != nil {
 			return err
 		}
 	}
 	return tx.Commit()
+}
+
+// migrate creates the tables and adds columns that later versions introduced.
+func migrate(db *sql.DB) error {
+	if _, err := db.Exec(schema); err != nil {
+		return err
+	}
+	for _, col := range []string{
+		`ALTER TABLE chatters ADD COLUMN drinks INTEGER NOT NULL DEFAULT 0`,
+		`ALTER TABLE chatters ADD COLUMN class TEXT NOT NULL DEFAULT ''`,
+	} {
+		if _, err := db.Exec(col); err != nil && !strings.Contains(err.Error(), "duplicate column") {
+			return err
+		}
+	}
+	return nil
 }

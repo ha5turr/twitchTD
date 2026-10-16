@@ -83,7 +83,13 @@ func (s *Server) CurrentMap() game.MapMsg {
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServerFS(s.files))
+	files := http.FileServerFS(s.files)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// OBS keeps its browser cache between sessions; revalidate every file
+		// so an updated game never runs with stale scripts.
+		w.Header().Set("Cache-Control", "no-cache")
+		files.ServeHTTP(w, r)
+	})
 	mux.HandleFunc("/ws", s.serveWS)
 	return mux
 }

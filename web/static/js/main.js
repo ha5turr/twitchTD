@@ -3,6 +3,7 @@ import { buildMap, buildLabels } from './map.js';
 import { Entities } from './entities.js';
 import { Lighting } from './lighting.js';
 import { Hud } from './hud.js';
+import { Tavern } from './tavern.js';
 import { connect } from './net.js';
 
 const { Application, Container } = PIXI;
@@ -26,13 +27,14 @@ async function start() {
   const mapLayer = new Container();
   const hud = new Hud();
   const ents = new Entities();
-  world.addChild(hud.world, mapLayer, ents.world);
+  const tavern = new Tavern();
+  world.addChild(tavern.world, hud.world, mapLayer, ents.world);
   const lighting = new Lighting(app.renderer);
   const ui = new Container();
-  ui.addChild(buildLabels(), ents.labels, hud.ui);
+  ui.addChild(buildLabels(), ents.labels, tavern.ui, hud.ui);
   app.stage.addChild(world, lighting.sprite, ui);
 
-  window.td = { app, hud, ents, lighting }; // for poking at the overlay from devtools
+  window.td = { app, hud, ents, tavern, lighting }; // for poking at the overlay from devtools
   let bossAlive = false;
   connect({
     map(m) {
@@ -40,11 +42,13 @@ async function start() {
       mapLayer.addChild(buildMap(m));
       ents.clear();
       hud.setMap(m);
+      tavern.setMap(m);
       lighting.setMap(m, BIOMES[m.biome] ?? BIOMES.ruins);
     },
     state(s) {
       ents.update(s);
       hud.update(s);
+      tavern.update(s);
       bossAlive = s.enemies.some((e) => e.kind === 'boss');
     },
   });
@@ -53,8 +57,9 @@ async function start() {
     const dt = t.deltaMS / 1000;
     ents.frame(dt);
     hud.frame(dt);
+    tavern.frame(dt);
     lighting.alarm += ((bossAlive ? 0.55 : 0) - lighting.alarm) * Math.min(1, dt * 2);
-    lighting.render(dt, ents.lights());
+    lighting.render(dt, [...ents.lights(), ...hud.lights()]);
   });
 }
 
