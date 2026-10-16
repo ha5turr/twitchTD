@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twitch TD — панель стримера</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #121110; --panel: #1b1916; --line: #34302a; --text: #ece4d4; --muted: #a89c86;
+    --accent: #d9a441; --danger: #d0574a; --ok: #6fbf5a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.4 system-ui, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
+  main { padding: 10px; display: grid; gap: 10px; max-width: 900px; margin: 0 auto; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  button, input, select {
+    font: inherit; color: inherit; background: #26231f; border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px;
+  }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); color: #1a1408; border-color: var(--accent); }
+  button.danger { border-color: var(--danger); }
+  input[type=number] { width: 80px; }
+  input[type=range] { padding: 0; }
+  #status { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; }
+  #status b { font-size: 18px; }
+  #walls { height: 8px; background: #000; border-radius: 4px; overflow: hidden; }
+  #walls > div { height: 100%; background: var(--ok); width: 100%; transition: width .3s; }
+  canvas { width: 100%; display: block; border-radius: 6px; cursor: crosshair; background: #0b0a09; touch-action: manipulation; }
+  #hover { color: var(--muted); min-height: 1.4em; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .tablewrap { max-height: 320px; overflow: auto; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 12px; }
+  .grid label { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  #msg { min-height: 1.4em; color: var(--muted); }
+  #msg.err { color: var(--danger); }
+  .muted { color: var(--muted); }
+  a { color: #9ecbff; }
+</style>
+</head>
+<body>
+<main>
+  <section id="status">
+    <div><b id="wave">—</b> <span id="phase" class="muted"></span></div>
+    <div class="row">
+      <button data-cmd="!tdwave">Волна сейчас</button>
+      <button data-cmd="!tdpause" id="pause">Пауза</button>
+    </div>
+    <div id="walls"><div></div></div>
+    <div id="wallsText" class="muted"></div>
+  </section>
+
+  <section>
+    <h2>Карта</h2>
+    <div class="row" id="tools" style="margin-bottom:8px"></div>
+    <canvas id="map" width="1536" height="960" aria-label="Карта: клик ставит выбранную постройку"></canvas>
+    <div id="hover"></div>
+    <div class="row">
+      <select id="biome" aria-label="Биом новой карты">
+        <option value="">случайный биом</option>
+        <option value="ruins">Руины</option>
+        <option value="dungeon">Подземелье</option>
+        <option value="crypt">Крипта</option>
+        <option value="ice">Ледяные пещеры</option>
+      </select>
+      <button id="newmap" class="danger">Новая игра</button>
+      <select id="spawn" aria-label="Кого призвать"></select>
+      <button id="spawnBtn">Призвать</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Стены и казна</h2>
+    <div class="row">
+      <input type="number" id="wallsHp" min="0" step="50" value="1000" aria-label="ХП стен">
+      <button id="setWalls">Задать ХП стен</button>
+      <span class="muted">казна: <b id="treasury">0</b> з</span>
+      <input id="tNick" placeholder="ник" size="10" aria-label="Кому">
+      <input type="number" id="tAmount" min="1" step="50" value="100" aria-label="Сколько">
+      <button id="give">Выдать из казны</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Наёмники</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Ник</th><th>Класс</th><th class="num">Золото</th><th class="num">Постр.</th><th class="num">Убийств</th><th></th></tr></thead>
+        <tbody id="chatters"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Звук</h2>
+    <div class="row">
+      <label>Громкость <input type="range" id="volume" min="0" max="1" step="0.05"></label>
+      <label><input type="checkbox" id="muted"> без звука</label>
+      <label><input type="checkbox" id="ambient"> фоновый эмбиент</label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Баланс</h2>
+    <form id="settings" class="grid"></form>
+    <div class="row" style="margin-top:8px">
+      <button id="save">Применить</button>
+      <span id="msg"></span>
+    </div>
+    <p class="muted" style="margin:8px 0 0">Сохраняется в базе поверх config.json. Зона вебки применится со следующей карты.</p>
+  </section>
+
+  <section class="muted">
+    DonationAlerts: <span id="da">…</span> · <a href="/da/login" target="_blank">подключить</a>
+  </section>
+</main>
+<script type="module" src="js/panel.js"></script>
+</body>
+</html>

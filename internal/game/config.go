@@ -11,6 +11,7 @@ type Config struct {
 	SpawnIntervalSec   float64 `json:"spawnIntervalSec"`
 
 	WallsHP float64 `json:"wallsHP"`
+	GateDPS float64 `json:"gateDps"` // guards on the walls hurt each enemy at the gate
 
 	StartGold      int  `json:"startGold"`
 	WalletCap      int  `json:"walletCap"`
@@ -134,6 +135,7 @@ func DefaultConfig() Config {
 		GameOverSec:          18,
 		SpawnIntervalSec:     0.9,
 		WallsHP:              1000,
+		GateDPS:              12,
 		StartGold:            120,
 		WalletCap:            1000,
 		TowerLimit:           5,
@@ -170,11 +172,11 @@ func DefaultConfig() Config {
 		TreasuryGoldPerSec: 40,
 		IgnoreUsers:        []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts"},
 		BaseHP:             30,
-		HPGrowth:           1.12,
+		HPGrowth:           1.11,
 		ChatterHPCoef:      0.25,
 		BaseCount:          6,
 		CountPerWave:       2,
-		BossHPMult:         15,
+		BossHPMult:         10,
 		BossEvery:          5,
 		Enemies: map[string]EnemySpec{
 			"skeleton":    {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},

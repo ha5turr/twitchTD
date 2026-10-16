@@ -116,6 +116,7 @@ type ChatterView struct {
 	Class  string `json:"class"`
 	Drunk  int    `json:"drunk"`
 	Active bool   `json:"active"`
+	Banned bool   `json:"banned,omitempty"`
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
@@ -160,7 +161,7 @@ func (g *Game) StateMessage() StateMsg {
 			continue
 		}
 		s.Chatters = append(s.Chatters, ChatterView{
-			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active,
+			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key],
 		})
 	}
 	if g.Phase == PhaseGameOver {

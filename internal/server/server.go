@@ -22,6 +22,8 @@ type Options struct {
 	// Persist saves the game; it is called from the game loop. Nil disables saving.
 	Persist   func(game.Save) error
 	SaveEvery time.Duration
+	// OnSettings applies settings changed in the streamer panel.
+	OnSettings func(json.RawMessage) error
 }
 
 type Server struct {
@@ -31,10 +33,11 @@ type Server struct {
 	opt   Options
 	reply *replier
 
-	mu      sync.Mutex
-	clients map[*client]struct{}
-	mapMsg  game.MapMsg
-	mapJSON []byte
+	mu           sync.Mutex
+	clients      map[*client]struct{}
+	mapMsg       game.MapMsg
+	mapJSON      []byte
+	settingsJSON []byte
 }
 
 type client struct {
@@ -162,12 +165,13 @@ func (s *Server) broadcast(data []byte) {
 // inbound is what clients may send: chat lines from the panel or dev console,
 // and test support events so the streamer can rehearse without real money.
 type inbound struct {
-	T        string  `json:"t"`
-	User     string  `json:"user"`
-	Text     string  `json:"text"`
-	Mod      bool    `json:"mod"`
-	Amount   float64 `json:"amount"`
-	Currency string  `json:"currency"`
+	T        string          `json:"t"`
+	User     string          `json:"user"`
+	Text     string          `json:"text"`
+	Mod      bool            `json:"mod"`
+	Amount   float64         `json:"amount"`
+	Currency string          `json:"currency"`
+	Values   json.RawMessage `json:"values"`
 }
 
 func (s *Server) handleInbound(m inbound) {
@@ -183,6 +187,13 @@ func (s *Server) handleInbound(m inbound) {
 		s.Do(func(g *game.Game) { g.Reward(m.User, m.User, m.Text) })
 	case "bits":
 		s.Do(func(g *game.Game) { g.Bits(m.User, m.User, int(m.Amount)) })
+	case "settings":
+		if s.opt.OnSettings == nil {
+			return
+		}
+		if err := s.opt.OnSettings(m.Values); err != nil {
+			s.broadcast(mustJSON(map[string]string{"t": "settingsError", "error": err.Error()}))
+		}
 	case "sub":
 		s.Do(func(g *game.Game) { g.Sub(m.User, m.User) })
 	}
@@ -199,6 +210,9 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 
 	c := &client{send: make(chan []byte, 8)}
 	s.mu.Lock()
+	if s.settingsJSON != nil {
+		c.send <- s.settingsJSON
+	}
 	if s.mapJSON != nil {
 		c.send <- s.mapJSON
 	}
@@ -245,4 +259,14 @@ func mustJSON(v any) []byte {
 		panic(err)
 	}
 	return data
+}
+
+// SetSettings publishes the current editable settings to every client; the
+// panel shows them and the overlay takes its sound volume from them.
+func (s *Server) SetSettings(values map[string]any) {
+	data := mustJSON(map[string]any{"t": "settings", "values": values})
+	s.mu.Lock()
+	s.settingsJSON = data
+	s.mu.Unlock()
+	s.broadcast(data)
 }

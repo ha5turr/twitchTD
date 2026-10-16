@@ -5,6 +5,8 @@ import { Lighting } from './lighting.js';
 import { Hud } from './hud.js';
 import { Tavern } from './tavern.js';
 import { connect } from './net.js';
+import { Sound, EVENT_SOUNDS } from './audio.js';
+import { Particles } from './particles.js';
 
 const { Application, Container } = PIXI;
 
@@ -31,11 +33,16 @@ async function start() {
   world.addChild(tavern.world, hud.world, mapLayer, ents.world);
   const lighting = new Lighting(app.renderer);
   const ui = new Container();
-  ui.addChild(buildLabels(), ents.labels, tavern.ui, hud.ui);
+  const fx = new Particles();
+  ui.addChild(buildLabels(), fx.g, ents.labels, tavern.ui, hud.ui);
   app.stage.addChild(world, lighting.sprite, ui);
 
   window.td = { app, hud, ents, tavern, lighting }; // for poking at the overlay from devtools
+  const sound = new Sound();
+  window.td.sound = sound;
   let bossAlive = false;
+  let shots = new Set();
+  let walls = null;
   connect({
     map(m) {
       mapLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
@@ -44,20 +51,43 @@ async function start() {
       hud.setMap(m);
       tavern.setMap(m);
       lighting.setMap(m, BIOMES[m.biome] ?? BIOMES.ruins);
+      sound.setBiome(m.biome);
     },
     state(s) {
       ents.update(s);
       hud.update(s);
       tavern.update(s);
-      bossAlive = s.enemies.some((e) => e.kind === 'boss');
+      bossAlive = s.enemies.some((e) => e.boss);
+      playSounds(s);
+      for (const ev of s.events ?? []) fx.onEvent(ev);
+    },
+    settings(s) {
+      sound.configure(s.values ?? {});
     },
   });
+
+  function playSounds(s) {
+    for (const ev of s.events ?? []) {
+      if (ev.kind === 'waveStart') sound.play(ev.text ? 'horn' : 'bell');
+      else if (EVENT_SOUNDS[ev.kind]) sound.play(EVENT_SOUNDS[ev.kind]);
+    }
+    // New projectiles are shots: one sound per kind, throttled in Sound.
+    const now = new Set();
+    for (const p of s.proj) {
+      now.add(p.id);
+      if (!shots.has(p.id)) sound.play(p.kind);
+    }
+    shots = now;
+    if (walls !== null && s.walls < walls) sound.play('wallHit');
+    walls = s.walls;
+  }
 
   app.ticker.add((t) => {
     const dt = t.deltaMS / 1000;
     ents.frame(dt);
     hud.frame(dt);
     tavern.frame(dt);
+    fx.frame(dt);
     lighting.alarm += ((bossAlive ? 0.55 : 0) - lighting.alarm) * Math.min(1, dt * 2);
     lighting.render(dt, [...ents.lights(), ...hud.lights()]);
   });

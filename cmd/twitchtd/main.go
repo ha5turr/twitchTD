@@ -45,9 +45,6 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	g := game.New(cfg.Config, *seed)
-	opt := server.Options{}
-
 	var st *store.Store
 	if cfg.DB != "" {
 		st, err = store.Open(cfg.DB)
@@ -55,6 +52,18 @@ func main() {
 			log.Fatalf("db: %v", err)
 		}
 		defer st.Close()
+	}
+	// The panel's overrides live in the database, so settings come after it.
+	set, err := newSettings(*cfgPath, st)
+	if err != nil {
+		log.Fatalf("config: %v", err)
+	}
+	cfg = set.Current()
+
+	g := game.New(cfg.Config, *seed)
+	opt := server.Options{OnSettings: set.Set}
+
+	if st != nil {
 		save, ok, err := st.Load()
 		if err != nil {
 			log.Fatalf("db: %v", err)
@@ -115,6 +124,12 @@ func main() {
 	}
 
 	srv = server.New(g, files, opt)
+	set.apply = func(c appConfig, values map[string]any) {
+		srv.Do(func(g *game.Game) { g.SetConfig(c.Config) })
+		srv.SetSettings(values)
+	}
+	srv.SetSettings(set.View())
+	go set.watch(ctx)
 	runDone := make(chan struct{})
 	go func() {
 		srv.Run(ctx)

@@ -209,6 +209,9 @@ func (g *Game) tickEnemies(dt float64) {
 		switch {
 		case e.AtGate:
 			g.Walls -= spec.WallDPS * dt
+			// Guards on the walls shoot back, so a leak costs hit points but
+			// is not the end by itself; a boss at the gate still is.
+			g.damage(e, g.Cfg.GateDPS*dt, "", true)
 		case e.blocked != nil:
 			g.hackBarricade(e, spec, dt)
 		default:
@@ -420,6 +423,9 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	bounty := g.Cfg.Enemies[e.Kind].Bounty
 	if e.summoned {
 		bounty = 1
+	}
+	if c == nil {
+		bounty = 0 // killed by the guards or a stray shot: nobody is paid
 	}
 	if c != nil {
 		c.Kills++

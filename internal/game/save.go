@@ -13,6 +13,7 @@ type Save struct {
 	Chatters []SavedChatter
 
 	Treasury  int               `json:"treasury"`
+	Banned    map[string]bool   `json:"banned"`
 	Links     map[string]string `json:"links"`
 	LinkCodes map[string]string `json:"linkCodes"`
 }
@@ -48,7 +49,7 @@ type SavedChatter struct {
 func (g *Game) Export() Save {
 	s := Save{
 		Seed: g.Map.Seed, Biome: g.Map.Biome, Wave: g.Wave, Walls: g.Walls, Over: g.Phase == PhaseGameOver,
-		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes,
+		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned,
 	}
 	for _, t := range g.Towers {
 		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost})
@@ -65,6 +66,9 @@ func (g *Game) LoadEconomy(s Save) {
 	g.Treasury = s.Treasury
 	for k, v := range s.Links {
 		g.Links[k] = v
+	}
+	for k := range s.Banned {
+		g.Banned[k] = true
 	}
 	for k, v := range s.LinkCodes {
 		g.LinkCodes[k] = v

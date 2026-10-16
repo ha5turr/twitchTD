@@ -84,6 +84,7 @@ type Game struct {
 	treasuryAcc float64
 	Links       map[string]string // donation name (lower case) -> chatter login
 	LinkCodes   map[string]string // "4821" -> login, from !link
+	Banned      map[string]bool   // chatters the streamer forbade to build
 
 	queue      []spawn
 	spawnTimer float64
@@ -104,6 +105,7 @@ func New(cfg Config, seed uint64) *Game {
 		Chatters:  map[string]*Chatter{},
 		Links:     map[string]string{},
 		LinkCodes: map[string]string{},
+		Banned:    map[string]bool{},
 		rng:       rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)),
 	}
 	g.NewGame("")

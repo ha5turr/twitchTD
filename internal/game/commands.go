@@ -106,6 +106,10 @@ func cellArg(args []string) (Pos, []string, bool) {
 }
 
 func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
+	if g.Banned[key] {
+		g.reply(c.Name, "стример запретил тебе строить")
+		return
+	}
 	p, rest, ok := cellArg(args)
 	if !ok {
 		g.reply(c.Name, "формат: !build C4 arrow")
@@ -179,6 +183,10 @@ func (g *Game) ownTower(c *Chatter, key string, args []string) *Tower {
 }
 
 func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
+	if g.Banned[key] {
+		g.reply(c.Name, "стример запретил тебе строить")
+		return
+	}
 	t := g.ownTower(c, key, args)
 	if t == nil {
 		return
@@ -282,6 +290,10 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 			} else {
 				g.spawnEnemy(args[0], hp*spec.HPMult, 0.4*float64(i))
 			}
+		}
+	case "!tdban", "!tdunban": // forbid or allow building for a chatter
+		if len(args) == 1 {
+			g.ban(args[0], cmd == "!tdban")
 		}
 	case "!tdtreasury": // !tdtreasury nick N: hand treasury gold to a chatter
 		g.cmdTreasury(args)
