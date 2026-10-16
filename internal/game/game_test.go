@@ -110,7 +110,7 @@ func nextToPath(g *Game, p Pos) bool {
 
 func TestWalletCapOverflowRepairsWalls(t *testing.T) {
 	g := New(DefaultConfig(), 1)
-	c := g.Touch("donor")
+	c := g.Touch("donor", "donor")
 	g.Walls = 100
 	added := g.addGold(c, g.Cfg.WalletCap*2)
 	if c.Gold != g.Cfg.WalletCap {

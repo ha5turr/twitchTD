@@ -16,10 +16,20 @@ import (
 	"twitchtd/internal/game"
 )
 
+type Options struct {
+	// Say sends a line to Twitch chat. Nil logs replies instead.
+	Say func(message string)
+	// Persist saves the game; it is called from the game loop. Nil disables saving.
+	Persist   func(game.Save) error
+	SaveEvery time.Duration
+}
+
 type Server struct {
 	game  *game.Game
-	chat  chan game.ChatMessage
+	in    chan func(*game.Game)
 	files fs.FS
+	opt   Options
+	reply *replier
 
 	mu      sync.Mutex
 	clients map[*client]struct{}
@@ -31,18 +41,38 @@ type client struct {
 	send chan []byte
 }
 
-func New(g *game.Game, files fs.FS) *Server {
+func New(g *game.Game, files fs.FS, opt Options) *Server {
+	if opt.SaveEvery == 0 {
+		opt.SaveEvery = 10 * time.Second
+	}
+	say := opt.Say
+	if say == nil {
+		say = func(m string) { log.Printf("chat reply: %s", m) }
+	}
 	return &Server{
 		game:    g,
-		chat:    make(chan game.ChatMessage, 256),
+		in:      make(chan func(*game.Game), 512),
 		files:   files,
+		opt:     opt,
+		reply:   newReplier(say),
 		clients: map[*client]struct{}{},
 	}
 }
 
-// Chat returns the channel that feeds chat lines into the game loop. It is the
-// single entry point for Streamer.bot, the panel and simulation bots.
-func (s *Server) Chat() chan<- game.ChatMessage { return s.chat }
+// Do runs fn on the game loop goroutine. It is the single entry point for
+// Streamer.bot, the panel and simulation bots, so the game needs no locks.
+func (s *Server) Do(fn func(*game.Game)) {
+	select {
+	case s.in <- fn:
+	default:
+		log.Printf("input queue full, dropping an event")
+	}
+}
+
+// Chat feeds one chat line into the game.
+func (s *Server) Chat(m game.ChatMessage) {
+	s.Do(func(g *game.Game) { g.HandleChat(m) })
+}
 
 // CurrentMap returns the latest map message.
 func (s *Server) CurrentMap() game.MapMsg {
@@ -64,12 +94,18 @@ func (s *Server) Run(ctx context.Context) {
 	dt := 1 / float64(rate)
 	ticker := time.NewTicker(time.Second / time.Duration(rate))
 	defer ticker.Stop()
+	saveTicker := time.NewTicker(s.opt.SaveEvery)
+	defer saveTicker.Stop()
+	go s.reply.run(ctx)
 	for {
 		select {
 		case <-ctx.Done():
+			s.save()
 			return
-		case m := <-s.chat:
-			s.game.HandleChat(m)
+		case fn := <-s.in:
+			fn(s.game)
+		case <-saveTicker.C:
+			s.save()
 		case <-ticker.C:
 			s.game.Tick(dt)
 			if s.game.TakeMapChanged() {
@@ -78,12 +114,20 @@ func (s *Server) Run(ctx context.Context) {
 			st := s.game.StateMessage()
 			for _, e := range st.Events {
 				if e.Kind == "reply" {
-					// Until Streamer.bot is wired up, replies only go to the log.
-					log.Printf("reply @%s: %s", e.User, e.Text)
+					s.reply.add(e.User, e.Text)
 				}
 			}
 			s.broadcast(mustJSON(st))
 		}
+	}
+}
+
+func (s *Server) save() {
+	if s.opt.Persist == nil {
+		return
+	}
+	if err := s.opt.Persist(s.game.Export()); err != nil {
+		log.Printf("save: %v", err)
 	}
 }
 
@@ -148,7 +192,8 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 			}
 			var m inbound
 			if json.Unmarshal(data, &m) == nil && m.T == "chat" {
-				s.chat <- game.ChatMessage{User: m.User, Text: m.Text, Mod: m.Mod}
+				// The panel's "streamer" user acts as the broadcaster.
+				s.Chat(game.ChatMessage{User: m.User, Text: m.Text, Mod: m.Mod, Broadcaster: m.User == game.StreamerName})
 			}
 		}
 	}()

@@ -55,6 +55,7 @@ type StateMsg struct {
 	Towers   []TowerView   `json:"towers"`
 	Proj     []ProjView    `json:"proj"`
 	Chatters []ChatterView `json:"chatters"`
+	Workers  []WorkerView  `json:"workers"`
 	Events   []Event       `json:"events,omitempty"`
 }
 
@@ -68,12 +69,21 @@ type EnemyView struct {
 }
 
 type TowerView struct {
-	ID    int    `json:"id"`
-	Kind  string `json:"kind"`
-	X     int    `json:"x"`
-	Y     int    `json:"y"`
-	Level int    `json:"lvl"`
-	Owner string `json:"owner"`
+	ID       int     `json:"id"`
+	Kind     string  `json:"kind"`
+	X        int     `json:"x"`
+	Y        int     `json:"y"`
+	Level    int     `json:"lvl"`
+	Owner    string  `json:"owner"`
+	Built    bool    `json:"built"`
+	Progress float64 `json:"progress,omitempty"`
+}
+
+type WorkerView struct {
+	Name  string      `json:"name"`
+	X     float64     `json:"x"`
+	Y     float64     `json:"y"`
+	State WorkerState `json:"state"`
 }
 
 type ProjView struct {
@@ -100,6 +110,7 @@ func (g *Game) StateMessage() StateMsg {
 		Walls: math.Ceil(g.Walls), WallsMax: g.Cfg.WallsHP, Paused: g.Paused,
 		Active: g.ActiveChatters(), Events: g.TakeEvents(),
 		Enemies: []EnemyView{}, Towers: []TowerView{}, Proj: []ProjView{}, Chatters: []ChatterView{},
+		Workers: []WorkerView{},
 	}
 	for _, e := range g.Enemies {
 		s.Enemies = append(s.Enemies, EnemyView{e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP)})
@@ -111,7 +122,7 @@ func (g *Game) StateMessage() StateMsg {
 		if c := g.Chatters[t.Owner]; c != nil {
 			name = c.Name
 		}
-		s.Towers = append(s.Towers, TowerView{t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name})
+		s.Towers = append(s.Towers, TowerView{t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress)})
 	}
 	sort.Slice(s.Towers, func(i, j int) bool { return s.Towers[i].ID < s.Towers[j].ID })
 	for _, p := range g.Projectiles {
@@ -125,5 +136,9 @@ func (g *Game) StateMessage() StateMsg {
 		s.Chatters = append(s.Chatters, ChatterView{c.Name, c.Gold, owners[key], c.Kills, c.LastSeen.After(activeCut)})
 	}
 	sort.Slice(s.Chatters, func(i, j int) bool { return s.Chatters[i].Name < s.Chatters[j].Name })
+	for _, w := range g.Workers {
+		s.Workers = append(s.Workers, WorkerView{w.Name, round2(w.Pos.X), round2(w.Pos.Y), w.State})
+	}
+	sort.Slice(s.Workers, func(i, j int) bool { return s.Workers[i].Name < s.Workers[j].Name })
 	return s
 }

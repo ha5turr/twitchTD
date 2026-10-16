@@ -20,19 +20,18 @@ var names = []string{
 var chatter = []string{"gg", "lol", "давай давай", "босс скоро?", "PogChamp", "где строить", "эль за мой счёт", "KEKW"}
 
 // Run starts n bots. currentMap tells them where building makes sense.
-func Run(ctx context.Context, n int, chat chan<- game.ChatMessage, currentMap func() game.MapMsg) {
+func Run(ctx context.Context, n int, chat func(game.ChatMessage), currentMap func() game.MapMsg) {
 	for i := 0; i < n && i < len(names); i++ {
 		go bot(ctx, names[i], uint64(i), chat, currentMap)
 	}
 }
 
-func bot(ctx context.Context, name string, seed uint64, chat chan<- game.ChatMessage, currentMap func() game.MapMsg) {
+func bot(ctx context.Context, name string, seed uint64, chat func(game.ChatMessage), currentMap func() game.MapMsg) {
 	r := rand.New(rand.NewPCG(seed, uint64(time.Now().UnixNano())))
 	var built []string
 	send := func(text string) {
-		select {
-		case chat <- game.ChatMessage{User: name, Text: text}:
-		case <-ctx.Done():
+		if ctx.Err() == nil {
+			chat(game.ChatMessage{User: name, Text: text})
 		}
 	}
 	send("привет")

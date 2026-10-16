@@ -8,9 +8,11 @@ import (
 
 // ChatMessage is one line from chat (or the streamer panel).
 type ChatMessage struct {
-	User string
-	Text string
-	Mod  bool // moderator or broadcaster: may run !td* admin commands
+	Login       string // stable Twitch login; falls back to User when empty
+	User        string // display name, may contain any script
+	Text        string
+	Mod         bool // moderator or broadcaster: may run !td* admin commands
+	Broadcaster bool // the streamer: builds instantly and without limits
 }
 
 var towerAliases = map[string]string{
@@ -21,11 +23,20 @@ var towerAliases = map[string]string{
 // HandleChat registers activity and executes a command if the line is one.
 func (g *Game) HandleChat(m ChatMessage) {
 	user := strings.TrimSpace(m.User)
+	key := strings.ToLower(strings.TrimSpace(m.Login))
+	if key == "" {
+		key = strings.ToLower(user)
+	}
 	if user == "" {
+		user = key
+	}
+	if key == "" || g.ignored(key) {
 		return
 	}
-	c := g.Touch(user)
-	key := strings.ToLower(user)
+	if m.Broadcaster {
+		key = StreamerName
+	}
+	c := g.Touch(key, user)
 	f := strings.Fields(m.Text)
 	if len(f) == 0 || !strings.HasPrefix(f[0], "!") {
 		return
@@ -108,15 +119,25 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 		return
 	}
 	cost := g.Cfg.TowerCost(kind, 1)
-	if !g.isStreamer(key) {
+	streamer := g.isStreamer(key)
+	if !streamer && !g.canQueue(key) {
+		g.reply(c.Name, fmt.Sprintf("у наёмника уже %d приказа, подожди", g.Cfg.MaxOrders))
+		return
+	}
+	if !streamer {
 		if c.Gold < cost {
 			g.reply(c.Name, fmt.Sprintf("нужно %d золота, у тебя %d", cost, c.Gold))
 			return
 		}
 		c.Gold -= cost
 	}
-	t := &Tower{ID: g.id(), Kind: kind, Cell: p, Owner: key, Level: 1, Invested: cost}
+	// The streamer's towers appear at once; a chatter's mercenary walks out
+	// and builds it, until then the tower is a construction site.
+	t := &Tower{ID: g.id(), Kind: kind, Cell: p, Owner: key, Level: 1, Invested: cost, Built: streamer}
 	g.Towers[p] = t
+	if !streamer {
+		g.order(key, c.Name, p)
+	}
 	cp := center(p)
 	g.emit(Event{Kind: "build", User: c.Name, X: cp.X, Y: cp.Y, Amount: -cost, Text: kind})
 }
@@ -141,20 +162,34 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 		return
 	}
 	spec := g.Cfg.Towers[t.Kind]
-	if t.Level >= spec.MaxLevel {
+	switch {
+	case t.Level >= spec.MaxLevel:
 		g.reply(c.Name, "уже максимальный уровень")
+		return
+	case !t.Built || t.PendingCost > 0:
+		g.reply(c.Name, t.Cell.Name()+": наёмник ещё работает над ней")
+		return
+	}
+	streamer := g.isStreamer(key)
+	if !streamer && !g.canQueue(key) {
+		g.reply(c.Name, fmt.Sprintf("у наёмника уже %d приказа, подожди", g.Cfg.MaxOrders))
 		return
 	}
 	cost := g.Cfg.TowerCost(t.Kind, t.Level+1)
-	if !g.isStreamer(key) {
+	if !streamer {
 		if c.Gold < cost {
 			g.reply(c.Name, fmt.Sprintf("нужно %d золота, у тебя %d", cost, c.Gold))
 			return
 		}
 		c.Gold -= cost
 	}
-	t.Level++
 	t.Invested += cost
+	if streamer {
+		t.Level++
+	} else {
+		t.PendingCost = cost
+		g.order(key, c.Name, t.Cell)
+	}
 	cp := center(t.Cell)
 	g.emit(Event{Kind: "upgrade", User: c.Name, X: cp.X, Y: cp.Y, Amount: -cost})
 }
@@ -164,8 +199,14 @@ func (g *Game) cmdSell(c *Chatter, key string, args []string) {
 	if t == nil {
 		return
 	}
-	delete(g.Towers, t.Cell)
-	refund := t.Invested * g.Cfg.SellRefundPct / 100
+	g.removeTower(t)
+	// Unfinished work is refunded in full: nothing was built with that gold.
+	refund := (t.Invested - t.PendingCost) * g.Cfg.SellRefundPct / 100
+	if !t.Built {
+		refund = t.Invested
+	} else {
+		refund += t.PendingCost
+	}
 	if owner := g.Chatters[t.Owner]; owner != nil && !g.isStreamer(t.Owner) {
 		refund = g.addGold(owner, refund)
 	}
@@ -191,14 +232,25 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		g.Paused = !g.Paused
 	case "!tdremove":
 		if p, _, ok := cellArg(args); ok {
-			delete(g.Towers, p)
+			if t := g.Towers[p]; t != nil {
+				g.removeTower(t)
+			}
 		}
 	case "!tdgold":
 		if len(args) == 2 {
 			if n, err := strconv.Atoi(args[1]); err == nil {
-				target := g.Touch(strings.TrimPrefix(args[0], "@"))
-				g.addGold(target, n)
+				name := strings.TrimPrefix(args[0], "@")
+				g.addGold(g.chatter(strings.ToLower(name), name), n)
 			}
 		}
 	}
+}
+
+func (g *Game) ignored(key string) bool {
+	for _, u := range g.Cfg.IgnoreUsers {
+		if strings.EqualFold(u, key) {
+			return true
+		}
+	}
+	return false
 }

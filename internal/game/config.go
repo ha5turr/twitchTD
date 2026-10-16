@@ -1,10 +1,5 @@
 package game
 
-import (
-	"encoding/json"
-	"os"
-)
-
 // Config holds every balance number. Defaults live in DefaultConfig; a JSON
 // file may override any subset of fields.
 type Config struct {
@@ -28,6 +23,18 @@ type Config struct {
 	ChatCooldownSec float64 `json:"chatCooldownSec"`
 	// Gold above the wallet cap goes to the common treasury and repairs walls.
 	OverflowWallsPerGold float64 `json:"overflowWallsPerGold"`
+	// Paid every Present Viewers tick to chatters who already have a mercenary.
+	PresentGold int `json:"presentGold"`
+
+	WorkerSpeed    float64 `json:"workerSpeed"` // cells per second
+	BuildTimeSec   float64 `json:"buildTimeSec"`
+	UpgradeTimeSec float64 `json:"upgradeTimeSec"`
+	MaxOrders      int     `json:"maxOrders"`
+	StunRadius     float64 `json:"stunRadius"` // cells
+	StunRestSec    float64 `json:"stunRestSec"`
+
+	// Bots and service accounts whose messages are ignored entirely.
+	IgnoreUsers []string `json:"ignoreUsers"`
 
 	BaseHP        float64 `json:"baseHP"`
 	HPGrowth      float64 `json:"hpGrowth"`
@@ -81,6 +88,14 @@ func DefaultConfig() Config {
 		ChatGold:             5,
 		ChatCooldownSec:      45,
 		OverflowWallsPerGold: 0.5,
+		PresentGold:          10,
+		WorkerSpeed:          2.6,
+		BuildTimeSec:         3,
+		UpgradeTimeSec:       2,
+		MaxOrders:            3,
+		StunRadius:           0.45,
+		StunRestSec:          2,
+		IgnoreUsers:          []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts"},
 		BaseHP:               30,
 		HPGrowth:             1.12,
 		ChatterHPCoef:        0.25,
@@ -101,23 +116,6 @@ func DefaultConfig() Config {
 		WebcamFrom: "N1",
 		WebcamTo:   "P5",
 	}
-}
-
-// LoadConfig reads overrides from path on top of the defaults. A missing file
-// is not an error.
-func LoadConfig(path string) (Config, error) {
-	cfg := DefaultConfig()
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return cfg, nil
-	}
-	if err != nil {
-		return cfg, err
-	}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return cfg, err
-	}
-	return cfg, nil
 }
 
 func (c Config) TowerCost(kind string, level int) int {

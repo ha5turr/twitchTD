@@ -4,7 +4,13 @@
     {
       "name": "twitchtd-sim",
       "runtimeExecutable": "go",
-      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "12", "-web", "web/static"],
+      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "12", "-web", "web/static", "-config", "none.json"],
+      "port": 8787
+    },
+    {
+      "name": "twitchtd-fakesb",
+      "runtimeExecutable": "go",
+      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "4", "-web", "web/static", "-config", "configs/dev-fakesb.json"],
       "port": 8787
     }
   ]

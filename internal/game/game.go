@@ -43,7 +43,12 @@ type Tower struct {
 	Owner    string
 	Level    int
 	Invested int
-	cooldown float64
+	// Built is false while the tower is a construction site. PendingCost is
+	// the paid price of an upgrade a mercenary has not finished yet.
+	Built       bool
+	PendingCost int
+	Progress    float64 // 0..1 of the current construction or upgrade
+	cooldown    float64
 }
 
 type Projectile struct {
@@ -99,6 +104,7 @@ type Game struct {
 	Towers      map[Pos]*Tower
 	Projectiles []*Projectile
 	Chatters    map[string]*Chatter // keyed by lower-case login
+	Workers     map[string]*Worker  // mercenaries out of the tavern, by owner
 
 	queue      []spawn
 	spawnTimer float64
@@ -143,6 +149,7 @@ func (g *Game) NewGame(biome Biome) {
 	g.Walls = g.Cfg.WallsHP
 	g.Enemies = nil
 	g.Towers = map[Pos]*Tower{}
+	g.Workers = map[string]*Worker{}
 	g.Projectiles = nil
 	g.queue = nil
 	for _, c := range g.Chatters {
@@ -240,6 +247,7 @@ func (g *Game) Tick(dt float64) {
 		}
 	}
 	g.tickEnemies(dt)
+	g.tickWorkers(dt)
 	g.tickTowers(dt)
 	g.tickProjectiles(dt)
 	if g.Walls <= 0 && g.Phase != PhaseGameOver {
@@ -338,6 +346,9 @@ func (g *Game) tickEnemies(dt float64) {
 
 func (g *Game) tickTowers(dt float64) {
 	for _, t := range g.Towers {
+		if !t.Built {
+			continue
+		}
 		spec := g.Cfg.Towers[t.Kind]
 		t.cooldown -= dt
 		if t.cooldown > 0 {
@@ -422,22 +433,41 @@ func (g *Game) addGold(c *Chatter, amount int) int {
 	return add
 }
 
-// Touch registers chat activity and pays for it (with a cooldown).
-func (g *Game) Touch(user string) *Chatter {
-	key := strings.ToLower(user)
+// chatter returns the chatter for key, creating one with starting gold.
+func (g *Game) chatter(key, display string) *Chatter {
 	c := g.Chatters[key]
-	now := g.Now()
 	if c == nil {
-		c = &Chatter{Name: user, Gold: g.Cfg.StartGold}
+		c = &Chatter{Name: display, Gold: g.Cfg.StartGold}
 		g.Chatters[key] = c
-		g.emit(Event{Kind: "join", User: user})
+		g.emit(Event{Kind: "join", User: display})
 	}
+	if display != "" && key != StreamerName {
+		c.Name = display // display names can change between streams
+	}
+	return c
+}
+
+// Touch registers chat activity and pays for it (with a cooldown).
+func (g *Game) Touch(key, display string) *Chatter {
+	c := g.chatter(key, display)
+	now := g.Now()
 	c.LastSeen = now
 	if now.Sub(c.lastPaid) >= time.Duration(g.Cfg.ChatCooldownSec*float64(time.Second)) {
 		c.lastPaid = now
 		g.addGold(c, g.Cfg.ChatGold)
 	}
 	return c
+}
+
+// Present pays lurkers from the Present Viewers list. Only chatters who
+// already have a mercenary are paid, and it does not count as chat activity,
+// so silent viewers never raise the difficulty.
+func (g *Game) Present(logins []string) {
+	for _, l := range logins {
+		if c := g.Chatters[strings.ToLower(l)]; c != nil {
+			g.addGold(c, g.Cfg.PresentGold)
+		}
+	}
 }
 
 func (g *Game) towersOf(owner string) int {

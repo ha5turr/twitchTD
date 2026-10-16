@@ -90,7 +90,7 @@ export class Hud {
     this.infoText.text = `наёмников ${st.active}   seed ${this.map?.seed ?? ''}`;
     this.drawWalls(st.walls, st.wallsMax);
     this.drawBoss(st.enemies.find((e) => e.kind === 'boss'));
-    this.updatePlates(st.chatters);
+    this.updatePlates(st.chatters, new Set((st.workers ?? []).map((w) => w.name)));
     for (const ev of st.events ?? []) this.onEvent(ev);
   }
 
@@ -134,9 +134,9 @@ export class Hud {
     this.bossText.text = 'Босс';
   }
 
-  // Nameplates for active chatters: name, then gold. Workers that walk to
-  // build sites come with stage 2; for now each chatter sits at a table.
-  updatePlates(chatters) {
+  // Nameplates for active chatters: name, then gold. A plate dims while its
+  // mercenary is out on the field.
+  updatePlates(chatters, outside) {
     const active = chatters.filter((c) => c.active);
     const seen = new Set();
     active.forEach((c, i) => {
@@ -152,6 +152,7 @@ export class Hud {
       p.root.position.set(20 + col * 176, TOP + 104 + row * 66);
       p.root.visible = row < 11;
       p.setGold(c.gold);
+      p.root.alpha = outside.has(c.name) ? 0.45 : 1;
     });
     for (const [name, p] of this.plates) {
       if (!seen.has(name)) {
@@ -177,6 +178,16 @@ export class Hud {
       case 'sell':
         this.floatAt(ev.x, ev.y - 0.4, `+${ev.amount}`, 0xffd24a);
         break;
+      case 'built':
+      case 'upgraded':
+        this.floatAt(ev.x, ev.y - 0.5, ev.kind === 'built' ? 'готово' : `ур. ${ev.amount}`, 0xfff1c2, FONT_UI, 22);
+        break;
+      case 'stun':
+        this.floatAt(ev.x, ev.y - 0.6, 'оглушён!', 0xff9a6a, FONT_UI, 22);
+        break;
+      case 'resumed':
+        this.showBanner(`Продолжаем: волна ${ev.amount}`, BIOMES[ev.text]?.name ?? '', 4);
+        break;
       case 'waveStart':
         this.showBanner(ev.text === 'boss' ? 'Босс приближается' : `Волна ${ev.amount}`, ev.text === 'boss' ? 'каждая пятая волна' : '');
         break;
@@ -197,9 +208,9 @@ export class Hud {
     }
   }
 
-  floatAt(x, y, s, color) {
+  floatAt(x, y, s, color, font = FONT_PIXEL, size = 18) {
     const px = toPx(x, y);
-    const t = new Text({ text: s, style: { fontFamily: FONT_PIXEL, fontSize: 18, fill: color, stroke: { color: 0x000000, width: 5 } } });
+    const t = new Text({ text: s, style: { fontFamily: font, fontSize: size, fontWeight: '700', fill: color, stroke: { color: 0x000000, width: 5 } } });
     t.anchor.set(0.5);
     t.position.set(px.x, px.y - 20);
     this.floatLayer.addChild(t);

@@ -11,10 +11,11 @@ export class Entities {
     this.enemies = new Map();
     this.towers = new Map();
     this.proj = new Map();
+    this.workers = new Map();
   }
 
   clear() {
-    for (const m of [this.enemies, this.towers, this.proj]) {
+    for (const m of [this.enemies, this.towers, this.proj, this.workers]) {
       for (const v of m.values()) v.destroy();
       m.clear();
     }
@@ -24,20 +25,30 @@ export class Entities {
     sync(this.enemies, state.enemies, (e) => new EnemyView(e, this), (v, e) => v.set(e));
     sync(this.towers, state.towers, (t) => new TowerView(t, this), (v, t) => v.set(t));
     sync(this.proj, state.proj, (p) => new ProjView(p, this), (v, p) => v.set(p));
+    const workers = (state.workers ?? []).map((w) => ({ ...w, id: w.name }));
+    sync(this.workers, workers, (w) => new WorkerView(w, this), (v, w) => v.set(w));
+  }
+
+  // Names of mercenaries currently out of the tavern.
+  outside() {
+    return new Set(this.workers.keys());
   }
 
   frame(dt) {
     const k = Math.min(1, dt * 14);
     for (const v of this.enemies.values()) v.frame(k);
     for (const v of this.proj.values()) v.frame(Math.min(1, dt * 30));
+    for (const v of this.workers.values()) v.frame(k, dt);
   }
 
   // Light sources in screen pixels, consumed by the lighting layer.
   lights() {
     const out = [];
     for (const t of this.towers.values()) {
-      out.push({ x: t.cx, y: t.cy, r: 120 + 20 * t.level, color: TOWER_STYLE[t.kind]?.light ?? 0xffffff, a: 0.75 });
+      if (t.built) out.push({ x: t.cx, y: t.cy, r: 120 + 20 * t.level, color: TOWER_STYLE[t.kind]?.light ?? 0xffffff, a: 0.75 });
     }
+    // Each mercenary carries a lantern, so it is visible on dark ground.
+    for (const w of this.workers.values()) out.push({ x: w.root.x, y: w.root.y - 10, r: 80, color: 0xffcf8a, a: 0.7 });
     for (const p of this.proj.values()) {
       if (p.magic) out.push({ x: p.root.x, y: p.root.y, r: 70, color: 0xb58cff, a: 0.8 });
     }
@@ -133,17 +144,40 @@ class TowerView {
     this.name.anchor.set(0.5, 0);
     this.name.position.set(this.cx, this.cy + 30);
     layer.labels.addChild(this.name);
+    this.bar = new Graphics();
+    this.bar.position.set(this.cx, this.cy - 44);
+    layer.labels.addChild(this.bar);
     this.level = 0;
+    this.built = null;
+    this.progress = -1;
     this.set(t);
   }
 
   set(t) {
-    if (t.lvl === this.level) return;
+    if (t.progress !== this.progress) {
+      // Construction or upgrade under way: a progress bar above the cell.
+      this.progress = t.progress ?? 0;
+      this.bar.clear();
+      if (this.progress > 0) {
+        this.bar.rect(-30, 0, 60, 7).fill({ color: 0x000000, alpha: 0.75 });
+        this.bar.rect(-30, 0, 60 * this.progress, 7).fill(0xffcf5a);
+      }
+    }
+    if (t.lvl === this.level && t.built === this.built) return;
     this.level = t.lvl;
+    this.built = t.built;
     const g = this.root;
+    g.clear();
+    if (!t.built) {
+      // Construction site: scaffolding and a ghost of the future tower.
+      g.roundRect(-34, -34, 68, 68, 10).fill({ color: 0x1b1a1f, alpha: 0.5 }).stroke({ width: 3, color: 0x8a7a5a, alpha: 0.9 });
+      g.moveTo(-28, 28).lineTo(28, -28).moveTo(-28, -28).lineTo(28, 28).stroke({ width: 3, color: 0x6b5638, alpha: 0.8 });
+      g.alpha = 0.85;
+      return;
+    }
+    g.alpha = 1;
     const rarity = RARITY[Math.min(t.lvl, 5) - 1];
     const st = TOWER_STYLE[this.kind] ?? TOWER_STYLE.arrow;
-    g.clear();
     g.roundRect(-34, -34, 68, 68, 10).fill(0x1b1a1f).stroke({ width: 4, color: rarity });
     if (this.kind === 'magic') {
       g.poly([0, -26, 14, 0, 0, 26, -14, 0]).fill(st.color);
@@ -160,6 +194,68 @@ class TowerView {
   destroy() {
     this.root.destroy();
     this.name.destroy();
+    this.bar.destroy();
+  }
+}
+
+// A chatter's mercenary on the field: a small figure in the nick's colour
+// with the nick above it. It bobs while walking, swings a hammer while
+// building and shows stars while stunned.
+class WorkerView {
+  constructor(w, layer) {
+    const color = nickColor(w.name);
+    this.root = new Container();
+    this.body = new Graphics();
+    this.body.circle(0, -18, 9).fill(color).stroke({ width: 2, color: 0x000000 });
+    this.body.roundRect(-8, -10, 16, 18, 4).fill(color).stroke({ width: 2, color: 0x000000 });
+    this.body.rect(9, -14, 4, 12).fill(0x6b4a2a); // lantern pole
+    this.body.circle(11, -16, 4).fill(0xffd27a);
+    this.root.addChild(this.body);
+    this.tool = new Graphics();
+    this.tool.rect(-2, -16, 4, 16).fill(0x7a5a3a).rect(-6, -18, 12, 5).fill(0x9aa0a8);
+    this.tool.position.set(-10, -6);
+    this.root.addChild(this.tool);
+    layer.world.addChild(this.root);
+
+    this.stars = new Text({ text: '✦ ✦', style: { fontFamily: FONT_UI, fontSize: 16, fill: 0xffe066, stroke: { color: 0x000000, width: 3 } } });
+    this.stars.anchor.set(0.5);
+    this.name = new Text({
+      text: w.name,
+      style: { fontFamily: FONT_UI, fontSize: 16, fontWeight: '700', fill: color, stroke: { color: 0x000000, width: 4 } },
+    });
+    this.name.anchor.set(0.5, 1);
+    layer.labels.addChild(this.name, this.stars);
+
+    const p = toPx(w.x, w.y);
+    this.root.position.set(p.x, p.y);
+    this.target = p;
+    this.t = Math.random() * 10;
+    this.set(w);
+  }
+
+  set(w) {
+    this.target = toPx(w.x, w.y);
+    this.state = w.state;
+  }
+
+  frame(k, dt) {
+    this.t += dt;
+    const r = this.root;
+    r.x += (this.target.x - r.x) * k;
+    r.y += (this.target.y - r.y) * k;
+    const moving = this.state === 'walk' || this.state === 'return' || this.state === 'flee';
+    this.body.y = moving ? -Math.abs(Math.sin(this.t * 10)) * 4 : 0;
+    this.tool.rotation = this.state === 'build' ? Math.sin(this.t * 14) * 0.9 : 0.3;
+    this.stars.visible = this.state === 'flee' || this.state === 'rest';
+    this.stars.position.set(r.x, r.y - 52);
+    this.stars.rotation = Math.sin(this.t * 6) * 0.3;
+    this.name.position.set(r.x, r.y - 32);
+  }
+
+  destroy() {
+    this.root.destroy({ children: true });
+    this.name.destroy();
+    this.stars.destroy();
   }
 }
 
