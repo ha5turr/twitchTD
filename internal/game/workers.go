@@ -134,7 +134,11 @@ func (g *Game) tickWorkers(dt float64) {
 				}
 			}
 		case WorkerRest:
-			w.rest -= dt
+			// While enemies besiege the gate the mercenary waits inside
+			// instead of stepping out into them over and over.
+			if !g.enemyNear(w.Pos) {
+				w.rest -= dt
+			}
 			if w.rest <= 0 {
 				w.State = WorkerWalk
 			}
@@ -147,11 +151,13 @@ func (g *Game) finish(t *Tower, w *Worker) {
 	t.Progress = 0
 	if !t.Built {
 		t.Built = true
+		g.readyTower(t)
 		g.emit(Event{Kind: "built", User: w.Name, X: cp.X, Y: cp.Y, Text: t.Kind})
 		return
 	}
 	t.Level++
 	t.PendingCost = 0
+	g.readyTower(t) // a stronger barricade is also a repaired one
 	g.emit(Event{Kind: "upgraded", User: w.Name, X: cp.X, Y: cp.Y, Amount: t.Level})
 }
 

@@ -57,24 +57,66 @@ type Config struct {
 }
 
 type EnemySpec struct {
-	HPMult  float64 `json:"hpMult"`
-	Speed   float64 `json:"speed"` // cells per second
-	Armor   float64 `json:"armor"` // 0..1, cut of physical damage
-	WallDPS float64 `json:"wallDps"`
-	Bounty  int     `json:"bounty"`
+	Name       string  `json:"name"`
+	HPMult     float64 `json:"hpMult"`
+	Speed      float64 `json:"speed"` // cells per second
+	Armor      float64 `json:"armor"` // 0..1, cut of physical damage
+	WallDPS    float64 `json:"wallDps"`
+	Bounty     int     `json:"bounty"`
+	Heal       float64 `json:"heal"`       // heals allies nearby, share of their max HP per second
+	Regen      float64 `json:"regen"`      // heals itself, share of max HP per second
+	Ghost      bool    `json:"ghost"`      // floats through barricades and over traps
+	SlowImmune bool    `json:"slowImmune"` // traps do not slow it
+	Boss       bool    `json:"boss"`
 }
 
+// TowerRole is how a building acts.
+type TowerRole string
+
+const (
+	RoleShooter TowerRole = "shooter" // fires projectiles (arrow, magic, fire)
+	RoleAura    TowerRole = "aura"    // buffs neighbours (shrine, drums)
+	RoleTrap    TowerRole = "trap"    // on the path, hurts and slows passers-by
+	RoleWall    TowerRole = "wall"    // on the path, blocks until broken
+)
+
 type TowerSpec struct {
-	Name     string  `json:"name"`
-	Cost     int     `json:"cost"`
-	Damage   float64 `json:"damage"`
-	Range    float64 `json:"range"`   // cells
-	Rate     float64 `json:"rate"`    // shots per second
-	ProjSpd  float64 `json:"projSpd"` // cells per second
-	Magic    bool    `json:"magic"`   // ignores armor
-	UpgMult  float64 `json:"upgMult"` // damage multiplier per level
-	MaxLevel int     `json:"maxLevel"`
+	Name     string    `json:"name"`
+	Role     TowerRole `json:"role"`
+	Cost     int       `json:"cost"`
+	UpgMult  float64   `json:"upgMult"` // main stat multiplier per level
+	MaxLevel int       `json:"maxLevel"`
+
+	// Shooters.
+	Damage  float64 `json:"damage"`
+	Range   float64 `json:"range"`   // cells
+	Rate    float64 `json:"rate"`    // shots per second
+	ProjSpd float64 `json:"projSpd"` // cells per second
+	Magic   bool    `json:"magic"`   // ignores armor
+	Splash  float64 `json:"splash"`  // radius of area damage, cells
+	BurnDPS float64 `json:"burnDps"` // damage over time after a hit, ignores armor
+	BurnSec float64 `json:"burnSec"`
+
+	// Traps.
+	Slow    float64 `json:"slow"` // speed multiplier while slowed
+	SlowSec float64 `json:"slowSec"`
+	Charges int     `json:"charges"` // triggers per wave, +2 per level
+
+	// Barricades.
+	HP float64 `json:"hp"`
+
+	// Auras: bonuses to buildings within AuraRange, +50% per level above 1.
+	AuraRange float64 `json:"auraRange"`
+	AuraDmg   float64 `json:"auraDmg"`  // damage bonus, 0.15 = +15%
+	AuraRate  float64 `json:"auraRate"` // fire rate bonus
+	WallHeal  float64 `json:"wallHeal"` // tavern wall repair, HP per second per level
 }
+
+// OnPath reports whether the building stands on the enemy path.
+func (s TowerSpec) OnPath() bool { return s.Role == RoleTrap || s.Role == RoleWall }
+
+// TowerKinds lists buildings in the order chat sees them.
+var TowerKinds = []string{"arrow", "magic", "fire", "shrine", "trap", "drums", "wall"}
 
 func DefaultConfig() Config {
 	return Config{
@@ -115,14 +157,35 @@ func DefaultConfig() Config {
 		BossHPMult:    15,
 		BossEvery:     5,
 		Enemies: map[string]EnemySpec{
-			"normal":  {HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
-			"fast":    {HPMult: 0.55, Speed: 2.0, WallDPS: 4, Bounty: 3},
-			"armored": {HPMult: 1.4, Speed: 0.8, Armor: 0.5, WallDPS: 9, Bounty: 6},
-			"boss":    {HPMult: 1, Speed: 0.6, Armor: 0.2, WallDPS: 60, Bounty: 80},
+			"skeleton":    {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
+			"ghoul":       {Name: "Гуль", HPMult: 0.6, Speed: 1.9, WallDPS: 4, Bounty: 3},
+			"cultist":     {Name: "Культист", HPMult: 0.9, Speed: 1.0, WallDPS: 5, Bounty: 5, Heal: 0.04},
+			"spider":      {Name: "Паук", HPMult: 0.5, Speed: 2.1, WallDPS: 4, Bounty: 3},
+			"rat":         {Name: "Крыса", HPMult: 0.35, Speed: 2.4, WallDPS: 2, Bounty: 2},
+			"troll":       {Name: "Тролль", HPMult: 2.2, Speed: 0.7, Armor: 0.35, WallDPS: 12, Bounty: 9, Regen: 0.01},
+			"mummy":       {Name: "Мумия", HPMult: 1.5, Speed: 0.8, Armor: 0.5, WallDPS: 9, Bounty: 6},
+			"ghost":       {Name: "Призрак", HPMult: 0.8, Speed: 1.3, Armor: 0.3, WallDPS: 5, Bounty: 5, Ghost: true},
+			"necromancer": {Name: "Некромант", HPMult: 0.9, Speed: 1.0, WallDPS: 5, Bounty: 6, Heal: 0.05},
+			"iceskel":     {Name: "Ледяной скелет", HPMult: 1.3, Speed: 1.0, Armor: 0.45, WallDPS: 8, Bounty: 6, SlowImmune: true},
+			"frostspirit": {Name: "Инеистый дух", HPMult: 0.7, Speed: 1.6, WallDPS: 5, Bounty: 5, Ghost: true, SlowImmune: true},
+
+			"bone_knight":  {Name: "Костяной Рыцарь", HPMult: 1, Speed: 0.6, Armor: 0.3, WallDPS: 60, Bounty: 80, Boss: true},
+			"cult_leader":  {Name: "Вожак Культа", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Boss: true},
+			"spider_queen": {Name: "Королева Пауков", HPMult: 1, Speed: 0.7, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
+			"cave_troll":   {Name: "Пещерный Тролль", HPMult: 1, Speed: 0.5, Armor: 0.4, WallDPS: 80, Bounty: 80, Regen: 0.01, Boss: true},
+			"lich":         {Name: "Лич", HPMult: 1, Speed: 0.55, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
+			"ghost_king":   {Name: "Призрачный Король", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Ghost: true, Boss: true},
+			"ice_golem":    {Name: "Ледяной Голем", HPMult: 1, Speed: 0.5, Armor: 0.5, WallDPS: 80, Bounty: 80, SlowImmune: true, Boss: true},
+			"frost_demon":  {Name: "Демон Стужи", HPMult: 1, Speed: 0.65, Armor: 0.25, WallDPS: 70, Bounty: 80, SlowImmune: true, Boss: true},
 		},
 		Towers: map[string]TowerSpec{
-			"arrow": {Name: "Пост лучников", Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, UpgMult: 1.45, MaxLevel: 5},
-			"magic": {Name: "Тёмный обелиск", Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, UpgMult: 1.45, MaxLevel: 5},
+			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, UpgMult: 1.45, MaxLevel: 5},
+			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, UpgMult: 1.45, MaxLevel: 5},
+			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 90, Damage: 10, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 4, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
+			"shrine": {Name: "Святилище", Role: RoleAura, Cost: 100, AuraRange: 1.6, AuraDmg: 0.15, WallHeal: 1.5, UpgMult: 1.5, MaxLevel: 5},
+			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 25, Slow: 0.5, SlowSec: 2, Charges: 6, UpgMult: 1.45, MaxLevel: 5},
+			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 1.6, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
+			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
 		},
 		WebcamFrom: "N1",
 		WebcamTo:   "P5",

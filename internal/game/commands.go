@@ -18,6 +18,11 @@ type ChatMessage struct {
 var towerAliases = map[string]string{
 	"arrow": "arrow", "a": "arrow", "лук": "arrow", "лучник": "arrow", "стрелы": "arrow", "баллиста": "arrow",
 	"magic": "magic", "m": "magic", "маг": "magic", "обелиск": "magic", "магия": "magic",
+	"fire": "fire", "f": "fire", "огонь": "fire", "жаровня": "fire", "пламя": "fire",
+	"shrine": "shrine", "s": "shrine", "святилище": "shrine", "алтарь": "shrine",
+	"trap": "trap", "t": "trap", "капкан": "trap", "капканы": "trap", "ловушка": "trap", "шипы": "trap",
+	"drums": "drums", "d": "drums", "барабаны": "drums", "барабан": "drums",
+	"wall": "wall", "w": "wall", "баррикада": "wall", "стена": "wall",
 }
 
 // HandleChat registers activity and executes a command if the line is one.
@@ -60,9 +65,13 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdDrink(c, key, args)
 	case "!towers", "!башни":
 		var parts []string
-		for _, k := range []string{"arrow", "magic"} {
+		for _, k := range TowerKinds {
 			s := g.Cfg.Towers[k]
-			parts = append(parts, fmt.Sprintf("%s (%s) — %d", s.Name, k, s.Cost))
+			where := ""
+			if s.OnPath() {
+				where = ", на дорогу"
+			}
+			parts = append(parts, fmt.Sprintf("%s (%s) %d%s", s.Name, k, s.Cost, where))
 		}
 		g.reply(c.Name, strings.Join(parts, ", "))
 	default:
@@ -112,8 +121,12 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	if g.Phase == PhaseGameOver {
 		return
 	}
+	spec := g.Cfg.Towers[kind]
 	switch {
-	case g.Map.Grid.At(p) != CellBuild:
+	case spec.OnPath() && g.Map.Grid.At(p) != CellPath:
+		g.reply(c.Name, fmt.Sprintf("%s ставится только на дорогу", strings.ToLower(spec.Name)))
+		return
+	case !spec.OnPath() && g.Map.Grid.At(p) != CellBuild:
 		g.reply(c.Name, p.Name()+": здесь строить нельзя")
 		return
 	case g.Towers[p] != nil:
@@ -140,7 +153,9 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	// and builds it, until then the tower is a construction site.
 	t := &Tower{ID: g.id(), Kind: kind, Cell: p, Owner: key, Level: 1, Invested: cost, Built: streamer}
 	g.Towers[p] = t
-	if !streamer {
+	if streamer {
+		g.readyTower(t)
+	} else {
 		g.order(key, c.Name, p)
 	}
 	cp := center(p)
@@ -191,6 +206,7 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 	t.Invested += cost
 	if streamer {
 		t.Level++
+		g.readyTower(t)
 	} else {
 		t.PendingCost = cost
 		g.order(key, c.Name, t.Cell)
@@ -239,6 +255,30 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		if p, _, ok := cellArg(args); ok {
 			if t := g.Towers[p]; t != nil {
 				g.removeTower(t)
+			}
+		}
+	case "!tdspawn": // !tdspawn lich [n]: let the streamer summon enemies
+		if len(args) == 0 {
+			return
+		}
+		spec, ok := g.Cfg.Enemies[args[0]]
+		if !ok || g.Phase == PhaseGameOver {
+			return
+		}
+		n := 1
+		if len(args) > 1 {
+			n, _ = strconv.Atoi(args[1])
+			n = min(max(n, 1), 20)
+		}
+		hp := g.waveHP
+		if hp == 0 {
+			hp = g.Cfg.BaseHP * g.Cfg.HPGrowth
+		}
+		for i := 0; i < n; i++ {
+			if spec.Boss {
+				g.spawnBoss(args[0], hp*g.Cfg.BossHPMult)
+			} else {
+				g.spawnEnemy(args[0], hp*spec.HPMult, 0.4*float64(i))
 			}
 		}
 	case "!tdwalls": // set the walls' hit points, e.g. to repair them by hand

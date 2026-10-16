@@ -13,6 +13,14 @@ type Save struct {
 	Chatters []SavedChatter
 }
 
+// wantCell is the kind of cell a building stands on.
+func wantCell(s TowerSpec) CellKind {
+	if s.OnPath() {
+		return CellPath
+	}
+	return CellBuild
+}
+
 type SavedTower struct {
 	Kind        string `json:"kind"`
 	X           int    `json:"x"`
@@ -80,13 +88,15 @@ func (g *Game) Restore(s Save) {
 		_, known := g.Cfg.Towers[st.Kind]
 		refund := 0
 		switch {
-		case !p.In() || !known || g.Map.Grid.At(p) != CellBuild:
+		case !p.In() || !known || g.Map.Grid.At(p) != wantCell(g.Cfg.Towers[st.Kind]):
 			refund = st.Invested // the webcam zone or config changed
 		case !st.Built:
 			refund = st.Invested
 		default:
 			refund = st.PendingCost
-			g.Towers[p] = &Tower{ID: g.id(), Kind: st.Kind, Cell: p, Owner: st.Owner, Level: st.Level, Invested: st.Invested - st.PendingCost, Built: true}
+			t := &Tower{ID: g.id(), Kind: st.Kind, Cell: p, Owner: st.Owner, Level: st.Level, Invested: st.Invested - st.PendingCost, Built: true}
+			g.Towers[p] = t
+			g.readyTower(t)
 		}
 		if c := g.Chatters[st.Owner]; c != nil && refund > 0 && st.Owner != StreamerName {
 			g.addGold(c, refund)

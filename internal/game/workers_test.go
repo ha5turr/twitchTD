@@ -108,7 +108,7 @@ func TestEnemyStunsMercenary(t *testing.T) {
 	g.HandleChat(ChatMessage{User: "dave", Text: "!build " + p.Name()})
 	w := g.Workers["dave"]
 	w.Pos = center(p)
-	g.Enemies = append(g.Enemies, &Enemy{ID: 999, Kind: "normal", HP: 1e9, MaxHP: 1e9, Pos: center(p)})
+	g.Enemies = append(g.Enemies, &Enemy{ID: 999, Kind: "skeleton", HP: 1e9, MaxHP: 1e9, Pos: center(p)})
 	g.tickWorkers(0.05)
 	if w.State != WorkerFlee {
 		t.Fatalf("state %s, want flee", w.State)

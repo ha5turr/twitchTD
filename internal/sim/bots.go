@@ -45,8 +45,8 @@ func bot(ctx context.Context, name string, seed uint64, chat func(game.ChatMessa
 		case roll < 0.35:
 			send(chatter[r.IntN(len(chatter))])
 		case roll < 0.75:
-			if cell, ok := pickCell(r, currentMap()); ok {
-				kind := []string{"arrow", "magic"}[r.IntN(2)]
+			kind := game.TowerKinds[r.IntN(len(game.TowerKinds))]
+			if cell, ok := pickCell(r, currentMap(), kind == "trap" || kind == "wall"); ok {
 				send(fmt.Sprintf("!build %s %s", cell, kind))
 				built = append(built, cell)
 			}
@@ -62,8 +62,17 @@ func bot(ctx context.Context, name string, seed uint64, chat func(game.ChatMessa
 	}
 }
 
-// pickCell chooses a free cell next to the path, where towers are useful.
-func pickCell(r *rand.Rand, m game.MapMsg) (string, bool) {
+// pickCell chooses a free cell next to the path, where towers are useful, or
+// a path cell for traps and barricades (not the first cells, so enemies
+// spread out before they meet them).
+func pickCell(r *rand.Rand, m game.MapMsg, onPath bool) (string, bool) {
+	if onPath {
+		if len(m.Path) < 6 {
+			return "", false
+		}
+		p := m.Path[3+r.IntN(len(m.Path)-4)]
+		return game.Pos{X: p[0], Y: p[1]}.Name(), true
+	}
 	var cands []game.Pos
 	for y, row := range m.Cells {
 		for x := range row {

@@ -39,18 +39,6 @@ export const BIOMES = {
 // Loot rarity colours by tower level 1..5.
 export const RARITY = [0xe8e8e8, 0x4cd964, 0x3d8bff, 0xb05cff, 0xff9a2e];
 
-export const ENEMY_STYLE = {
-  normal: { color: 0xd8d2c0, r: 0.22 },
-  fast: { color: 0xc9a24a, r: 0.17 },
-  armored: { color: 0x8a96ad, r: 0.26 },
-  boss: { color: 0xb33a3a, r: 0.42 },
-};
-
-export const TOWER_STYLE = {
-  arrow: { color: 0xc8a165, light: 0xffb36b },
-  magic: { color: 0x9b6bff, light: 0xb58cff },
-};
-
 // Stable per-nick colour, the same everywhere a nick appears.
 export function nickColor(name) {
   let h = 0;

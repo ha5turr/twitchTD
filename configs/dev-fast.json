@@ -1,0 +1,7 @@
+{
+  "db": "",
+  "bossEvery": 2,
+  "firstBuildPhaseSec": 15,
+  "buildPhaseSec": 10,
+  "startGold": 400
+}

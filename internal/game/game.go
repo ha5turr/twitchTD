@@ -3,7 +3,6 @@ package game
 import (
 	"math"
 	"math/rand/v2"
-	"slices"
 	"strings"
 	"time"
 )
@@ -25,42 +24,6 @@ func (a vec) sub(b vec) vec        { return vec{a.X - b.X, a.Y - b.Y} }
 func (a vec) len() float64         { return math.Hypot(a.X, a.Y) }
 func center(p Pos) vec             { return vec{float64(p.X) + 0.5, float64(p.Y) + 0.5} }
 func lerp(a, b vec, t float64) vec { return vec{a.X + (b.X-a.X)*t, a.Y + (b.Y-a.Y)*t} }
-
-type Enemy struct {
-	ID     int
-	Kind   string
-	HP     float64
-	MaxHP  float64
-	Dist   float64 // distance travelled along the route, in cells
-	Pos    vec
-	AtGate bool
-}
-
-type Tower struct {
-	ID       int
-	Kind     string
-	Cell     Pos
-	Owner    string
-	Level    int
-	Invested int
-	// Built is false while the tower is a construction site. PendingCost is
-	// the paid price of an upgrade a mercenary has not finished yet.
-	Built       bool
-	PendingCost int
-	Progress    float64 // 0..1 of the current construction or upgrade
-	cooldown    float64
-}
-
-type Projectile struct {
-	ID     int
-	Pos    vec
-	Target int
-	Aim    vec // last known target position
-	Damage float64
-	Magic  bool
-	Speed  float64
-	Owner  string
-}
 
 type Chatter struct {
 	Name     string // display name
@@ -122,6 +85,9 @@ type Game struct {
 	events     []Event
 	mapChanged bool
 	summary    *Summary
+	cellDist   []float64 // route distance to the centre of each path cell
+	waveHP     float64   // base enemy HP of the current wave
+	rushLeft   float64   // seconds of the frost demon's speed-up left
 }
 
 func New(cfg Config, seed uint64) *Game {
@@ -184,11 +150,15 @@ func (g *Game) buildRoute() {
 	}
 	g.route = append(g.route, vec{-0.3, float64(p[len(p)-1].Y) + 0.5})
 	g.segLen = g.segLen[:0]
+	g.cellDist = g.cellDist[:0]
 	g.total = 0
 	for i := 1; i < len(g.route); i++ {
 		l := g.route[i].sub(g.route[i-1]).len()
 		g.segLen = append(g.segLen, l)
 		g.total += l
+		if i <= len(p) {
+			g.cellDist = append(g.cellDist, g.total) // route[i] is the centre of path[i-1]
+		}
 	}
 }
 
@@ -263,6 +233,7 @@ func (g *Game) Tick(dt float64) {
 	g.tickWorkers(dt)
 	g.tickTowers(dt)
 	g.tickProjectiles(dt)
+	g.sweepDead()
 	if g.Walls <= 0 && g.Phase != PhaseGameOver {
 		g.Walls = 0
 		g.Phase = PhaseGameOver
@@ -271,174 +242,6 @@ func (g *Game) Tick(dt float64) {
 		g.summary = g.makeSummary()
 		g.emit(Event{Kind: "gameOver", Amount: g.Wave})
 	}
-}
-
-// StartWave skips whatever is left of the build phase.
-func (g *Game) StartWave() {
-	if g.Phase != PhaseBuild {
-		return
-	}
-	g.Wave++
-	g.Phase = PhaseWave
-	g.Timer = 0
-	n := max(g.ActiveChatters(), 1)
-	sq := math.Sqrt(float64(n))
-	hp := g.Cfg.BaseHP * math.Pow(g.Cfg.HPGrowth, float64(g.Wave)) * (1 + g.Cfg.ChatterHPCoef*sq)
-	count := g.Cfg.BaseCount + g.Cfg.CountPerWave*g.Wave + int(sq)
-
-	g.queue = g.queue[:0]
-	for i := 0; i < count; i++ {
-		kind := "normal"
-		roll := g.rng.Float64()
-		switch {
-		case g.Wave >= 6 && roll < 0.2:
-			kind = "armored"
-		case g.Wave >= 3 && roll < 0.45:
-			kind = "fast"
-		}
-		g.queue = append(g.queue, spawn{kind, hp * g.Cfg.Enemies[kind].HPMult})
-	}
-	boss := g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0
-	if boss {
-		g.queue = append(g.queue, spawn{"boss", hp * g.Cfg.BossHPMult})
-	}
-	g.spawnTimer = 0
-	g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: map[bool]string{true: "boss"}[boss]})
-}
-
-func (g *Game) endWave() {
-	g.Phase = PhaseBuild
-	g.Timer = g.Cfg.BuildPhaseSec
-	bonus := 10 + 2*g.Wave
-	owners := map[string]bool{}
-	for _, t := range g.Towers {
-		owners[t.Owner] = true
-	}
-	for name := range owners {
-		if c := g.Chatters[name]; c != nil {
-			g.addGold(c, bonus)
-		}
-	}
-	g.emit(Event{Kind: "waveCleared", Amount: g.Wave})
-}
-
-func (g *Game) tickSpawns(dt float64) {
-	if len(g.queue) == 0 {
-		return
-	}
-	g.spawnTimer -= dt
-	if g.spawnTimer > 0 {
-		return
-	}
-	s := g.queue[0]
-	g.queue = g.queue[1:]
-	g.spawnTimer = g.Cfg.SpawnIntervalSec
-	g.Enemies = append(g.Enemies, &Enemy{ID: g.id(), Kind: s.kind, HP: s.hp, MaxHP: s.hp, Pos: g.route[0]})
-}
-
-func (g *Game) speedMult() float64 {
-	if g.Map.Biome == BiomeIce {
-		return 1.15
-	}
-	return 1
-}
-
-func (g *Game) tickEnemies(dt float64) {
-	for _, e := range g.Enemies {
-		spec := g.Cfg.Enemies[e.Kind]
-		if e.AtGate {
-			g.Walls -= spec.WallDPS * dt
-			continue
-		}
-		e.Dist += spec.Speed * g.speedMult() * dt
-		if e.Dist >= g.total {
-			e.Dist = g.total
-			e.AtGate = true
-		}
-		e.Pos = g.routePos(e.Dist)
-	}
-}
-
-func (g *Game) tickTowers(dt float64) {
-	for _, t := range g.Towers {
-		if !t.Built {
-			continue
-		}
-		spec := g.Cfg.Towers[t.Kind]
-		t.cooldown -= dt
-		if t.cooldown > 0 {
-			continue
-		}
-		tc := center(t.Cell)
-		var target *Enemy
-		for _, e := range g.Enemies {
-			if e.Pos.sub(tc).len() <= spec.Range && (target == nil || e.Dist > target.Dist) {
-				target = e
-			}
-		}
-		if target == nil {
-			continue
-		}
-		t.cooldown = 1 / spec.Rate
-		g.Projectiles = append(g.Projectiles, &Projectile{
-			ID: g.id(), Pos: tc, Target: target.ID, Aim: target.Pos,
-			Damage: spec.Damage * math.Pow(spec.UpgMult, float64(t.Level-1)) * g.classBonus(t.Owner, t.Kind),
-			Magic:  spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
-		})
-	}
-}
-
-func (g *Game) enemy(id int) *Enemy {
-	for _, e := range g.Enemies {
-		if e.ID == id {
-			return e
-		}
-	}
-	return nil
-}
-
-func (g *Game) tickProjectiles(dt float64) {
-	alive := g.Projectiles[:0]
-	for _, p := range g.Projectiles {
-		target := g.enemy(p.Target)
-		if target != nil {
-			p.Aim = target.Pos
-		}
-		d := p.Aim.sub(p.Pos)
-		step := p.Speed * dt
-		if d.len() > step {
-			p.Pos = vec{p.Pos.X + d.X/d.len()*step, p.Pos.Y + d.Y/d.len()*step}
-			alive = append(alive, p)
-			continue
-		}
-		if target != nil {
-			g.hit(target, p)
-		}
-	}
-	g.Projectiles = alive
-}
-
-func (g *Game) hit(e *Enemy, p *Projectile) {
-	dmg := p.Damage
-	if !p.Magic {
-		dmg *= 1 - g.Cfg.Enemies[e.Kind].Armor
-	}
-	c := g.Chatters[p.Owner]
-	if c != nil {
-		c.GameDamage += min(dmg, e.HP) // overkill does not count
-	}
-	e.HP -= dmg
-	if e.HP > 0 {
-		return
-	}
-	g.Enemies = slices.DeleteFunc(g.Enemies, func(x *Enemy) bool { return x == e })
-	bounty := g.Cfg.Enemies[e.Kind].Bounty
-	if c != nil {
-		c.Kills++
-		c.GameKills++
-		bounty = g.addGold(c, bounty)
-	}
-	g.emit(Event{Kind: "kill", User: p.Owner, X: e.Pos.X, Y: e.Pos.Y, Amount: bounty, Text: e.Kind})
 }
 
 // addGold credits gold up to the wallet cap and returns what was actually

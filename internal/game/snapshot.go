@@ -63,12 +63,17 @@ type StateMsg struct {
 }
 
 type EnemyView struct {
-	ID    int     `json:"id"`
-	Kind  string  `json:"kind"`
-	X     float64 `json:"x"`
-	Y     float64 `json:"y"`
-	HP    float64 `json:"hp"`
-	MaxHP float64 `json:"maxHp"`
+	ID     int     `json:"id"`
+	Kind   string  `json:"kind"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	HP     float64 `json:"hp"`
+	MaxHP  float64 `json:"maxHp"`
+	Title  string  `json:"title,omitempty"` // bosses only
+	Boss   bool    `json:"boss,omitempty"`
+	Slow   bool    `json:"slow,omitempty"`
+	Burn   bool    `json:"burn,omitempty"`
+	Shield bool    `json:"shield,omitempty"`
 }
 
 type TowerView struct {
@@ -80,6 +85,10 @@ type TowerView struct {
 	Owner    string  `json:"owner"`
 	Built    bool    `json:"built"`
 	Progress float64 `json:"progress,omitempty"`
+	HP       float64 `json:"hp,omitempty"` // barricades
+	MaxHP    float64 `json:"maxHp,omitempty"`
+	Charges  int     `json:"charges,omitempty"` // traps
+	Disabled bool    `json:"disabled,omitempty"`
 }
 
 type WorkerView struct {
@@ -91,10 +100,10 @@ type WorkerView struct {
 }
 
 type ProjView struct {
-	ID    int     `json:"id"`
-	X     float64 `json:"x"`
-	Y     float64 `json:"y"`
-	Magic bool    `json:"magic,omitempty"`
+	ID   int     `json:"id"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+	Kind string  `json:"kind"`
 }
 
 type ChatterView struct {
@@ -120,7 +129,10 @@ func (g *Game) StateMessage() StateMsg {
 		Workers: []WorkerView{},
 	}
 	for _, e := range g.Enemies {
-		s.Enemies = append(s.Enemies, EnemyView{e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP)})
+		s.Enemies = append(s.Enemies, EnemyView{
+			e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP),
+			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp,
+		})
 	}
 	owners := map[string]int{}
 	for _, t := range g.Towers {
@@ -129,11 +141,14 @@ func (g *Game) StateMessage() StateMsg {
 		if c := g.Chatters[t.Owner]; c != nil {
 			name = c.Name
 		}
-		s.Towers = append(s.Towers, TowerView{t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress)})
+		s.Towers = append(s.Towers, TowerView{
+			t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress),
+			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0,
+		})
 	}
 	sort.Slice(s.Towers, func(i, j int) bool { return s.Towers[i].ID < s.Towers[j].ID })
 	for _, p := range g.Projectiles {
-		s.Proj = append(s.Proj, ProjView{p.ID, round2(p.Pos.X), round2(p.Pos.Y), p.Magic})
+		s.Proj = append(s.Proj, ProjView{p.ID, round2(p.Pos.X), round2(p.Pos.Y), p.Kind})
 	}
 	activeCut := g.Now().Add(-activeWindow(g.Cfg))
 	for key, c := range g.Chatters {

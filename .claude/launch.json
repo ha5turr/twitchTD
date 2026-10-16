@@ -4,7 +4,7 @@
     {
       "name": "twitchtd-sim",
       "runtimeExecutable": "go",
-      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "12", "-web", "web/static", "-config", "none.json"],
+      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "12", "-web", "web/static", "-config", "configs/dev-fast.json"],
       "port": 8787
     },
     {

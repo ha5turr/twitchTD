@@ -1,5 +1,6 @@
 // Top bar, the tavern wall, floating numbers, banners and the game over screen.
 import { W, H, TOP, LEFT, CELL, COLS, ROWS, toPx, BIOMES, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
+import { ENEMIES } from './sprites.js';
 
 const { Container, Graphics, Text } = PIXI;
 
@@ -8,6 +9,19 @@ const ui = (size, fill = 0xf2e6c9, extra = {}) => ({
 });
 
 const PHASE = { build: 'Стройка', wave: 'Волна идёт', gameover: 'Таверна пала' };
+
+const ABILITY = {
+  bone_knight: 'щит поднят!',
+  cult_leader: 'ритуал!',
+  spider_queen: 'паутина!',
+  cave_troll: 'камнепад!',
+  lich: 'восстаньте!',
+  ghost_king: 'сквозь завесу!',
+  ice_golem: 'вечный холод!',
+  frost_demon: 'ледяная тропа!',
+};
+
+const DISABLED = { spider_queen: 'опутана', cave_troll: 'оглушена', ice_golem: 'заморожена' };
 const FIELD_CX = LEFT + (COLS * CELL) / 2;
 const FIELD_CY = TOP + (ROWS * CELL) / 2;
 
@@ -42,12 +56,16 @@ export class Hud {
     this.infoText = this.text('', ui(22, 0xc9b98f), W - 32, 66, 1);
 
     this.bossBar = new Graphics();
-    this.bossBar.position.set(FIELD_CX - 400, TOP + 16);
-    this.bossText = this.text('', ui(22, 0xffd6d6), FIELD_CX, TOP + 14, 0.5);
+    // At the bottom of the field, left of the default webcam corner, so it
+    // never covers the column letters at the top.
+    this.bossBar.position.set(LEFT + 100, H - 66);
+    this.bossText = this.text('', ui(22, 0xffd6d6), LEFT + 500, H - 72, 0.5);
     this.ui.addChild(this.bossBar);
 
     this.floatLayer = new Container();
-    this.ui.addChild(this.floatLayer);
+    this.blasts = new Graphics();
+    this.rings = [];
+    this.ui.addChild(this.blasts, this.floatLayer);
     this.banner = this.text('', ui(84, 0xf2e6c9, { stroke: { color: 0x000000, width: 10 } }), FIELD_CX, TOP + 380, 0.5);
     this.subBanner = this.text('', ui(36, 0xc9b98f), FIELD_CX, TOP + 470, 0.5);
     this.bannerTime = 0;
@@ -80,7 +98,7 @@ export class Hud {
     if (this.lastWalls !== null && st.walls < this.lastWalls) this.hitFlash = 0.35;
     this.lastWalls = st.walls;
     this.drawWalls(st.walls, st.wallsMax);
-    this.drawBoss(st.enemies.find((e) => e.kind === 'boss'));
+    this.drawBoss(st.enemies.find((e) => e.boss));
     if (st.phase === 'gameover' && st.summary) this.summary.show(st.summary, st.timer);
     else this.summary.hide();
     for (const ev of st.events ?? []) this.onEvent(ev);
@@ -123,7 +141,7 @@ export class Hud {
     const f = Math.max(0, boss.hp / boss.maxHp);
     b.roundRect(0, 18, 800, 22, 6).fill({ color: 0x000000, alpha: 0.75 }).stroke({ width: 2, color: 0x7a1d1d });
     b.roundRect(3, 21, 794 * f, 16, 4).fill(0xc23232);
-    this.bossText.text = 'Босс';
+    this.bossText.text = boss.title || 'Босс';
   }
 
   onEvent(ev) {
@@ -146,7 +164,23 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.6, 'оглушён!', 0xff9a6a, FONT_UI, 22);
         break;
       case 'waveStart':
-        this.showBanner(ev.text === 'boss' ? 'Босс приближается' : `Волна ${ev.amount}`, ev.text === 'boss' ? 'каждая пятая волна' : '');
+        if (ev.text) this.showBanner(ENEMIES[ev.text]?.name ?? 'Босс', `волна ${ev.amount} · босс приближается`, 4);
+        else this.showBanner(`Волна ${ev.amount}`);
+        break;
+      case 'ability':
+        this.floatAt(ev.x, ev.y - 0.8, ABILITY[ev.text] ?? '', 0xffd6a0, FONT_UI, 28);
+        break;
+      case 'disabled':
+        this.floatAt(ev.x, ev.y - 0.5, DISABLED[ev.text] ?? 'выведена', 0xbfe8ff, FONT_UI, 20);
+        break;
+      case 'trap':
+        this.floatAt(ev.x, ev.y - 0.3, 'щёлк', 0xe8e8e8, FONT_UI, 18);
+        break;
+      case 'wallBroken':
+        this.floatAt(ev.x, ev.y - 0.4, 'баррикада пала', 0xff9a6a, FONT_UI, 22);
+        break;
+      case 'blast':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
         break;
       case 'waveCleared':
         this.showBanner('Волна отбита', 'наёмникам выплачена награда', 2.2);
@@ -190,6 +224,15 @@ export class Hud {
     this.hitFlash = Math.max(0, this.hitFlash - dt);
     this.walls.tint = this.hitFlash > 0 ? 0xff8080 : 0xffffff;
     this.drawFire();
+    // Fire blasts: a ring that expands and fades where a fireball landed.
+    this.blasts.clear();
+    this.rings = this.rings.filter((r) => {
+      r.life -= dt;
+      if (r.life <= 0) return false;
+      const k = 1 - r.life / 0.35;
+      this.blasts.circle(r.x, r.y, 20 + 70 * k).stroke({ width: 1 + 6 * (1 - k), color: 0xff8a3a, alpha: 1 - k });
+      return true;
+    });
   }
 
   // Below a quarter of its hit points the wall burns: flames grow as it drops.
