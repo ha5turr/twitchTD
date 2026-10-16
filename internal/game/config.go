@@ -37,6 +37,14 @@ type Config struct {
 	Drinks        map[string]DrinkSpec `json:"drinks"`
 	DrunkDecaySec float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
 
+	Rewards            []RewardSpec       `json:"rewards"`  // channel point rewards by title
+	BitsGold           float64            `json:"bitsGold"` // gold per bit
+	SubGold            int                `json:"subGold"`
+	GiftRecipientGold  int                `json:"giftRecipientGold"`
+	DonationGoldPerRub float64            `json:"donationGoldPerRub"` // 100 RUB fill the wallet by default
+	CurrencyRub        map[string]float64 `json:"currencyRub"`        // roubles per unit of currency
+	TreasuryGoldPerSec float64            `json:"treasuryGoldPerSec"` // how fast the treasury repairs walls
+
 	// Bots and service accounts whose messages are ignored entirely.
 	IgnoreUsers []string `json:"ignoreUsers"`
 
@@ -148,14 +156,26 @@ func DefaultConfig() Config {
 			"potion": {Name: "Чёрное зелье", Price: 60, Mugs: 4},
 		},
 		DrunkDecaySec: 90,
-		IgnoreUsers:   []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts"},
-		BaseHP:        30,
-		HPGrowth:      1.12,
-		ChatterHPCoef: 0.25,
-		BaseCount:     6,
-		CountPerWave:  2,
-		BossHPMult:    15,
-		BossEvery:     5,
+		Rewards: []RewardSpec{
+			{Title: "Мешок золота", Action: "gold", Amount: 300},
+			{Title: "Починить стены", Action: "repair", Amount: 200},
+			{Title: "Дождь стрел", Action: "strike", Amount: 50},
+			{Title: "Выпивка за мой счёт", Action: "round"},
+		},
+		BitsGold:           8,
+		SubGold:            400,
+		GiftRecipientGold:  150,
+		DonationGoldPerRub: 10,
+		CurrencyRub:        map[string]float64{"RUB": 1, "USD": 90, "EUR": 100, "UAH": 2.2, "KZT": 0.18, "BYN": 28},
+		TreasuryGoldPerSec: 40,
+		IgnoreUsers:        []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts"},
+		BaseHP:             30,
+		HPGrowth:           1.12,
+		ChatterHPCoef:      0.25,
+		BaseCount:          6,
+		CountPerWave:       2,
+		BossHPMult:         15,
+		BossEvery:          5,
 		Enemies: map[string]EnemySpec{
 			"skeleton":    {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
 			"ghoul":       {Name: "Гуль", HPMult: 0.6, Speed: 1.9, WallDPS: 4, Bounty: 3},

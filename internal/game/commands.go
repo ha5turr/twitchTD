@@ -59,6 +59,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.reply(c.Name, fmt.Sprintf("%s, золото %d/%d, построек %d/%d, убийств %d",
 			strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills))
 		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
+	case "!link", "!привязать":
+		g.cmdLink(c, key)
 	case "!class", "!класс":
 		g.cmdClass(c, args)
 	case "!drink", "!d", "!выпить", "!пить":
@@ -281,6 +283,8 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 				g.spawnEnemy(args[0], hp*spec.HPMult, 0.4*float64(i))
 			}
 		}
+	case "!tdtreasury": // !tdtreasury nick N: hand treasury gold to a chatter
+		g.cmdTreasury(args)
 	case "!tdwalls": // set the walls' hit points, e.g. to repair them by hand
 		if len(args) == 1 {
 			if n, err := strconv.Atoi(args[0]); err == nil {

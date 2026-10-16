@@ -44,6 +44,80 @@ func ParseChat(data []byte) (Chat, bool) {
 	return Chat{}, false
 }
 
+// User is a Twitch account as it appears in support events.
+type User struct{ Login, Name string }
+
+// eventPayload covers the support events in both payload generations:
+// 1.x puts accounts in "user"/"recipient" objects, 0.2.x flattens them.
+type eventPayload struct {
+	User      *userObj `json:"user"`
+	Recipient *userObj `json:"recipient"`
+	Reward    *struct {
+		Title string `json:"title"`
+	} `json:"reward"`
+	Bits    int             `json:"bits"`
+	Message json.RawMessage `json:"message"`
+
+	UserName             string `json:"userName"`
+	DisplayName          string `json:"displayName"`
+	Title                string `json:"title"`
+	RewardTitle          string `json:"rewardTitle"`
+	RecipientUserName    string `json:"recipientUserName"`
+	RecipientDisplayName string `json:"recipientDisplayName"`
+}
+
+type userObj struct {
+	Login string `json:"login"`
+	Name  string `json:"name"`
+}
+
+func parseEvent(data []byte) (eventPayload, bool) {
+	var p eventPayload
+	return p, json.Unmarshal(data, &p) == nil
+}
+
+func (p eventPayload) user() User {
+	if p.User != nil && p.User.Login != "" {
+		return User{p.User.Login, p.User.Name}
+	}
+	if p.UserName != "" {
+		return User{p.UserName, p.DisplayName}
+	}
+	var m legacyMessage // 0.2.x cheers carry the chatter inside "message"
+	if json.Unmarshal(p.Message, &m) == nil && m.Username != "" {
+		return User{m.Username, m.DisplayName}
+	}
+	return User{}
+}
+
+func (p eventPayload) recipient() User {
+	if p.Recipient != nil && p.Recipient.Login != "" {
+		return User{p.Recipient.Login, p.Recipient.Name}
+	}
+	return User{p.RecipientUserName, p.RecipientDisplayName}
+}
+
+func (p eventPayload) rewardTitle() string {
+	switch {
+	case p.Reward != nil && p.Reward.Title != "":
+		return p.Reward.Title
+	case p.RewardTitle != "":
+		return p.RewardTitle
+	}
+	return p.Title
+}
+
+func (p eventPayload) bits() int {
+	if p.Bits > 0 {
+		return p.Bits
+	}
+	var m struct {
+		Bits int `json:"bits"`
+	}
+	_ = json.Unmarshal(p.Message, &m)
+	return m.Bits
+}
+
 // ParsePresent extracts logins from a PresentViewers payload.
 func ParsePresent(data []byte) []string {
 	var p struct {

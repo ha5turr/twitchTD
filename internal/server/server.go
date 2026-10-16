@@ -159,12 +159,33 @@ func (s *Server) broadcast(data []byte) {
 	}
 }
 
-// inbound is what clients may send: chat lines from the panel or dev console.
+// inbound is what clients may send: chat lines from the panel or dev console,
+// and test support events so the streamer can rehearse without real money.
 type inbound struct {
-	T    string `json:"t"`
-	User string `json:"user"`
-	Text string `json:"text"`
-	Mod  bool   `json:"mod"`
+	T        string  `json:"t"`
+	User     string  `json:"user"`
+	Text     string  `json:"text"`
+	Mod      bool    `json:"mod"`
+	Amount   float64 `json:"amount"`
+	Currency string  `json:"currency"`
+}
+
+func (s *Server) handleInbound(m inbound) {
+	switch m.T {
+	case "chat":
+		// The panel's "streamer" user acts as the broadcaster.
+		s.Chat(game.ChatMessage{User: m.User, Text: m.Text, Mod: m.Mod, Broadcaster: m.User == game.StreamerName})
+	case "donation":
+		s.Do(func(g *game.Game) {
+			g.Donate(game.Donation{Name: m.User, Message: m.Text, Amount: m.Amount, Currency: m.Currency})
+		})
+	case "reward":
+		s.Do(func(g *game.Game) { g.Reward(m.User, m.User, m.Text) })
+	case "bits":
+		s.Do(func(g *game.Game) { g.Bits(m.User, m.User, int(m.Amount)) })
+	case "sub":
+		s.Do(func(g *game.Game) { g.Sub(m.User, m.User) })
+	}
 }
 
 func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
@@ -197,9 +218,8 @@ func (s *Server) serveWS(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			var m inbound
-			if json.Unmarshal(data, &m) == nil && m.T == "chat" {
-				// The panel's "streamer" user acts as the broadcaster.
-				s.Chat(game.ChatMessage{User: m.User, Text: m.Text, Mod: m.Mod, Broadcaster: m.User == game.StreamerName})
+			if json.Unmarshal(data, &m) == nil {
+				s.handleInbound(m)
 			}
 		}
 	}()

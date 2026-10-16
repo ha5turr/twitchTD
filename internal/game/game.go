@@ -78,6 +78,13 @@ type Game struct {
 	Chatters    map[string]*Chatter // keyed by lower-case login
 	Workers     map[string]*Worker  // mercenaries out of the tavern, by owner
 
+	// Treasury is the common pot: unmatched donations and gold that did not
+	// fit a wallet. It repairs the walls and the streamer can hand it out.
+	Treasury    int
+	treasuryAcc float64
+	Links       map[string]string // donation name (lower case) -> chatter login
+	LinkCodes   map[string]string // "4821" -> login, from !link
+
 	queue      []spawn
 	spawnTimer float64
 	nextID     int
@@ -92,10 +99,12 @@ type Game struct {
 
 func New(cfg Config, seed uint64) *Game {
 	g := &Game{
-		Cfg:      cfg,
-		Now:      time.Now,
-		Chatters: map[string]*Chatter{},
-		rng:      rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)),
+		Cfg:       cfg,
+		Now:       time.Now,
+		Chatters:  map[string]*Chatter{},
+		Links:     map[string]string{},
+		LinkCodes: map[string]string{},
+		rng:       rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)),
 	}
 	g.NewGame("")
 	return g
@@ -211,6 +220,7 @@ func (g *Game) Tick(dt float64) {
 		return
 	}
 	g.soberUp(dt)
+	g.tickTreasury(dt)
 	switch g.Phase {
 	case PhaseBuild:
 		g.Timer -= dt
@@ -245,13 +255,13 @@ func (g *Game) Tick(dt float64) {
 }
 
 // addGold credits gold up to the wallet cap and returns what was actually
-// added. The overflow repairs the tavern walls.
+// added. The overflow goes to the common treasury.
 func (g *Game) addGold(c *Chatter, amount int) int {
 	room := g.Cfg.WalletCap - c.Gold
 	add := min(amount, max(room, 0))
 	c.Gold += add
 	if over := amount - add; over > 0 {
-		g.Walls = min(g.Walls+float64(over)*g.Cfg.OverflowWallsPerGold, g.Cfg.WallsHP)
+		g.toTreasury(over)
 	}
 	return add
 }

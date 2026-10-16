@@ -71,6 +71,12 @@ export class Hud {
     this.bannerTime = 0;
 
     this.summary = new SummaryPanel();
+    // A white flash over the field when a reward rains arrows from the sky.
+    this.flash = new Graphics();
+    this.flash.rect(LEFT, TOP, COLS * CELL, ROWS * CELL).fill(0xfff4d6);
+    this.flash.alpha = 0;
+    this.ui.addChild(this.flash);
+    this.treasury = 0;
     this.ui.addChild(this.summary.root);
   }
 
@@ -97,6 +103,7 @@ export class Hud {
     this.infoText.text = `наёмников ${st.active}   seed ${this.map?.seed ?? ''}`;
     if (this.lastWalls !== null && st.walls < this.lastWalls) this.hitFlash = 0.35;
     this.lastWalls = st.walls;
+    this.treasury = st.treasury ?? 0;
     this.drawWalls(st.walls, st.wallsMax);
     this.drawBoss(st.enemies.find((e) => e.boss));
     if (st.phase === 'gameover' && st.summary) this.summary.show(st.summary, st.timer);
@@ -112,7 +119,8 @@ export class Hud {
     b.clear();
     b.roundRect(0, 0, 720, 28, 6).fill(0x000000).stroke({ width: 2, color: 0x5a4a35 });
     b.roundRect(3, 3, 714 * f, 22, 4).fill(color);
-    this.wallsText.text = `Стены таверны ${Math.ceil(hp)} / ${maxHp}`;
+    const pot = this.treasury > 0 ? `  ·  казна ${this.treasury} з` : '';
+    this.wallsText.text = `Стены таверны ${Math.ceil(hp)} / ${maxHp}${pot}`;
 
     // The wall itself, on the border between tavern and field, cracks as it drops.
     const w = this.walls;
@@ -179,6 +187,18 @@ export class Hud {
       case 'wallBroken':
         this.floatAt(ev.x, ev.y - 0.4, 'баррикада пала', 0xff9a6a, FONT_UI, 22);
         break;
+      case 'donation':
+        this.showBanner(`${ev.user}: ${ev.text}`, `+${ev.amount ?? 0} золота`, 5);
+        break;
+      case 'support':
+        this.showBanner(`${ev.user}: ${ev.text}`, `+${ev.amount ?? 0} золота`, 4);
+        break;
+      case 'reward':
+        this.showBanner(ev.text, `награду взял ${ev.user}`, 3);
+        break;
+      case 'strike':
+        this.flash.alpha = 0.55;
+        break;
       case 'blast':
         this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
         break;
@@ -222,6 +242,7 @@ export class Hud {
     const a = Math.max(0, Math.min(1, this.bannerTime * 2));
     this.banner.alpha = this.subBanner.alpha = a;
     this.hitFlash = Math.max(0, this.hitFlash - dt);
+    this.flash.alpha = Math.max(0, this.flash.alpha - dt * 1.5);
     this.walls.tint = this.hitFlash > 0 ? 0xff8080 : 0xffffff;
     this.drawFire();
     // Fire blasts: a ring that expands and fades where a fireball landed.

@@ -48,6 +48,10 @@ type Chat struct {
 type Handlers struct {
 	Chat    func(Chat)
 	Present func(logins []string)
+	Reward  func(u User, title string)
+	Bits    func(u User, bits int)
+	Sub     func(u User)
+	GiftSub func(from, to User)
 }
 
 type Client struct {
@@ -154,7 +158,9 @@ func (c *Client) session(ctx context.Context) error {
 	}
 	sub := map[string]any{
 		"request": "Subscribe", "id": c.nextID(),
-		"events": map[string][]string{"Twitch": {"ChatMessage", "PresentViewers"}},
+		"events": map[string][]string{"Twitch": {
+			"ChatMessage", "PresentViewers", "RewardRedemption", "Cheer", "Sub", "ReSub", "GiftSub",
+		}},
 	}
 	if err := c.write(ctx, conn, sub); err != nil {
 		return err
@@ -234,6 +240,30 @@ func (c *Client) dispatch(data []byte) {
 	case "PresentViewers":
 		if logins := ParsePresent(env.Data); len(logins) > 0 && c.h.Present != nil {
 			c.h.Present(logins)
+		}
+	default:
+		p, ok := parseEvent(env.Data)
+		if !ok {
+			return
+		}
+		u := p.user()
+		switch env.Event.Type {
+		case "RewardRedemption":
+			if t := p.rewardTitle(); t != "" && c.h.Reward != nil {
+				c.h.Reward(u, t)
+			}
+		case "Cheer":
+			if b := p.bits(); b > 0 && c.h.Bits != nil {
+				c.h.Bits(u, b)
+			}
+		case "Sub", "ReSub":
+			if u.Login != "" && c.h.Sub != nil {
+				c.h.Sub(u)
+			}
+		case "GiftSub":
+			if c.h.GiftSub != nil {
+				c.h.GiftSub(u, p.recipient()) // an anonymous gifter still pays the recipient
+			}
 		}
 	}
 }

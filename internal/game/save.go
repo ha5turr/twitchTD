@@ -11,6 +11,10 @@ type Save struct {
 	Over     bool         `json:"over"`
 	Towers   []SavedTower `json:"towers"`
 	Chatters []SavedChatter
+
+	Treasury  int               `json:"treasury"`
+	Links     map[string]string `json:"links"`
+	LinkCodes map[string]string `json:"linkCodes"`
 }
 
 // wantCell is the kind of cell a building stands on.
@@ -42,7 +46,10 @@ type SavedChatter struct {
 }
 
 func (g *Game) Export() Save {
-	s := Save{Seed: g.Map.Seed, Biome: g.Map.Biome, Wave: g.Wave, Walls: g.Walls, Over: g.Phase == PhaseGameOver}
+	s := Save{
+		Seed: g.Map.Seed, Biome: g.Map.Biome, Wave: g.Wave, Walls: g.Walls, Over: g.Phase == PhaseGameOver,
+		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes,
+	}
 	for _, t := range g.Towers {
 		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost})
 	}
@@ -50,6 +57,18 @@ func (g *Game) Export() Save {
 		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold, c.Kills, c.Drinks, c.Class})
 	}
 	return s
+}
+
+// LoadEconomy restores what outlives any single game: the treasury and the
+// donation links.
+func (g *Game) LoadEconomy(s Save) {
+	g.Treasury = s.Treasury
+	for k, v := range s.Links {
+		g.Links[k] = v
+	}
+	for k, v := range s.LinkCodes {
+		g.LinkCodes[k] = v
+	}
 }
 
 // LoadChatters restores wallets and stats without touching the board.

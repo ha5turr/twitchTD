@@ -116,7 +116,12 @@ func TestWalletCapOverflowRepairsWalls(t *testing.T) {
 	if c.Gold != g.Cfg.WalletCap {
 		t.Fatalf("gold %d, want cap %d", c.Gold, g.Cfg.WalletCap)
 	}
-	if added >= g.Cfg.WalletCap*2 || g.Walls <= 100 {
-		t.Fatalf("overflow should repair walls: added %d, walls %.0f", added, g.Walls)
+	if g.Treasury != g.Cfg.WalletCap*2-added {
+		t.Fatalf("overflow should go to the treasury: added %d, treasury %d", added, g.Treasury)
+	}
+	before := g.Treasury
+	g.Tick(1)
+	if g.Walls <= 100 || g.Treasury >= before {
+		t.Fatalf("the treasury repairs walls: walls %.0f, treasury %d", g.Walls, g.Treasury)
 	}
 }

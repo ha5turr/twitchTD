@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"io/fs"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"os/signal"
 	"time"
 
+	"twitchtd/internal/donationalerts"
 	"twitchtd/internal/game"
 	"twitchtd/internal/server"
 	"twitchtd/internal/sim"
@@ -46,8 +48,9 @@ func main() {
 	g := game.New(cfg.Config, *seed)
 	opt := server.Options{}
 
+	var st *store.Store
 	if cfg.DB != "" {
-		st, err := store.Open(cfg.DB)
+		st, err = store.Open(cfg.DB)
 		if err != nil {
 			log.Fatalf("db: %v", err)
 		}
@@ -57,6 +60,7 @@ func main() {
 			log.Fatalf("db: %v", err)
 		}
 		g.LoadChatters(save.Chatters)
+		g.LoadEconomy(save)
 		if ok && !*fresh {
 			g.Restore(save)
 			log.Printf("resumed: %s, wave %d", save.Biome, save.Wave)
@@ -64,8 +68,8 @@ func main() {
 		opt.Persist = st.Save
 	}
 
-	var sb *streamerbot.Client
 	var srv *server.Server
+	var sb *streamerbot.Client
 	if cfg.StreamerBot.Enabled {
 		sb = streamerbot.New(cfg.StreamerBot, streamerbot.Handlers{
 			Chat: func(m streamerbot.Chat) {
@@ -78,8 +82,36 @@ func main() {
 			Present: func(logins []string) {
 				srv.Do(func(g *game.Game) { g.Present(logins) })
 			},
+			Reward: func(u streamerbot.User, title string) {
+				srv.Do(func(g *game.Game) { g.Reward(u.Login, u.Name, title) })
+			},
+			Bits: func(u streamerbot.User, bits int) {
+				srv.Do(func(g *game.Game) { g.Bits(u.Login, u.Name, bits) })
+			},
+			Sub: func(u streamerbot.User) {
+				srv.Do(func(g *game.Game) { g.Sub(u.Login, u.Name) })
+			},
+			GiftSub: func(from, to streamerbot.User) {
+				srv.Do(func(g *game.Game) { g.GiftSub(from.Login, from.Name, to.Login, to.Name) })
+			},
 		})
 		opt.Say = sb.Send
+	}
+
+	var da *donationalerts.Client
+	if cfg.DonationAlerts.Enabled {
+		var tokens donationalerts.TokenStore = &memTokens{}
+		if st != nil {
+			tokens = kvTokens{st}
+		} else {
+			log.Printf("donationalerts: no database, the login will not survive a restart")
+		}
+		da = donationalerts.New(cfg.DonationAlerts, donationalerts.Production, "http://"+*addr+"/da/callback", tokens,
+			func(d donationalerts.Donation) {
+				srv.Do(func(g *game.Game) {
+					g.Donate(game.Donation{Name: d.Name, Message: d.Message, Amount: d.Amount, Currency: d.Currency})
+				})
+			})
 	}
 
 	srv = server.New(g, files, opt)
@@ -91,12 +123,25 @@ func main() {
 	if sb != nil {
 		go sb.Run(ctx)
 	}
+	if da != nil {
+		go da.Run(ctx)
+	}
 	if *bots > 0 {
 		sim.Run(ctx, *bots, srv.Chat, srv.CurrentMap)
 		log.Printf("simulating %d chatters", *bots)
 	}
 
-	hs := &http.Server{Addr: *addr, Handler: srv.Handler()}
+	mux := http.NewServeMux()
+	mux.Handle("/", srv.Handler())
+	if da != nil {
+		mux.Handle("/da/", da.Handler())
+	} else {
+		mux.HandleFunc("/da/status", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"status":"выключено в config.json"}`))
+		})
+	}
+	hs := &http.Server{Addr: *addr, Handler: mux}
 	go func() {
 		<-ctx.Done()
 		hs.Close()
@@ -107,3 +152,27 @@ func main() {
 	}
 	<-runDone // the loop saves the game on its way out
 }
+
+// kvTokens keeps the DonationAlerts token in the game database.
+type kvTokens struct{ st *store.Store }
+
+func (k kvTokens) LoadToken() (donationalerts.Token, bool, error) {
+	raw, ok, err := k.st.GetKV("donationalerts_token")
+	if err != nil || !ok {
+		return donationalerts.Token{}, false, err
+	}
+	var t donationalerts.Token
+	return t, true, json.Unmarshal([]byte(raw), &t)
+}
+
+func (k kvTokens) SaveToken(t donationalerts.Token) error {
+	data, _ := json.Marshal(t)
+	return k.st.SetKV("donationalerts_token", string(data))
+}
+
+type memTokens struct{ t donationalerts.Token }
+
+func (m *memTokens) LoadToken() (donationalerts.Token, bool, error) {
+	return m.t, m.t.Access != "", nil
+}
+func (m *memTokens) SaveToken(t donationalerts.Token) error { m.t = t; return nil }

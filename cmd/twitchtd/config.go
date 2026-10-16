@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
+	"twitchtd/internal/donationalerts"
 	"twitchtd/internal/game"
 	"twitchtd/internal/streamerbot"
 )
@@ -12,8 +13,9 @@ import (
 // game.Config), integrations in their own sections.
 type appConfig struct {
 	game.Config
-	StreamerBot streamerbot.Config `json:"streamerbot"`
-	DB          string             `json:"db"` // SQLite file; empty disables saving
+	StreamerBot    streamerbot.Config    `json:"streamerbot"`
+	DonationAlerts donationalerts.Config `json:"donationalerts"`
+	DB             string                `json:"db"` // SQLite file; empty disables saving
 }
 
 func loadConfig(path string) (appConfig, error) {

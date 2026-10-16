@@ -41,3 +41,26 @@ func TestAuthString(t *testing.T) {
 		t.Fatalf("auth string %s", got)
 	}
 }
+
+func TestParseSupportEvents(t *testing.T) {
+	reward, _ := parseEvent([]byte(`{"user":{"login":"vasya","name":"Вася"},"reward":{"title":"Мешок золота","cost":500},"userInput":""}`))
+	if u := reward.user(); u.Login != "vasya" || reward.rewardTitle() != "Мешок золота" {
+		t.Fatalf("reward %+v %q", u, reward.rewardTitle())
+	}
+	legacyReward, _ := parseEvent([]byte(`{"userName":"petya","displayName":"Петя","title":"Дождь стрел","cost":100}`))
+	if u := legacyReward.user(); u.Login != "petya" || legacyReward.rewardTitle() != "Дождь стрел" {
+		t.Fatalf("legacy reward %+v %q", u, legacyReward.rewardTitle())
+	}
+	cheer, _ := parseEvent([]byte(`{"user":{"login":"a","name":"A"},"bits":250,"text":"cheer250"}`))
+	if cheer.bits() != 250 || cheer.user().Login != "a" {
+		t.Fatal("cheer")
+	}
+	legacyCheer, _ := parseEvent([]byte(`{"message":{"username":"b","displayName":"B","bits":100,"message":"cheer100"}}`))
+	if legacyCheer.bits() != 100 || legacyCheer.user().Login != "b" {
+		t.Fatal("legacy cheer")
+	}
+	gift, _ := parseEvent([]byte(`{"user":{"login":"g","name":"G"},"recipient":{"login":"r","name":"R"},"subTier":"1000"}`))
+	if gift.user().Login != "g" || gift.recipient().Login != "r" {
+		t.Fatal("gift sub")
+	}
+}

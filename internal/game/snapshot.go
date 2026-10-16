@@ -52,6 +52,7 @@ type StateMsg struct {
 	Paused   bool          `json:"paused"`
 	Cap      int           `json:"walletCap"`
 	Limit    int           `json:"towerLimit"`
+	Treasury int           `json:"treasury"`
 	Active   int           `json:"active"`
 	Enemies  []EnemyView   `json:"enemies"`
 	Towers   []TowerView   `json:"towers"`
@@ -123,7 +124,7 @@ func round2(f float64) float64 { return math.Round(f*100) / 100 }
 func (g *Game) StateMessage() StateMsg {
 	s := StateMsg{
 		T: "state", Phase: g.Phase, Timer: round2(g.Timer), Wave: g.Wave,
-		Walls: math.Ceil(g.Walls), WallsMax: g.Cfg.WallsHP, Paused: g.Paused, Cap: g.Cfg.WalletCap, Limit: g.Cfg.TowerLimit,
+		Walls: math.Ceil(g.Walls), WallsMax: g.Cfg.WallsHP, Paused: g.Paused, Cap: g.Cfg.WalletCap, Limit: g.Cfg.TowerLimit, Treasury: g.Treasury,
 		Active: g.ActiveChatters(), Events: g.TakeEvents(),
 		Enemies: []EnemyView{}, Towers: []TowerView{}, Proj: []ProjView{}, Chatters: []ChatterView{},
 		Workers: []WorkerView{},

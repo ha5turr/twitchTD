@@ -42,6 +42,23 @@
       </select>
       <button id="newmap">Новая карта</button>
     </div>
+    <h2>Тест поддержки</h2>
+    <form id="support">
+      <input name="who" value="Василий" size="10" aria-label="Имя или ник">
+      <input name="amount" value="100" size="5" aria-label="Сумма">
+      <select name="currency" aria-label="Валюта"><option>RUB</option><option>USD</option><option>EUR</option></select>
+      <input name="msg" placeholder="сообщение, можно TD-1234" aria-label="Сообщение доната">
+    </form>
+    <div class="row">
+      <button data-support="donation">Донат</button>
+      <button data-support="bits">Биты</button>
+      <button data-support="sub">Подписка</button>
+      <select id="reward" aria-label="Награда за баллы">
+        <option>Мешок золота</option><option>Починить стены</option><option>Дождь стрел</option><option>Выпивка за мой счёт</option>
+      </select>
+      <button data-support="reward">Награда</button>
+    </div>
+    <p>DonationAlerts: <span id="da">…</span> · <a href="/da/login" target="_blank" style="color:#9ecbff">подключить</a></p>
     <h2>События</h2>
     <div id="log"></div>
   </section>
@@ -59,6 +76,18 @@
   form.onsubmit = (e) => { e.preventDefault(); send(form.text.value); form.text.select(); };
   document.querySelectorAll('[data-cmd]').forEach((b) => (b.onclick = () => send(b.dataset.cmd)));
   document.getElementById('newmap').onclick = () => send('!tdnew ' + document.getElementById('biome').value);
+  const sup = document.getElementById('support');
+  document.querySelectorAll('[data-support]').forEach((b) => (b.onclick = () => {
+    const t = b.dataset.support;
+    net.send({
+      t, user: sup.who.value, amount: Number(sup.amount.value), currency: sup.currency.value,
+      text: t === 'reward' ? document.getElementById('reward').value : sup.msg.value,
+    });
+  }));
+  const da = document.getElementById('da');
+  const poll = () => fetch('/da/status').then((r) => r.json()).then((s) => (da.textContent = s.status)).catch(() => {});
+  poll();
+  setInterval(poll, 5000);
 </script>
 </body>
 </html>
