@@ -66,6 +66,9 @@ async function start() {
     settings(s) {
       sound.configure(s.values ?? {});
     },
+    soundTest(m) {
+      sound.test(m.group);
+    },
   });
 
   function playSounds(s) {

@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"twitchtd/internal/game"
 	"twitchtd/internal/store"
 )
 
@@ -17,7 +18,7 @@ import (
 var editable = []string{
 	"towerLimit", "walletCap", "keepGold", "startGold", "chatGold", "bitsGold", "subGold",
 	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "baseHP", "hpGrowth", "chatterHPCoef",
-	"webcamFrom", "webcamTo", "volume", "muted", "ambient",
+	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
 
 // settings combines config.json with the panel's overrides (kept in the
@@ -144,10 +145,35 @@ func validate(cfg appConfig) error {
 		return fmt.Errorf("лимит построек, потолок кошелька, фаза стройки (от 5 с) и частота боссов должны быть положительными")
 	case cfg.HPGrowth < 1 || cfg.HPGrowth > 2, cfg.BaseHP <= 0:
 		return fmt.Errorf("рост ХП должен быть от 1 до 2, базовое ХП больше нуля")
-	case cfg.Volume < 0 || cfg.Volume > 1:
+	case cfg.Volume < 0 || cfg.Volume > 1, cfg.AmbientVolume < 0 || cfg.AmbientVolume > 1:
 		return fmt.Errorf("громкость от 0 до 1")
 	}
+	known := map[string]bool{}
+	for _, g := range game.SoundGroups {
+		known[g.Key] = true
+	}
+	for k, v := range cfg.SoundGroups {
+		if !known[k] {
+			return fmt.Errorf("нет такой группы звуков: %s", k)
+		}
+		if v < 0 || v > 1 {
+			return fmt.Errorf("громкость группы %s от 0 до 1", k)
+		}
+	}
 	return nil
+}
+
+// chatAdmin lets mod commands in chat change settings like the panel does.
+type chatAdmin struct{ s *settings }
+
+func (a chatAdmin) Values() map[string]any { return a.s.View() }
+
+func (a chatAdmin) Change(changes map[string]any) error {
+	raw, err := json.Marshal(changes)
+	if err != nil {
+		return err
+	}
+	return a.s.Set(raw)
 }
 
 // watch reloads config.json when it changes on disk.

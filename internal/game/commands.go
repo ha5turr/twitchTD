@@ -297,6 +297,8 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		}
 	case "!tdtreasury": // !tdtreasury nick N: hand treasury gold to a chatter
 		g.cmdTreasury(args)
+	case "!tdvolume", "!tdmute", "!tdambient", "!tdsound":
+		g.cmdSound(c, cmd, args)
 	case "!tdwalls": // set the walls' hit points, e.g. to repair them by hand
 		if len(args) == 1 {
 			if n, err := strconv.Atoi(args[0]); err == nil {

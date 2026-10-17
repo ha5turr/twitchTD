@@ -61,6 +61,7 @@ func main() {
 	cfg = set.Current()
 
 	g := game.New(cfg.Config, *seed)
+	g.Admin = chatAdmin{set}
 	opt := server.Options{OnSettings: set.Set}
 
 	if st != nil {

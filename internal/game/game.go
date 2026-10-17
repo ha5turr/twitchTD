@@ -86,6 +86,9 @@ type Game struct {
 	LinkCodes   map[string]string // "4821" -> login, from !link
 	Banned      map[string]bool   // chatters the streamer forbade to build
 
+	// Admin reaches the overlay settings (sound) for mod chat commands.
+	Admin SettingsAdmin
+
 	queue      []spawn
 	spawnTimer float64
 	nextID     int

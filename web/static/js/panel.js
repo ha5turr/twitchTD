@@ -30,7 +30,6 @@ const SETTINGS = [
   ['bossEvery', 'Босс каждые N волн', 'int'], ['baseHP', 'Базовое ХП врагов', 'num'], ['hpGrowth', 'Рост ХП за волну', 'num'],
   ['chatterHPCoef', 'ХП от числа чатерсов', 'num'], ['webcamFrom', 'Вебка: от клетки', 'text'], ['webcamTo', 'Вебка: до клетки', 'text'],
 ];
-const SOUND = ['volume', 'muted', 'ambient'];
 
 let tool = 'arrow';
 let map = null;
@@ -215,9 +214,7 @@ function renderSettings() {
     if (type === 'bool') input.checked = !!values[key];
     else input.value = values[key] ?? '';
   }
-  $('volume').value = values.volume ?? 0.6;
-  $('muted').checked = !!values.muted;
-  $('ambient').checked = !!values.ambient;
+  renderMixer();
 }
 
 $('save').onclick = () => {
@@ -232,11 +229,66 @@ $('save').onclick = () => {
   net.send({ t: 'settings', values: out });
   message('применено');
 };
-for (const id of SOUND) {
-  $(id).onchange = () => {
-    const el = $(id);
-    net.send({ t: 'settings', values: { [id]: el.type === 'checkbox' ? el.checked : Number(el.value) } });
+// Sound mixer: master, ambience and one row per sound group. Moving a slider
+// shows the level at once and applies it on release; ▶ plays a sample in
+// the overlay so the streamer hears it through OBS.
+const GROUPS = [
+  ['combat', 'Бой'], ['building', 'Стройка'], ['alerts', 'Волны и боссы'],
+  ['support', 'Донаты и награды'], ['tavern', 'Таверна'], ['walls', 'Стены и наёмники'],
+];
+const pctText = (v) => `${Math.round((v ?? 0) * 100)}%`;
+const sendSettings = (v) => net.send({ t: 'settings', values: v });
+
+for (const [key, label] of GROUPS) {
+  const row = document.createElement('div');
+  row.className = 'mix';
+  row.dataset.group = key;
+  const name = document.createElement('span');
+  name.textContent = label;
+  const range = document.createElement('input');
+  range.type = 'range';
+  range.min = 0;
+  range.max = 1;
+  range.step = 0.05;
+  range.setAttribute('aria-label', `Громкость: ${label}`);
+  const out = document.createElement('output');
+  const test = document.createElement('button');
+  test.textContent = '▶';
+  test.dataset.test = key;
+  test.title = `Прослушать: ${label}`;
+  range.oninput = () => { out.textContent = pctText(Number(range.value)); row.classList.toggle('off', Number(range.value) === 0); };
+  range.onchange = () => {
+    // Send the whole map: an override replaces the setting as a whole.
+    sendSettings({ soundGroups: { ...(values.soundGroups ?? {}), [key]: Number(range.value) } });
   };
+  row.append(name, range, out, test);
+  $('groups').append(row);
+}
+
+document.querySelectorAll('[data-test]').forEach((b) => (b.onclick = () => net.send({ t: 'soundTest', text: b.dataset.test })));
+$('volume').oninput = () => ($('volumeOut').textContent = pctText(Number($('volume').value)));
+$('volume').onchange = () => sendSettings({ volume: Number($('volume').value) });
+$('muted').onclick = () => sendSettings({ muted: !values.muted });
+$('ambient').onchange = () => sendSettings({ ambient: $('ambient').checked });
+$('ambientVolume').oninput = () => ($('ambientVolumeOut').textContent = pctText(Number($('ambientVolume').value)));
+$('ambientVolume').onchange = () => sendSettings({ ambientVolume: Number($('ambientVolume').value), ambient: true });
+
+function renderMixer() {
+  const busy = (el) => document.activeElement === el; // never move a slider under the cursor
+  if (!busy($('volume'))) $('volume').value = values.volume ?? 0.6;
+  $('volumeOut').textContent = pctText(values.volume);
+  $('muted').classList.toggle('on', !!values.muted);
+  $('muted').textContent = values.muted ? 'Звук выключен' : 'Без звука';
+  $('ambient').checked = !!values.ambient;
+  if (!busy($('ambientVolume'))) $('ambientVolume').value = values.ambientVolume ?? 0.7;
+  $('ambientVolumeOut').textContent = values.ambient ? pctText(values.ambientVolume) : 'выкл';
+  for (const row of document.querySelectorAll('#groups .mix')) {
+    const v = values.soundGroups?.[row.dataset.group] ?? 1;
+    const range = row.querySelector('input');
+    if (!busy(range)) range.value = v;
+    row.querySelector('output').textContent = pctText(v);
+    row.classList.toggle('off', v === 0);
+  }
 }
 
 function message(text, err = false) {

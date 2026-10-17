@@ -187,6 +187,8 @@ func (s *Server) handleInbound(m inbound) {
 		s.Do(func(g *game.Game) { g.Reward(m.User, m.User, m.Text) })
 	case "bits":
 		s.Do(func(g *game.Game) { g.Bits(m.User, m.User, int(m.Amount)) })
+	case "soundTest": // the panel asks the overlay (OBS) to play a sample
+		s.broadcast(mustJSON(map[string]string{"t": "soundTest", "group": m.Text}))
 	case "settings":
 		if s.opt.OnSettings == nil {
 			return

@@ -2,6 +2,26 @@
 // files. OBS plays browser sources without a click; a normal browser tab
 // starts the sound on the first click anywhere.
 
+// Sound groups the streamer controls in the panel and with !tdsound.
+// Keys match game.SoundGroups on the server.
+const GROUP_SAMPLES = {
+  combat: ['arrow', 'magic', 'fire', 'kill'],
+  building: ['build', 'coin'],
+  alerts: ['bell', 'horn'],
+  support: ['fanfare'],
+  tavern: ['drink'],
+  walls: ['wallHit', 'stun'],
+};
+
+const SOUND_GROUP = {
+  arrow: 'combat', magic: 'combat', fire: 'combat', blast: 'combat', kill: 'combat', trap: 'combat',
+  build: 'building', coin: 'building',
+  bell: 'alerts', horn: 'alerts', ability: 'alerts', cleared: 'alerts', gameover: 'alerts', newgame: 'alerts',
+  fanfare: 'support', strike: 'support',
+  drink: 'tavern',
+  wallHit: 'walls', stun: 'walls',
+};
+
 const AMBIENT = {
   ruins: { base: 55, cutoff: 260, wind: 0.05 },
   dungeon: { base: 49, cutoff: 200, wind: 0.02 },
@@ -14,6 +34,16 @@ export class Sound {
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.master = this.ctx.createGain();
     this.master.connect(this.ctx.destination);
+    // Each sound group and the ambience get their own level under master.
+    this.groups = {};
+    for (const key of Object.keys(GROUP_SAMPLES)) {
+      this.groups[key] = this.ctx.createGain();
+      this.groups[key].connect(this.master);
+    }
+    this.ambientBus = this.ctx.createGain();
+    this.ambientBus.gain.value = 0.7;
+    this.ambientBus.connect(this.master);
+    this.out = this.master;
     this.volume = 0.6;
     this.muted = false;
     this.ambientOn = true;
@@ -26,13 +56,32 @@ export class Sound {
     window.addEventListener('keydown', unlock);
   }
 
-  configure({ volume, muted, ambient }) {
+  configure({ volume, muted, ambient, ambientVolume, soundGroups }) {
     if (typeof volume === 'number') this.volume = volume;
     if (typeof muted === 'boolean') this.muted = muted;
-    if (typeof ambient === 'boolean') this.ambientOn = ambient;
+    const now = this.ctx.currentTime;
+    if (typeof ambientVolume === 'number') this.ambientBus.gain.setTargetAtTime(ambientVolume, now, 0.1);
+    for (const [key, level] of Object.entries(soundGroups ?? {})) {
+      this.groups[key]?.gain.setTargetAtTime(level, now, 0.05);
+    }
     this.applyVolume();
-    if (!this.ambientOn) this.stopAmbient();
-    else if (this.biome) this.setBiome(this.biome);
+    if (typeof ambient === 'boolean' && ambient !== this.ambientOn) {
+      this.ambientOn = ambient;
+      if (!ambient) this.stopAmbient();
+      else if (this.biome) this.setBiome(this.biome);
+    }
+  }
+
+  // test plays a short sample of a group so the streamer hears it in OBS.
+  test(group) {
+    if (group === 'ambient') {
+      if (this.biome) this.setBiome(this.biome);
+      return;
+    }
+    (GROUP_SAMPLES[group] ?? []).forEach((name, i) => setTimeout(() => {
+      delete this.last[name]; // a test always plays
+      this.play(name);
+    }, i * 350));
   }
 
   applyVolume() {
@@ -78,7 +127,7 @@ export class Sound {
       o.connect(f);
       node = f;
     }
-    node.connect(g).connect(this.master);
+    node.connect(g).connect(this.out);
     this.env(g, t, attack, decay, peak);
     this.voices++;
     o.onended = () => this.voices--;
@@ -95,7 +144,7 @@ export class Sound {
     f.frequency.value = freq;
     f.Q.value = q;
     const g = this.ctx.createGain();
-    src.connect(f).connect(g).connect(this.master);
+    src.connect(f).connect(g).connect(this.out);
     this.env(g, t, attack, decay, peak);
     this.voices++;
     src.onended = () => this.voices--;
@@ -104,6 +153,7 @@ export class Sound {
   }
 
   play(name) {
+    this.out = this.groups[SOUND_GROUP[name]] ?? this.master;
     switch (name) {
       case 'arrow':
         if (this.gate(name, 0.07)) this.noise({ decay: 0.06, peak: 0.12, freq: 2400, q: 3 });
@@ -199,7 +249,7 @@ export class Sound {
     const out = ctx.createGain();
     out.gain.value = 0;
     out.gain.setTargetAtTime(1, ctx.currentTime, 2);
-    out.connect(this.master);
+    out.connect(this.ambientBus);
     const lp = ctx.createBiquadFilter();
     lp.type = 'lowpass';
     lp.frequency.value = a.cutoff;

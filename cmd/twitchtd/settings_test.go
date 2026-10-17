@@ -54,3 +54,23 @@ func TestSettingsOverridesAndValidation(t *testing.T) {
 		t.Fatalf("view %v", v)
 	}
 }
+
+func TestSoundGroupSettings(t *testing.T) {
+	s, err := newSettings(filepath.Join(t.TempDir(), "none.json"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.apply = func(appConfig, map[string]any) {}
+	if err := s.Set(json.RawMessage(`{"soundGroups": {"combat": 0.3, "alerts": 1, "building": 1, "support": 1, "tavern": 1, "walls": 1}, "ambientVolume": 0.2}`)); err != nil {
+		t.Fatal(err)
+	}
+	if c := s.Current(); c.SoundGroups["combat"] != 0.3 || c.AmbientVolume != 0.2 {
+		t.Fatalf("sound settings %+v %v", c.SoundGroups, c.AmbientVolume)
+	}
+	if s.Set(json.RawMessage(`{"soundGroups": {"music": 1}}`)) == nil {
+		t.Fatal("unknown group must be refused")
+	}
+	if s.Set(json.RawMessage(`{"soundGroups": {"combat": 2}}`)) == nil {
+		t.Fatal("group level above 1 must be refused")
+	}
+}
