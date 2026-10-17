@@ -55,12 +55,12 @@ export class Hud {
     this.biomeText = this.text('', ui(30), W - 32, 18, 1);
     this.infoText = this.text('', ui(22, 0xc9b98f), W - 32, 66, 1);
 
+    // While a boss is on the field the top bar holds two bars: the walls
+    // move up and the boss's health goes under them, clear of the field.
     this.bossBar = new Graphics();
-    // At the bottom of the field, left of the default webcam corner, so it
-    // never covers the column letters at the top.
-    this.bossBar.position.set(LEFT + 100, H - 66);
-    this.bossText = this.text('', ui(22, 0xffd6d6), LEFT + 500, H - 72, 0.5);
+    this.bossBar.position.set(W / 2 - 360, 66);
     this.ui.addChild(this.bossBar);
+    this.bossText = this.text('', ui(20, 0xffd6d6), W / 2, 67, 0.5);
 
     this.floatLayer = new Container();
     this.blasts = new Graphics();
@@ -104,8 +104,10 @@ export class Hud {
     if (this.lastWalls !== null && st.walls < this.lastWalls) this.hitFlash = 0.35;
     this.lastWalls = st.walls;
     this.treasury = st.treasury ?? 0;
+    const boss = st.enemies.find((e) => e.boss);
+    this.withBoss = !!boss;
     this.drawWalls(st.walls, st.wallsMax);
-    this.drawBoss(st.enemies.find((e) => e.boss));
+    this.drawBoss(boss);
     if (st.phase === 'gameover' && st.summary) this.summary.show(st.summary, st.timer);
     else this.summary.hide();
     for (const ev of st.events ?? []) this.onEvent(ev);
@@ -121,6 +123,10 @@ export class Hud {
     b.roundRect(3, 3, 714 * f, 22, 4).fill(color);
     const pot = this.treasury > 0 ? `  ·  казна ${this.treasury} з` : '';
     this.wallsText.text = `Стены таверны ${Math.ceil(hp)} / ${maxHp}${pot}`;
+    // With a boss the walls' caption goes inside their bar to make room.
+    b.y = this.withBoss ? 22 : 46;
+    this.wallsText.y = this.withBoss ? 23 : 78;
+    this.wallsText.style.fontSize = this.withBoss ? 20 : 24;
 
     // The wall itself, on the border between tavern and field, cracks as it drops.
     const w = this.walls;
@@ -147,9 +153,9 @@ export class Hud {
       return;
     }
     const f = Math.max(0, boss.hp / boss.maxHp);
-    b.roundRect(0, 18, 800, 22, 6).fill({ color: 0x000000, alpha: 0.75 }).stroke({ width: 2, color: 0x7a1d1d });
-    b.roundRect(3, 21, 794 * f, 16, 4).fill(0xc23232);
-    this.bossText.text = boss.title || 'Босс';
+    b.roundRect(0, 0, 720, 28, 6).fill(0x000000).stroke({ width: 2, color: 0x7a1d1d });
+    b.roundRect(3, 3, 714 * f, 22, 4).fill(0xc23232);
+    this.bossText.text = `${boss.title || 'Босс'}  ${Math.ceil(boss.hp)} / ${Math.ceil(boss.maxHp)}`;
   }
 
   onEvent(ev) {

@@ -401,7 +401,42 @@ function short(name) {
   return name.length > 13 ? name.slice(0, 12) + '…' : name;
 }
 
-// FameBoard rotates three top-5 lists: richest, deadliest, thirstiest.
+// HELP pages remind the chat of its commands between the lists.
+const HELP = [
+  {
+    title: 'Команды: стройка',
+    rows: [
+      ['!b C4 arrow', 'построить'],
+      ['!up C4', 'улучшить'],
+      ['!sell C4', 'продать'],
+      ['!towers', 'мои постройки'],
+      ['!me', 'мой наёмник'],
+    ],
+  },
+  {
+    title: 'Команды: таверна',
+    rows: [
+      ['!drink', 'выпить эля'],
+      ['!кости 50', 'ставка в кости'],
+      ['!кости принять', 'сыграть'],
+      ['!class', 'сменить класс'],
+      ['!link', 'привязать донаты'],
+    ],
+  },
+  {
+    title: 'Постройки',
+    rows: [
+      ['arrow', 'лучники'],
+      ['magic', 'обелиск'],
+      ['fire/shrine', 'огонь, храм'],
+      ['drums', 'барабаны'],
+      ['trap/wall', 'на дорогу'],
+    ],
+  },
+];
+
+// FameBoard rotates three top-5 lists (richest, deadliest, thirstiest) with
+// a page of commands between every two of them.
 class FameBoard {
   constructor() {
     this.root = new Container();
@@ -430,6 +465,8 @@ class FameBoard {
       { title: 'Пьяницы', key: 'drinks', unit: 'кр.' },
     ];
     this.page = 0;
+    this.help = 0; // which HELP page comes next
+    this.onHelp = false; // every other turn of the board is a page of commands
     this.time = 0;
     this.chatters = [];
   }
@@ -440,28 +477,40 @@ class FameBoard {
   }
 
   render() {
-    // Skip empty pages so the board never shows a blank list.
+    if (this.onHelp) {
+      this.show(HELP[this.help].title, HELP[this.help].rows);
+      return;
+    }
+    // Skip empty lists; with every list empty the board teaches commands.
     for (let tries = 0; tries < this.pages.length; tries++) {
       const p = this.pages[this.page];
       const top = this.chatters.filter((c) => c[p.key] > 0).sort((a, b) => b[p.key] - a[p.key]).slice(0, 5);
-      if (top.length || tries === this.pages.length - 1) {
-        this.title.text = p.title;
-        this.rows.forEach((r, i) => {
-          const c = top[i];
-          r.n.text = c ? `${i + 1}. ${short(c.name)}` : '';
-          r.v.text = c ? `${c[p.key]} ${p.unit}`.trim() : '';
-        });
+      if (top.length) {
+        this.show(p.title, top.map((c, i) => [`${i + 1}. ${short(c.name)}`, `${c[p.key]} ${p.unit}`.trim()]));
         return;
       }
       this.page = (this.page + 1) % this.pages.length;
     }
+    this.show(HELP[this.help].title, HELP[this.help].rows);
+  }
+
+  show(title, rows) {
+    this.title.text = title;
+    this.rows.forEach((r, i) => {
+      r.n.text = rows[i]?.[0] ?? '';
+      r.v.text = rows[i]?.[1] ?? '';
+    });
   }
 
   frame(dt) {
     this.time += dt;
     if (this.time > 8) {
       this.time = 0;
-      this.page = (this.page + 1) % this.pages.length;
+      if (this.onHelp) {
+        this.help = (this.help + 1) % HELP.length;
+        this.page = (this.page + 1) % this.pages.length;
+      }
+      this.onHelp = !this.onHelp;
       this.render();
     }
   }
