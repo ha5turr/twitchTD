@@ -3,7 +3,7 @@
 import { CELL, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
 import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile } from './sprites.js';
-import { hasTileset, sprite, frames } from './tileset.js';
+import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
@@ -44,7 +44,7 @@ export class Entities {
     for (const v of this.enemies.values()) v.frame(k, this.t);
     for (const v of this.proj.values()) v.frame(Math.min(1, dt * 30));
     for (const v of this.workers.values()) v.frame(k, dt);
-    for (const v of this.towers.values()) v.frame(this.t);
+    for (const v of this.towers.values()) v.frame(this.t, this.enemies);
   }
 
   // Light sources in screen pixels, consumed by the lighting layer.
@@ -241,12 +241,35 @@ class TowerView {
     drawTower(g, this.kind, RARITY[Math.min(t.lvl, 5) - 1], t.lvl, !!this.art);
   }
 
-  frame(t) {
+  frame(t, enemies) {
     // A disabled building turns grey, the colour the design keeps for that.
     this.root.tint = this.disabled ? 0x777777 : 0xffffff;
     this.root.alpha = !this.built ? 0.85 : this.empty ? 0.45 : 1;
     this.web.visible = this.disabled;
     this.web.rotation = Math.sin(t) * 0.05;
+    if (this.art?.aimSprite && enemies) this.aim(enemies);
+  }
+
+  // aim turns the ballista toward the nearest enemy in reach, one of four
+  // directions as the sheet draws it.
+  aim(enemies) {
+    let best = null;
+    let bestD = 300 * 300;
+    for (const e of enemies.values()) {
+      const dx = e.root.x - this.cx;
+      const dy = e.root.y - this.cy;
+      const d = dx * dx + dy * dy;
+      if (d < bestD) {
+        bestD = d;
+        best = [dx, dy];
+      }
+    }
+    if (!best) return;
+    const [dx, dy] = best;
+    const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+    const s = this.art.aimSprite;
+    const t = texture(`${s.aim}_${dir}`);
+    if (t && s.texture !== t) s.texture = t;
   }
 
   destroy() {

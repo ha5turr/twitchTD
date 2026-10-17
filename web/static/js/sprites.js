@@ -111,39 +111,44 @@ export function drawEnemy(g, kind) {
 }
 
 // drawTower draws a building centred on (0, 0) at full health.
+const STONE = 0x1b1a1f;
+const STONE_EDGE = 0x4a4238;
+
+// qualityDots shows a building's quality: one dot per level in the loot
+// rarity colour (white, green, blue, purple, orange), on a dark plate so
+// they read on any floor.
+export function qualityDots(g, rarity, level, y) {
+  const gap = 13;
+  const x0 = -((level - 1) * gap) / 2;
+  g.roundRect(x0 - 10, y - 8, (level - 1) * gap + 20, 16, 8).fill({ color: 0x000000, alpha: 0.55 });
+  for (let i = 0; i < level; i++) {
+    g.circle(x0 + i * gap, y, 5).fill(rarity).stroke({ width: 1.5, color: 0x000000 });
+  }
+}
+
+// drawTower draws a building centred on (0, 0). With pixel art the pack's
+// sprites carry the look and this draws the base and the quality dots.
 export function drawTower(g, kind, rarity, level, pixel = false) {
-  const pips = () => {
-    // Pips under the icon repeat the level for colour-blind viewers.
-    for (let i = 0; i < level; i++) g.circle(-16 + i * 8, 38, 2.5).fill(rarity);
-  };
-  if (pixel && (kind === 'trap' || kind === 'wall')) {
-    // The pack's spikes and crates fill the cell; keep only the rarity frame.
-    g.roundRect(-46, -46, 92, 92, 6).stroke({ width: 3, color: rarity, alpha: 0.9 });
-    pips();
+  const onPath = kind === 'trap' || kind === 'wall';
+  if (pixel && onPath) {
+    qualityDots(g, rarity, level, 36); // no base: it sits low in the trench
     return;
   }
+  g.roundRect(-34, -34, 68, 68, 10).fill(STONE).stroke({ width: 3, color: STONE_EDGE });
   if (pixel && TOWER_ART[kind]) {
-    g.roundRect(-34, -34, 68, 68, 10).fill(0x1b1a1f).stroke({ width: 4, color: rarity });
-    pips();
+    qualityDots(g, rarity, level, 34);
     return;
   }
-  if (kind === 'trap') {
-    // Spikes flush with the road, no stone base: it is a trap after all.
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) g.poly([-24 + i * 20, 16 - j * 16, -18 + i * 20, 4 - j * 16, -12 + i * 20, 16 - j * 16]);
-    }
-    g.fill(0x9aa0a8);
-    g.circle(0, 0, 30).stroke({ width: 3, color: rarity, alpha: 0.9 });
-    return;
-  }
-  if (kind === 'wall') {
-    for (let i = -1; i <= 1; i++) g.rect(-36, i * 16 - 6, 72, 12).fill(0x7a5230).stroke({ width: 2, color: 0x2a1b0f });
-    g.moveTo(-30, -30).lineTo(30, 30).moveTo(30, -30).lineTo(-30, 30).stroke({ width: 5, color: 0x5a3a1f });
-    g.rect(-38, -28, 76, 56).stroke({ width: 3, color: rarity });
-    return;
-  }
-  g.roundRect(-34, -34, 68, 68, 10).fill(0x1b1a1f).stroke({ width: 4, color: rarity });
   switch (kind) {
+    case 'trap':
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) g.poly([-24 + i * 20, 16 - j * 16, -18 + i * 20, 4 - j * 16, -12 + i * 20, 16 - j * 16]);
+      }
+      g.fill(0x9aa0a8);
+      break;
+    case 'wall':
+      for (let i = -1; i <= 1; i++) g.rect(-30, i * 16 - 6, 60, 12).fill(0x7a5230).stroke({ width: 2, color: 0x2a1b0f });
+      break;
     case 'magic':
       g.poly([0, -26, 14, 0, 0, 26, -14, 0]).fill(0x9b6bff);
       g.circle(0, 0, 6).fill(0xffffff);
@@ -166,10 +171,9 @@ export function drawTower(g, kind, rarity, level, pixel = false) {
     default: // arrow
       g.rect(-18, -10, 36, 26).fill(0x5a4630);
       g.poly([-22, -10, 0, -28, 22, -10]).fill(0xc8a165);
-      g.rect(-3, -2, 6, 12).fill(0x1b1a1f);
+      g.rect(-3, -2, 6, 12).fill(STONE);
   }
-  // Pips under the icon repeat the level for colour-blind viewers.
-  for (let i = 0; i < level; i++) g.circle(-16 + i * 8, 26, 2.5).fill(rarity);
+  qualityDots(g, rarity, level, 34);
 }
 
 // drawProjectile draws a shot of the given building kind.
@@ -198,44 +202,48 @@ export const ENEMY_ART = {
 };
 
 // Building icons from the pack, drawn over the stone base.
-export const TOWER_ART = {
-  arrow: { name: 'weapon_bow', scale: 2.2, y: 26 },
-  magic: { name: 'weapon_green_magic_staff', scale: 2.2, y: 32 },
-  fire: { name: 'wall_fountain_mid_red', scale: 3, y: 24 },
-  shrine: { name: 'wall_fountain_mid_blue', scale: 3, y: 24 },
-};
 
 // Mercenaries look like the pack's heroes, one per class.
 export const HERO_ART = {
   ranger: 'elf_m', mage: 'wizzard_m', pyro: 'wizzard_f', cleric: 'angel',
   rogue: 'lizard_m', bard: 'elf_f', warrior: 'knight_m',
 };
+// Building art: each entry is a list of sprite layers drawn bottom to top,
+// tried in order of preference so a missing extra sheet falls back to the
+// 0x72 pack. aim: the sprite turns toward the nearest enemy (ballista).
+export const TOWER_ART = {
+  arrow: [[{ name: 'ballista_left', scale: 3, y: 26, aim: 'ballista' }], [{ name: 'weapon_bow', scale: 2.2, y: 26 }]],
+  magic: [
+    [{ name: 'stone_tower', scale: 3, y: 26, tint: 0xc8b8ff }, { name: 'weapon_green_magic_staff', scale: 1.4, y: 6 }],
+    [{ name: 'weapon_green_magic_staff', scale: 2.2, y: 32 }],
+  ],
+  fire: [[{ name: 'torch_floor', scale: 2.4, y: 30, speed: 0.18 }], [{ name: 'wall_fountain_mid_red', scale: 3, y: 24 }]],
+  shrine: [[{ name: 'chapel', scale: 3, y: 26 }], [{ name: 'wall_fountain_mid_blue', scale: 3, y: 24 }]],
+};
 
-// towerArt builds the pack's sprites for a building, or null to keep vector.
+// Path buildings stay small so the trench and the enemies in it stay visible.
+const PATH_ART = {
+  trap: [[{ name: 'floor_spikes', scale: 3, y: 18, speed: 0.08 }]],
+  wall: [[{ name: 'spear_wall', scale: 3, y: 22 }], [{ name: 'crate', scale: 2, x: -16, y: 22 }, { name: 'crate', scale: 2, x: 16, y: 22 }]],
+};
+
+// towerArt builds a building's sprites, or null to keep the vector drawing.
 export function towerArt(kind, makeSprite) {
-  const c = new PIXI.Container();
-  if (kind === 'trap') {
-    for (let j = 0; j < 2; j++) {
-      for (let i = 0; i < 2; i++) {
-        const s = makeSprite('floor_spikes', 3, 0.08);
-        s.position.set(-24 + i * 48, j * 48);
-        c.addChild(s);
-      }
+  for (const layers of TOWER_ART[kind] ?? PATH_ART[kind] ?? []) {
+    const sprites = layers.map((l) => {
+      const s = makeSprite(l.name, l.scale, l.speed ?? 0.12);
+      if (!s) return null;
+      s.position.set(l.x ?? 0, l.y);
+      if (l.tint) s.tint = l.tint;
+      if (l.aim) s.aim = l.aim;
+      return s;
+    });
+    if (sprites.every(Boolean)) {
+      const c = new PIXI.Container();
+      c.addChild(...sprites);
+      c.aimSprite = sprites.find((s) => s.aim);
+      return c;
     }
-    return c;
   }
-  if (kind === 'wall') {
-    for (const [x, y] of [[-22, 44], [22, 44], [0, 8]]) {
-      const s = makeSprite('crate', 2.6);
-      s.position.set(x, y);
-      c.addChild(s);
-    }
-    return c;
-  }
-  const art = TOWER_ART[kind];
-  if (!art) return null;
-  const s = makeSprite(art.name, art.scale);
-  s.position.set(0, art.y);
-  c.addChild(s);
-  return c;
+  return null;
 }

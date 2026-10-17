@@ -34,6 +34,46 @@ export async function loadTileset(base = 'assets/0x72/') {
   } catch (err) {
     // Without the pack the game falls back to its vector placeholders.
     console.warn('tileset not loaded, using vector art:', err);
+    return;
+  }
+  await Promise.all(EXTRA.map(loadExtra));
+}
+
+// row lists n frames of w x h laid out left to right from (x, y).
+const row = (x, y, w, h, n) => Array.from({ length: n }, (_, i) => [x + i * w, y, w, h]);
+
+// Extra CC0 sheets that fill gaps in the 0x72 pack (see each LICENSE.txt):
+// torches and braziers from the Extended add-on, and buildings from
+// MiniWorld Sprites. Frames are given by hand: these sheets have no list.
+const EXTRA = [
+  {
+    file: 'assets/extended/dungeontileset-extended.png',
+    defs: { flame: row(128, 336, 16, 16, 8), torch_wall: row(128, 352, 16, 24, 8), torch_floor: row(128, 400, 16, 24, 8) },
+  },
+  {
+    file: 'assets/miniworld/Ballista.png', // rows face up, down, right, left
+    defs: { ballista_up: [[0, 0, 16, 16]], ballista_down: [[0, 16, 16, 16]], ballista_right: [[0, 32, 16, 16]], ballista_left: [[0, 48, 16, 16]] },
+  },
+  { file: 'assets/miniworld/Tower2.png', defs: { stone_tower: [[0, 0, 16, 16]] } },
+  { file: 'assets/miniworld/Chapels.png', defs: { chapel: [[16, 0, 16, 16]] } },
+  { file: 'assets/miniworld/SpearWall.png', defs: { spear_wall: [[0, 0, 16, 16]] } },
+  {
+    file: 'assets/miniworld/Tombstones.png',
+    defs: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`tomb_${i}`, [[(i % 4) * 16, Math.floor(i / 4) * 16, 16, 16]]])),
+  },
+];
+
+async function loadExtra({ file, defs }) {
+  try {
+    const sheet = await Assets.load(file);
+    sheet.source.scaleMode = 'nearest';
+    for (const [name, rects] of Object.entries(defs)) {
+      const frames = rects.map(([x, y, w, h]) => new Texture({ source: sheet.source, frame: new Rectangle(x, y, w, h) }));
+      tex.set(name, frames[0]);
+      if (frames.length > 1) anims.set(name, frames);
+    }
+  } catch (err) {
+    console.warn(`extra sheet ${file} not loaded:`, err); // its sprites fall back
   }
 }
 
