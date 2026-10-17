@@ -33,11 +33,12 @@ export function buildMap(map) {
   g.stroke({ width: 1, color: 0xffffff, alpha: 0.05 });
 
   const props = new Container(); // obstacles stand above the grid lines
+  props.sortableChildren = true; // drawn by their feet, so lower ones overlap
   root.addChild(props);
-  for (let y = 0; y < ROWS; y++) {
-    for (let x = 0; x < COLS; x++) {
-      if (map.cells[y][x] !== 'o') continue;
-      if (!pixel || !obstacleSprites(props, map.biome, pal, x, y)) drawObstacle(g, map.biome, pal, x, y);
+  if (pixel) drawObstacles(props, map, pal);
+  else {
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) if (map.cells[y][x] === 'o') drawObstacle(g, map.biome, pal, x, y);
     }
   }
   for (const [x, y] of map.torches) {
@@ -48,6 +49,7 @@ export function buildMap(map) {
     const s = pixel && sprite(onPath ? 'torch_wall' : 'torch_floor', 2, 0.2);
     if (s) {
       s.position.set(t.x, t.y + (onPath ? 34 : 38));
+      s.zIndex = s.y;
       props.addChild(s);
     } else {
       drawTorch(g, t.x, t.y);
@@ -75,57 +77,149 @@ function floorTiles(layer, p, x, y, tint) {
   }
 }
 
-// obstacleSprites draws an obstacle from the pack; false means "no art for
-// this biome", and the caller draws the vector version instead.
-function obstacleSprites(layer, biome, pal, x, y) {
-  const p = toPx(x, y);
-  const cx = p.x + CELL / 2;
-  const bottom = p.y + CELL;
-  const put = (name, px, py, scale = PX, tint = 0xffffff) => {
-    const s = sprite(name, scale);
-    s.position.set(px, py);
-    s.tint = tint;
-    layer.addChild(s);
-    return s;
-  };
-  switch (biome) {
-    case 'dungeon': { // a block of wall: top row on the upper half, face below
-      const half = CELL / 2;
-      for (let i = 0; i < 2; i++) {
-        put('wall_top_mid', p.x + i * half + half / 2, p.y + half);
-        put(cellHash(x, y, i) < 150 ? 'wall_banner_red' : 'wall_mid', p.x + i * half + half / 2, bottom);
+// drawObstacles turns the obstacle cells into scenery. Touching cells form a
+// group: a large group with room for a 2x2 block (and every group in the
+// crypt) becomes a fenced graveyard, the rest become ruins.
+function drawObstacles(layer, map, pal) {
+  const isObs = (x, y) => y >= 0 && y < ROWS && x >= 0 && x < COLS && map.cells[y][x] === 'o';
+  const seen = new Set();
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (!isObs(x, y) || seen.has(`${x},${y}`)) continue;
+      const group = [];
+      const stack = [[x, y]];
+      seen.add(`${x},${y}`);
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        group.push([cx, cy]);
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const k = `${cx + dx},${cy + dy}`;
+          if (isObs(cx + dx, cy + dy) && !seen.has(k)) {
+            seen.add(k);
+            stack.push([cx + dx, cy + dy]);
+          }
+        }
       }
-      return true;
-    }
-    case 'ruins': // a lone column, a little shorter so it stays in its cell
-      put('column', cx, bottom - 4, 2, pal.pathTint);
-      return true;
-    case 'crypt': { // rows of graves; crates if the tombstone sheet is missing
-      const h = cellHash(x, y);
-      const tomb = `tomb_${h % 8}`;
-      if (!texture(tomb)) {
-        put('crate', cx - 10, bottom - 12, PX, 0xb0b8b0);
-        return true;
-      }
-      put(tomb, cx - 20, bottom - 40, PX, 0xc8d0c8);
-      put(`tomb_${(h >> 3) % 8}`, cx + 22, bottom - 6, PX, 0xb8c0b8);
-      if (h < 500) put('skull', cx - 24, bottom - 2, 2);
-      return true;
-    }
-    case 'ice': { // the pack has no ice, so stone is frozen with a tint
-      const half = CELL / 2;
-      if (cellHash(x, y) < 400) {
-        put('column', cx, bottom - 4, 2, 0xb8e4ff); // a pillar of ice
-        return true;
-      }
-      for (let i = 0; i < 2; i++) {
-        put('wall_top_mid', p.x + i * half + half / 2, p.y + half, PX, 0xd8f0ff);
-        put('wall_mid', p.x + i * half + half / 2, bottom, PX, 0x9fd0f4);
-      }
-      return true;
+      const cells = new Set(group.map(([gx, gy]) => `${gx},${gy}`));
+      const block = group.some(([gx, gy]) => cells.has(`${gx + 1},${gy}`) && cells.has(`${gx},${gy + 1}`) && cells.has(`${gx + 1},${gy + 1}`));
+      if (map.biome === 'crypt' || (group.length >= 4 && block)) graveyard(layer, group, cells, map.biome);
+      else for (const [gx, gy] of group) ruin(layer, map.biome, pal, gx, gy);
     }
   }
-  return false;
+}
+
+// putter places sprites on their feet, ordered by depth.
+const putter = (layer) => (name, x, y, scale = PX, tint = 0xffffff) => {
+  const s = sprite(name, scale);
+  if (!s) return null;
+  s.position.set(x, y);
+  s.tint = tint;
+  s.zIndex = y;
+  layer.addChild(s);
+  return s;
+};
+
+// ruin fills a cell with what is left of a building: a crumbling stretch of
+// wall, a column, or a heap of rubble. Walls in neighbouring cells line up.
+function ruin(layer, biome, pal, x, y) {
+  const put = putter(layer);
+  const p = toPx(x, y);
+  const cx = p.x + CELL / 2;
+  const bottom = p.y + CELL - 6;
+  const half = CELL / 2;
+  const ice = biome === 'ice';
+  const stone = ice ? 0x9fd0f4 : biome === 'ruins' ? pal.pathTint : 0xffffff;
+  const cap = ice ? 0xd8f0ff : stone;
+  const rock = (i, rx, ry, scale = 2.5) => put(`rock_${(ice ? 3 : 0) + (cellHash(x, y, i) % 3)}`, rx, ry, scale, ice ? 0xffffff : 0x9a9088);
+  const h = cellHash(x, y);
+  const v = biome === 'ruins' ? (h % 10) - 3 : h % 10; // open ruins favour columns
+  if (v < 5) {
+    // A wall, each half standing full height, broken off low, or fallen.
+    for (let i = 0; i < 2; i++) {
+      const hi = cellHash(x, y, i + 1);
+      const wx = p.x + i * half + half / 2;
+      if (hi < 750) {
+        put(hi < 60 && !ice ? 'wall_banner_red' : 'wall_mid', wx, bottom, PX, stone);
+        if (hi < 380) put('wall_top_mid', wx, bottom - half, PX, cap);
+      } else {
+        rock(i, wx, bottom, 2.2);
+      }
+    }
+    if (h % 3 === 0) rock(5, p.x + 18 + (h % 60), bottom + 4, 1.8);
+  } else if (v < 8) {
+    put('column', cx - 8, bottom - 2, 2, ice ? 0xb8e4ff : stone);
+    rock(6, cx + 26, bottom + 2, 2);
+  } else {
+    rock(7, cx - 18, bottom - 22, 2.4);
+    rock(8, cx + 16, bottom - 8, 2.8);
+    if (h % 2) rock(9, cx - 22, bottom + 2, 2);
+    if (h < 400) put('skull', cx + 4, bottom + 2, 2);
+  }
+}
+
+// graveyard fences a group of cells with iron railings and fills it with
+// graves, a dead tree here and there and a mausoleum where 2x2 cells fit.
+function graveyard(layer, group, cells, biome) {
+  const put = putter(layer);
+  const ice = biome === 'ice';
+  const stoneTint = ice ? 0xd8f0ff : 0xc8d0c8;
+  const back = new Graphics(); // railings behind the graves
+  const front = new Graphics(); // the near railing overlaps them
+  back.zIndex = -1;
+  front.zIndex = 100000;
+  layer.addChild(back, front);
+  const has = (x, y) => cells.has(`${x},${y}`);
+  const used = new Set();
+  let tombs = 0;
+  // Mausoleums: one per graveyard, two in a big one.
+  for (const [x, y] of group) {
+    if (tombs >= (group.length >= 10 ? 2 : 1)) break;
+    const block = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]];
+    if (block.some(([bx, by]) => !has(bx, by) || used.has(`${bx},${by}`))) continue;
+    block.forEach(([bx, by]) => used.add(`${bx},${by}`));
+    const p = toPx(x, y);
+    put(ice ? 'mausoleum_pale' : 'mausoleum', p.x + CELL, p.y + 2 * CELL - 16, 4, ice ? 0xd8f0ff : 0xffffff);
+    tombs++;
+  }
+  // The gate: a gap in the near railing of one cell.
+  const near = group.filter(([x, y]) => !has(x, y + 1));
+  const gate = near.length > 1 ? near[cellHash(group[0][0], group[0][1]) % near.length] : null;
+  for (const [x, y] of group) {
+    const p = toPx(x, y);
+    const cx = p.x + CELL / 2;
+    const bottom = p.y + CELL;
+    if (!used.has(`${x},${y}`)) {
+      const h = cellHash(x, y);
+      if (texture('tomb_0')) {
+        put(`tomb_${h % 8}`, cx - 20, bottom - 44, PX, stoneTint);
+        if (h < 220) put(ice ? 'dead_tree_pale' : 'dead_tree', cx + 22, bottom - 12, 3.4);
+        else put(`tomb_${(h >> 3) % 8}`, cx + 22, bottom - 14, PX, stoneTint);
+      } else {
+        put('crate', cx - 10, bottom - 16, PX, 0xb0b8b0);
+      }
+      if (h % 2) put('skull', cx - 26, bottom - 8, 2);
+    }
+    if (!has(x, y - 1)) railing(back, p.x, p.x + CELL, p.y + 14);
+    if (!has(x, y + 1) && !(gate && gate[0] === x && gate[1] === y)) railing(front, p.x, p.x + CELL, bottom - 4);
+    if (!has(x - 1, y)) post(back, p.x + 6, p.y + 14, bottom - 4);
+    if (!has(x + 1, y)) post(back, p.x + CELL - 6, p.y + 14, bottom - 4);
+  }
+  back.fill(IRON);
+  front.fill(IRON);
+}
+
+const IRON = 0x2a2327;
+
+// railing draws a run of spiked iron bars standing on y.
+function railing(g, x0, x1, y) {
+  g.rect(x0, y - 16, x1 - x0, 3).rect(x0, y - 6, x1 - x0, 3);
+  for (let x = x0 + 4; x < x1; x += 12) g.rect(x, y - 20, 3, 20).poly([x - 1, y - 20, x + 1.5, y - 25, x + 4, y - 20]);
+}
+
+// post draws a side railing seen from above: bars along a line going down.
+function post(g, x, y0, y1) {
+  g.rect(x - 1, y0 - 16, 3, y1 - y0 + 10);
+  for (let y = y0; y <= y1; y += 14) g.rect(x - 2, y - 18, 5, 18).poly([x - 2, y - 18, x + 0.5, y - 23, x + 3, y - 18]);
 }
 
 // drawTrench sinks the enemy path below the building ground: a cliff face

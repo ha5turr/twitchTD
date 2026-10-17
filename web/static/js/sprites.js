@@ -234,8 +234,9 @@ export const TOWER_ART = {
 
 // Path buildings stay small so the trench and the enemies in it stay visible.
 const PATH_ART = {
-  trap: [[{ name: 'floor_spikes', scale: 3, y: 18, speed: 0.08 }]],
-  wall: [[{ name: 'spear_wall', scale: 3, y: 22 }], [{ name: 'crate', scale: 2, x: -16, y: 22 }, { name: 'crate', scale: 2, x: 16, y: 22 }]],
+  // Set low in the cell, clear of the cliff face along the trench's top edge.
+  trap: [[{ name: 'floor_spikes', scale: 3, y: 28, speed: 0.08 }]],
+  wall: [[{ name: 'spear_wall', scale: 3, y: 30 }], [{ name: 'crate', scale: 2, x: -16, y: 30 }, { name: 'crate', scale: 2, x: 16, y: 30 }]],
 };
 
 // towerArt builds a building's sprites, or null to keep the vector drawing.

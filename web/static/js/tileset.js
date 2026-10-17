@@ -62,6 +62,12 @@ const EXTRA = [
     file: 'assets/miniworld/Tombstones.png',
     defs: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`tomb_${i}`, [[(i % 4) * 16, Math.floor(i / 4) * 16, 16, 16]]])),
   },
+  { file: 'assets/miniworld/Mausoleum.png', defs: { mausoleum: [[0, 0, 32, 32]], mausoleum_pale: [[32, 0, 32, 32]] } },
+  {
+    file: 'assets/miniworld/Rocks.png', // rows: grey, mossy, green, snowy
+    defs: Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`rock_${i}`, [[(i % 3) * 16, (i < 3 ? 0 : 3) * 16, 16, 16]]])),
+  },
+  { file: 'assets/miniworld/DeadTrees.png', defs: { dead_tree: [[32, 0, 16, 16]], dead_tree_pale: [[48, 0, 16, 16]] } },
   {
     // Idylwild's Chromatic Campfires: 48 px cells, four frames per colour.
     file: 'assets/campfires/campfires.png',
