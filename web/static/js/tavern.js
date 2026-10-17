@@ -2,9 +2,9 @@
 // at a long table with its nick and gold above it, walks to the bar to drink,
 // and disappears through the gate while it works on the field.
 //
-// Layout, top to bottom (the middle of the left edge may be covered by a
-// webcam, so the fame board and the bar sit at the top and bottom):
-//   fireplace · fame board · tables with seats · bar counter
+// Layout, top to bottom: fireplace, tables with seats right under it, the
+// bar counter with the barkeeper, and the fame board in the bottom left
+// corner, clear of the default webcam (bottom right of the screen).
 import { H, TOP, LEFT, CELL, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure, CLASSES } from './figures.js';
 import { HERO_ART } from './sprites.js';
@@ -13,11 +13,11 @@ import { hasTileset, sprite, frames } from './tileset.js';
 const { Container, Graphics, Text } = PIXI;
 
 const COLS_X = [64, 192, 320];
-const ROW_Y0 = 480;
-const ROW_DY = 84;
+const ROW_Y0 = TOP + 172; // first row of feet: its labels clear the fireplace
+const ROW_DY = 80;
 const ROWS = 6;
 const SEATS = COLS_X.length * ROWS;
-const BAR_Y = 1006; // counter top edge
+const BAR_Y = H - 274; // counter top edge; the keeper and the board fit below
 const SPEED = 170; // px per second
 
 const DRINK_NAMES = { ale: 'эль', mead: 'медовуха', potion: 'зелье' };
@@ -309,7 +309,7 @@ function short(name) {
 class FameBoard {
   constructor() {
     this.root = new Container();
-    this.root.position.set(16, TOP + 92);
+    this.root.position.set(16, H - 204); // bottom left, under the bar
     const bg = new Graphics();
     bg.roundRect(0, 0, LEFT - 46, 196, 8).fill(0xd9c49a).stroke({ width: 4, color: 0x5a3a1f });
     bg.roundRect(6, 6, LEFT - 58, 184, 6).stroke({ width: 1, color: 0x8a6a3a });
