@@ -2,23 +2,26 @@
 // at a long table with its nick and gold above it, walks to the bar to drink,
 // and disappears through the gate while it works on the field.
 //
-// Layout, top to bottom: fireplace, tables with seats right under it, the
-// bar counter with the barkeeper, and the fame board in the bottom left
-// corner, clear of the default webcam (bottom right of the screen).
+// Layout, top to bottom: fireplace, tables with seats right under it, two
+// dice tables, the bar counter with the barkeeper, and the fame board in the
+// bottom left corner, clear of the default webcam (bottom right).
 import { H, TOP, LEFT, CELL, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure, CLASSES } from './figures.js';
 import { HERO_ART } from './sprites.js';
-import { hasTileset, sprite, frames } from './tileset.js';
+import { hasTileset, sprite, frames, texture, PX } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
 const COLS_X = [64, 192, 320];
 const ROW_Y0 = TOP + 172; // first row of feet: its labels clear the fireplace
 const ROW_DY = 80;
-const ROWS = 6;
+const ROWS = 5;
 const SEATS = COLS_X.length * ROWS;
 const BAR_Y = H - 274; // counter top edge; the keeper and the board fit below
+const DICE_Y = ROW_Y0 + ROWS * ROW_DY + 20; // feet of dice players, between seats and bar
+const DICE_X = [96, 288]; // dice tables; players sit 48 px to either side
 const SPEED = 170; // px per second
+const WOOD = 0xa89078; // tint for Kenney's light oak, so it sits in the gloom
 
 const DRINK_NAMES = { ale: 'эль', mead: 'медовуха', potion: 'зелье' };
 
@@ -42,11 +45,13 @@ export class Tavern {
     this.board = new FameBoard();
     this.ui.addChild(this.board.root);
     this.overflow = new Text({ text: '', style: label(18, 0xc9b98f) });
-    this.overflow.anchor.set(0.5, 0);
-    this.overflow.position.set(LEFT / 2, ROW_Y0 + ROWS * ROW_DY - 24);
+    this.overflow.anchor.set(1, 0.5); // beside the barkeeper
+    this.overflow.position.set(LEFT - 24, BAR_Y + 46);
     this.ui.addChild(this.overflow);
     this.card = new Card();
     this.ui.addChild(this.card.root);
+    this.dice = new DiceTables();
+    this.ui.addChild(this.dice.root);
   }
 
   drawInterior() {
@@ -54,14 +59,81 @@ export class Tavern {
     g.rect(0, TOP, LEFT, H - TOP).fill(0x3a2716);
     for (let y = TOP; y < H; y += 32) g.rect(0, y, LEFT, 2).fill(0x2a1b0f); // planks
     for (let x = 0; x < LEFT; x += 96) g.rect(x, TOP, 2, H - TOP).fill({ color: 0x2a1b0f, alpha: 0.6 });
-    // Fireplace.
-    g.rect(LEFT / 2 - 70, TOP + 8, 140, 70).fill(0x2b2b2b);
-    g.rect(LEFT / 2 - 50, TOP + 28, 100, 50).fill(0x120c08);
-    g.ellipse(LEFT / 2, TOP + 66, 34, 14).fill(0xff8a3a);
-    g.ellipse(LEFT / 2, TOP + 62, 18, 10).fill(0xffd27a);
-    // Two long tables between the seat columns.
+    if (hasTileset() && texture('k_bar')) this.drawFurniture();
+    else this.drawVectorFurniture();
+    // The barkeeper: a dwarf, as taverns go.
+    const keeper = hasTileset() ? sprite('dwarf_m_idle', 2, 0.1) : new Graphics();
+    if (!hasTileset()) drawFigure(keeper, 0x7a3a2a, '');
+    keeper.position.set(LEFT / 2, BAR_Y + 62);
+    this.world.addChild(keeper);
+  }
+
+  // drawFurniture builds the hall from sprites: the 0x72 back wall with a
+  // hearth, and Kenney's tables, chairs and bar counter, darkened to fit.
+  drawFurniture() {
+    const put = (name, x, y, scale = PX, speed) => {
+      const s = sprite(name, scale, speed);
+      if (s) {
+        s.position.set(x, y);
+        if (name.startsWith('k_')) s.tint = WOOD;
+        this.world.addChild(s);
+      }
+      return s;
+    };
+    const T = 16 * PX;
+    // Back wall: a cap row and a brick row, banners and shields on it.
+    for (let x = T / 2; x < LEFT; x += T) {
+      put('wall_top_mid', x, TOP + T);
+      put('wall_mid', x, TOP + 2 * T);
+    }
+    put('wall_banner_red', T * 1.5, TOP + 2 * T);
+    put('wall_banner_green', LEFT - T * 1.5, TOP + 2 * T);
+    put('k_shield', T / 2, TOP + 2 * T - 6, 2.5);
+    put('k_shield', LEFT - T / 2, TOP + 2 * T - 6, 2.5);
+    // Hearth: a stone surround with a mantel and a fire in a dark mouth.
+    const hearth = new Graphics();
+    this.world.addChild(hearth);
+    const cx = LEFT / 2;
+    hearth.rect(cx - 64, TOP + 22, 128, 2 * T - 22).fill(0x3a3532).stroke({ width: 3, color: 0x141010 });
+    for (let y = TOP + 40; y < TOP + 2 * T; y += 14) hearth.rect(cx - 62, y, 124, 2).fill(0x24201e); // courses
+    hearth.roundRect(cx - 44, TOP + 44, 88, 2 * T - 44, 18).fill(0x0c0806);
+    hearth.rect(cx - 72, TOP + 14, 144, 12).fill(0x5a4632).stroke({ width: 3, color: 0x141010 }); // mantel
+    put('campfire', cx, TOP + 2 * T + 2, 1.7, 0.15) ?? hearth.ellipse(cx, TOP + 84, 26, 10).fill(0xff8a3a);
+    put('k_candles', cx - 50, TOP + 18, 2);
+    put('k_candles', cx + 50, TOP + 18, 2);
+    // Two long tables between the seat columns, a chair under every seat.
+    const top = ROW_Y0 - 40;
+    const len = ROWS * ROW_DY - 8;
+    const TS = 2.5; // table scale: 40 px wide
     for (const x of [128, 256]) {
-      g.roundRect(x - 20, ROW_Y0 - 40, 40, ROWS * ROW_DY - 8, 8).fill(0x5a3a1f).stroke({ width: 3, color: 0x2a1b0f });
+      put('k_table_top', x, top + 16 * TS, TS);
+      const mid = put('k_table_mid', x, top + len - 16 * TS, TS);
+      if (mid) mid.scale.y = (len - 32 * TS) / 2;
+      put('k_table_bot', x, top + len, TS);
+    }
+    for (let i = 0; i < SEATS; i++) {
+      const p = seatPos(i);
+      put(i % COLS_X.length ? 'k_chair_l' : 'k_chair_r', p.x, p.y + 4, TS);
+    }
+    this.drawFlasks(new Graphics());
+    // Dice tables: an oval table with a green felt and a stool either side.
+    const felt = new Graphics();
+    for (const x of DICE_X) {
+      put('k_chair_r', x - 48, DICE_Y + 4, TS);
+      put('k_chair_l', x + 48, DICE_Y + 4, TS);
+      put('k_oval_l', x - 24, DICE_Y - 2);
+      put('k_oval_r', x + 24, DICE_Y - 2);
+      felt.ellipse(x, DICE_Y - 30, 38, 11).fill(0x2f5a32).stroke({ width: 2, color: 0x1a2a1a });
+    }
+    this.world.addChild(felt);
+    // The bar counter: cabinets and bottle racks, flasks on top.
+    const bar = ['k_bar', 'k_bar_bottles', 'k_bar_drawers', 'k_bar_bottles2', 'k_bar_drawers', 'k_bar_bottles', 'k_bar'];
+    bar.forEach((name, i) => put(name, 16 + T / 2 + i * T, BAR_Y + T));
+    for (let i = 0; i < 4; i++) put(i % 2 ? 'flask_big_red' : 'flask_big_yellow', 48 + i * 96, BAR_Y + 12, 2);
+  }
+
+  drawFlasks(g) {
+    for (const x of [128, 256]) {
       for (let r = 0; r < ROWS; r++) {
         const y = ROW_Y0 - 16 + r * ROW_DY;
         const flask = hasTileset() && sprite(['flask_red', 'flask_yellow', 'flask_green', 'flask_blue'][r % 4], 2);
@@ -73,11 +145,29 @@ export class Tavern {
         }
       }
     }
-    // Bar counter with the barkeeper behind it: a dwarf, as taverns go.
-    const keeper = hasTileset() ? sprite('dwarf_m_idle', 2, 0.1) : new Graphics();
-    if (!hasTileset()) drawFigure(keeper, 0x7a3a2a, '');
-    keeper.position.set(LEFT / 2, BAR_Y + 62);
-    this.world.addChild(keeper);
+  }
+
+  // drawVectorFurniture is the plain fallback while the tileset is missing.
+  drawVectorFurniture() {
+    const g = this.interior;
+    // Fireplace.
+    g.rect(LEFT / 2 - 70, TOP + 8, 140, 70).fill(0x2b2b2b);
+    g.rect(LEFT / 2 - 50, TOP + 28, 100, 50).fill(0x120c08);
+    g.ellipse(LEFT / 2, TOP + 66, 34, 14).fill(0xff8a3a);
+    g.ellipse(LEFT / 2, TOP + 62, 18, 10).fill(0xffd27a);
+    // Two long tables between the seat columns.
+    for (const x of [128, 256]) {
+      g.roundRect(x - 20, ROW_Y0 - 40, 40, ROWS * ROW_DY - 8, 8).fill(0x5a3a1f).stroke({ width: 3, color: 0x2a1b0f });
+    }
+    this.drawFlasks(g);
+    // Dice tables: a round table with green felt and two stools.
+    for (const x of DICE_X) {
+      g.ellipse(x - 48, DICE_Y + 2, 14, 6).fill(0x2a1b0f);
+      g.ellipse(x + 48, DICE_Y + 2, 14, 6).fill(0x2a1b0f);
+      g.ellipse(x, DICE_Y - 18, 40, 20).fill(0x5a3a1f).stroke({ width: 3, color: 0x2a1b0f });
+      g.ellipse(x, DICE_Y - 20, 32, 14).fill(0x2f5a32);
+    }
+    // Bar counter.
     g.rect(16, BAR_Y, LEFT - 48, 30).fill(0x5a3a1f).stroke({ width: 3, color: 0x2a1b0f });
     g.rect(16, BAR_Y, LEFT - 48, 6).fill(0x7a5230);
     for (let i = 0; i < 6; i++) {
@@ -125,6 +215,9 @@ export class Tavern {
     }
     this.overflow.text = hidden ? `и ещё ${hidden} в зале` : '';
     this.board.update(active);
+    // Players at a dice table leave their seats for its stools.
+    const spots = this.dice.update(st.dice ?? []);
+    for (const m of this.mercs.values()) m.diceSpot = spots.get(m.name) ?? null;
     for (const ev of st.events ?? []) this.onEvent(ev);
   }
 
@@ -133,12 +226,14 @@ export class Tavern {
     if (ev.kind === 'drink' && m) m.drink(DRINK_NAMES[ev.text] ?? ev.text);
     if (ev.kind === 'card') this.card.show(ev.user, this.mercs.get(ev.user), this.limits, ev.amount ?? 0);
     if (ev.kind === 'class' && m) m.redraw = true;
+    if (ev.kind === 'diceRoll') this.dice.result(ev);
   }
 
   frame(dt) {
     for (const m of this.mercs.values()) m.frame(dt);
     this.board.frame(dt);
     this.card.frame(dt);
+    this.dice.frame(dt);
   }
 }
 
@@ -234,6 +329,7 @@ class Merc {
   }
 
   target() {
+    if (this.diceSpot) return this.diceSpot; // at a dice table, nothing else
     if (this.mode === 'bar' || this.mode === 'drinking') {
       return { x: 40 + (this.seat % 6) * 52, y: BAR_Y - 6 };
     }
@@ -406,5 +502,80 @@ class Card {
     this.time -= dt;
     this.root.alpha = Math.min(1, this.time * 2);
     if (this.time <= 0) this.root.visible = false;
+  }
+}
+
+// DiceTables shows what lies on each dice table: the stake and the time
+// left while the host waits, a flicker of numbers while the dice roll, and
+// the two results with the winner's pot afterwards.
+class DiceTables {
+  constructor() {
+    this.root = new Container();
+    this.felt = DICE_X.map((x) => {
+      const t = new Text({ text: '', style: label(13, 0xfff1c2, FONT_PIXEL) });
+      t.anchor.set(0.5);
+      t.position.set(x, DICE_Y - 20);
+      this.root.addChild(t);
+      return t;
+    });
+    this.tables = []; // last known games, to place a result on its table
+    this.shown = DICE_X.map(() => null); // result on display: { text, life }
+    this.t = 0;
+  }
+
+  // update returns where each player sits: name -> { x, y }.
+  update(games) {
+    this.tables = games;
+    const spots = new Map();
+    for (const d of games) {
+      const x = DICE_X[d.table] ?? DICE_X[0];
+      spots.set(d.host, { x: x - 48, y: DICE_Y });
+      if (d.guest) spots.set(d.guest, { x: x + 48, y: DICE_Y });
+    }
+    // Keep players on their stools while the result is on display.
+    this.shown.forEach((s, i) => {
+      if (s && s.life > 0) {
+        spots.set(s.host, { x: DICE_X[i] - 48, y: DICE_Y });
+        spots.set(s.guest, { x: DICE_X[i] + 48, y: DICE_Y });
+      }
+    });
+    return spots;
+  }
+
+  result(ev) {
+    const [host, a, guest, b] = (ev.text ?? '').split(':');
+    const i = this.lastTables?.find((d) => d.host === host && d.guest === guest)?.table ?? 0;
+    this.shown[i] = { text: `${a} : ${b}`, life: 4, host, guest, winner: ev.user, pot: ev.amount };
+  }
+
+  frame(dt) {
+    this.t += dt;
+    this.lastTables = this.tables.length ? this.tables : this.lastTables;
+    DICE_X.forEach((_, i) => {
+      const t = this.felt[i];
+      const s = this.shown[i];
+      if (s && s.life > 0) {
+        s.life -= dt;
+        t.text = `${s.text}\n+${s.pot}`;
+        t.style.fill = 0xffd24a;
+        return;
+      }
+      const d = this.tables.find((g) => g.table === i);
+      if (!d) {
+        t.text = '';
+      } else if (!d.guest) {
+        t.text = `${d.stake}\n${Math.ceil(d.wait)}с`; // waiting for an opponent
+        t.style.fill = 0xfff1c2;
+      } else {
+        // The dice are rolling: numbers tumble until the server throws.
+        const r = () => 1 + Math.floor(Math.random() * 20);
+        const tick = Math.floor(this.t * 12); // 12 changes a second
+        if (tick !== this.flip) {
+          this.flip = tick;
+          t.text = `${r()} : ${r()}`;
+        }
+        t.style.fill = 0xffffff;
+      }
+    });
   }
 }

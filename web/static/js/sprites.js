@@ -128,19 +128,22 @@ export function qualityDots(g, rarity, level) {
   }
 }
 
-// drawTower draws a building centred on (0, 0). With pixel art the pack's
-// sprites carry the look and this draws the base and the quality dots.
-export function drawTower(g, kind, rarity, level, pixel = false) {
-  const onPath = kind === 'trap' || kind === 'wall';
-  if (pixel && onPath) {
-    qualityDots(g, rarity, level); // no base: it sits low in the trench
-    return;
-  }
-  g.roundRect(-34, -34, 68, 68, 10).fill(STONE).stroke({ width: 3, color: STONE_EDGE });
-  if (pixel && TOWER_ART[kind]) {
+// drawTower draws a building centred on (0, 0). pixel: the tileset is
+// loaded, so buildings stand on the floor with no stone plate behind them;
+// art: the building has sprites, and this only adds the quality dots.
+export function drawTower(g, kind, rarity, level, { pixel = false, art = false } = {}) {
+  if (art) {
+    if (kind === 'drums') {
+      // A war drum at the bard's side, in the pack's dark outline style.
+      g.rect(10, 6, 22, 22).fill(0x8a3a2a).stroke({ width: 3, color: 0x1a0f0f });
+      g.ellipse(21, 6, 11, 5).fill(0xe8d4a8).stroke({ width: 3, color: 0x1a0f0f });
+      g.moveTo(12, 14).lineTo(30, 24).moveTo(30, 14).lineTo(12, 24).stroke({ width: 2, color: 0xd8b070 });
+      g.moveTo(26, -10).lineTo(20, 2).stroke({ width: 3, color: 0x5a3a1f });
+    }
     qualityDots(g, rarity, level);
     return;
   }
+  if (!pixel) g.roundRect(-34, -34, 68, 68, 10).fill(STONE).stroke({ width: 3, color: STONE_EDGE });
   switch (kind) {
     case 'trap':
       for (let i = 0; i < 3; i++) {
@@ -186,7 +189,7 @@ export function drawProjectile(g, kind) {
 }
 
 // Pixel art from the 0x72 pack. Kinds missing here (spiders, rats, ghosts,
-// frost spirits and their bosses, war drums) keep the vector drawings above.
+// frost spirits and their bosses) keep the vector drawings above.
 export const ENEMY_ART = {
   skeleton: { name: 'skelet_run', scale: 3 },
   ghoul: { name: 'tiny_zombie_run', scale: 3 },
@@ -219,8 +222,14 @@ export const TOWER_ART = {
     [{ name: 'stone_tower', scale: 3, y: 26, tint: 0xc8b8ff }, { name: 'weapon_green_magic_staff', scale: 1.4, y: 6 }],
     [{ name: 'weapon_green_magic_staff', scale: 2.2, y: 32 }],
   ],
-  fire: [[{ name: 'torch_floor', scale: 2.4, y: 30, speed: 0.18 }], [{ name: 'wall_fountain_mid_red', scale: 3, y: 24 }]],
+  fire: [
+    [{ name: 'campfire', scale: 2, y: 32, speed: 0.15 }],
+    [{ name: 'torch_floor', scale: 2.4, y: 30, speed: 0.18 }],
+    [{ name: 'wall_fountain_mid_red', scale: 3, y: 24 }],
+  ],
   shrine: [[{ name: 'chapel', scale: 3, y: 26 }], [{ name: 'wall_fountain_mid_blue', scale: 3, y: 24 }]],
+  // The bard is the pack's elf heroine; drawTower adds her drum.
+  drums: [[{ name: 'elf_f_idle', scale: 2.6, x: -8, y: 32, speed: 0.1 }]],
 };
 
 // Path buildings stay small so the trench and the enemies in it stay visible.

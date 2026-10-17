@@ -9,7 +9,7 @@ const GROUP_SAMPLES = {
   building: ['build', 'coin'],
   alerts: ['bell', 'horn'],
   support: ['fanfare'],
-  tavern: ['drink'],
+  tavern: ['drink', 'dice'],
   walls: ['wallHit', 'stun'],
 };
 
@@ -18,7 +18,7 @@ const SOUND_GROUP = {
   build: 'building', coin: 'building',
   bell: 'alerts', horn: 'alerts', ability: 'alerts', cleared: 'alerts', gameover: 'alerts', newgame: 'alerts',
   fanfare: 'support', strike: 'support',
-  drink: 'tavern',
+  drink: 'tavern', dice: 'tavern',
   wallHit: 'walls', stun: 'walls',
 };
 
@@ -202,6 +202,12 @@ export class Sound {
       case 'stun':
         if (this.gate(name, 0.3)) this.tone('sine', 520, { decay: 0.2, peak: 0.12, to: 220 });
         break;
+      case 'dice': // dice rattling in a cup, then on the table
+        if (this.gate(name, 0.4)) {
+          for (let i = 0; i < 7; i++) this.noise({ at: i * 0.045 + Math.random() * 0.02, decay: 0.03, peak: 0.12, freq: 2800 + Math.random() * 1500, q: 5 });
+          this.noise({ at: 0.42, decay: 0.06, peak: 0.18, freq: 1600, q: 3 });
+        }
+        break;
       case 'drink':
         if (this.gate(name, 0.2)) {
           for (let i = 0; i < 3; i++) this.tone('sine', 320, { at: i * 0.16, decay: 0.12, peak: 0.1, to: 160 });
@@ -302,4 +308,5 @@ export const EVENT_SOUNDS = {
   trap: 'trap', blast: 'blast', stun: 'stun', drink: 'drink', waveCleared: 'cleared',
   donation: 'fanfare', support: 'fanfare', reward: 'fanfare', strike: 'strike',
   gameOver: 'gameover', newGame: 'newgame', ability: 'ability', wallBroken: 'blast', disabled: 'ability',
+  diceOpen: 'coin', diceJoin: 'dice', diceRoll: 'dice',
 };

@@ -38,6 +38,11 @@ type Config struct {
 	Drinks        map[string]DrinkSpec `json:"drinks"`
 	DrunkDecaySec float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
 
+	DiceTables   int     `json:"diceTables"`   // games of dice that can run at once
+	DiceMinStake int     `json:"diceMinStake"` // smallest stake in gold
+	DiceWaitSec  float64 `json:"diceWaitSec"`  // how long a table waits for an opponent
+	DiceRollSec  float64 `json:"diceRollSec"`  // suspense before the dice are thrown
+
 	Rewards            []RewardSpec       `json:"rewards"`  // channel point rewards by title
 	BitsGold           float64            `json:"bitsGold"` // gold per bit
 	SubGold            int                `json:"subGold"`
@@ -158,6 +163,10 @@ func DefaultConfig() Config {
 			"potion": {Name: "Чёрное зелье", Price: 60, Mugs: 4},
 		},
 		DrunkDecaySec: 90,
+		DiceTables:    2,
+		DiceMinStake:  10,
+		DiceWaitSec:   120,
+		DiceRollSec:   3,
 		Rewards: []RewardSpec{
 			{Title: "Мешок золота", Action: "gold", Amount: 300},
 			{Title: "Починить стены", Action: "repair", Amount: 200},

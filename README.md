@@ -149,6 +149,10 @@ go run ./cmd/balance -games 40
 | `!towers` | список построек |
 | `!class [маг]` | показать или сменить класс (раз за игру); фирменная постройка класса бьёт на 20% сильнее |
 | `!drink [эль\|медовуха\|зелье]` | выпить в таверне (косметика, идёт в доску «Пьяницы») |
+| `!кости N` | сесть за стол для костей со ставкой N золота (пока сидишь, строить нельзя) |
+| `!кости принять [@ник]` | принять ставку; оба кидают D20, победитель забирает весь банк |
+| `!кости перебить N [@ник]` | сесть со ставкой выше, банк растёт |
+| `!кости отмена` | встать из-за стола, пока никто не сел напротив (ставка вернётся) |
 | `!link` | код для привязки донатов DonationAlerts к нику |
 | `!tdwave`, `!tdpause`, `!tdnew [биом]`, `!tdremove C4`, `!tdgold ник N`, `!tdwalls N`, `!tdspawn враг [N]`, `!tdtreasury ник N`, `!tdban ник`, `!tdunban ник`, звук (см. выше) | для стримера и модераторов |
 
@@ -185,6 +189,8 @@ go run ./cmd/balance -games 40
 
 - [Dungeon Tileset II Extended](https://nijikokun.itch.io/dungeontileset-ii-extended) от Niji (`assets/extended`): настенные и напольные факелы, жаровня.
 - [MiniWorld Sprites](https://opengameart.org/content/miniworld-sprites) от Shade (`assets/miniworld`, только нужные листы): баллиста (поворачивается к ближайшему врагу), каменная башня, часовня, частокол, надгробия.
+- [Idylwild's Chromatic Campfires](https://opengameart.org/content/idylwilds-chromatic-campfires) (`assets/campfires`): костры жаровен и очага в таверне.
+- [Roguelike Indoors](https://kenney.nl/assets/roguelike-indoors) от Kenney (`assets/kenney`): столы, стулья, канделябры, щиты и барная стойка таверны.
 
 | Постройка | Вид |
 | --- | --- |

@@ -85,6 +85,7 @@ type Game struct {
 	Links       map[string]string // donation name (lower case) -> chatter login
 	LinkCodes   map[string]string // "4821" -> login, from !link
 	Banned      map[string]bool   // chatters the streamer forbade to build
+	Dice        []*DiceGame       // games of dice in the tavern
 
 	// Admin reaches the overlay settings (sound) for mod chat commands.
 	Admin SettingsAdmin
@@ -143,6 +144,11 @@ func (g *Game) NewGame(biome Biome) {
 	g.Projectiles = nil
 	g.queue = nil
 	g.summary = nil
+	// Dice stakes go back before wallets reset, so a new game never eats them.
+	for _, d := range g.Dice {
+		g.refundDice(d)
+	}
+	g.Dice = nil
 	for _, c := range g.Chatters {
 		if !g.Cfg.KeepGold {
 			c.Gold = g.Cfg.StartGold
@@ -226,6 +232,7 @@ func (g *Game) Tick(dt float64) {
 	}
 	g.soberUp(dt)
 	g.tickTreasury(dt)
+	g.tickDice(dt)
 	switch g.Phase {
 	case PhaseBuild:
 		g.Timer -= dt

@@ -61,6 +61,7 @@ type StateMsg struct {
 	Workers  []WorkerView  `json:"workers"`
 	Events   []Event       `json:"events,omitempty"`
 	Summary  *Summary      `json:"summary,omitempty"` // only on the game over screen
+	Dice     []DiceView    `json:"dice"`
 }
 
 type EnemyView struct {
@@ -164,6 +165,10 @@ func (g *Game) StateMessage() StateMsg {
 			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key],
 		})
 	}
+	s.Dice = []DiceView{}
+	for _, d := range g.Dice {
+		s.Dice = append(s.Dice, DiceView{d.ID, d.Table, d.HostName, d.Stake, d.GuestName, d.GuestStake, math.Ceil(d.wait)})
+	}
 	if g.Phase == PhaseGameOver {
 		s.Summary = g.summary
 	}
@@ -177,4 +182,15 @@ func (g *Game) StateMessage() StateMsg {
 	}
 	sort.Slice(s.Workers, func(i, j int) bool { return s.Workers[i].Name < s.Workers[j].Name })
 	return s
+}
+
+// DiceView is a dice table as the overlay draws it.
+type DiceView struct {
+	ID         int     `json:"id"`
+	Table      int     `json:"table"`
+	Host       string  `json:"host"`
+	Stake      int     `json:"stake"`
+	Guest      string  `json:"guest,omitempty"`
+	GuestStake int     `json:"guestStake,omitempty"`
+	Wait       float64 `json:"wait"` // seconds left for an opponent
 }

@@ -61,6 +61,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
 	case "!link", "!привязать":
 		g.cmdLink(c, key)
+	case "!dice", "!кости":
+		g.cmdDice(c, key, args)
 	case "!class", "!класс":
 		g.cmdClass(c, args)
 	case "!drink", "!d", "!выпить", "!пить":
@@ -106,6 +108,9 @@ func cellArg(args []string) (Pos, []string, bool) {
 }
 
 func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
+	if g.busyAtDice(c, key) {
+		return
+	}
 	if g.Banned[key] {
 		g.reply(c.Name, "стример запретил тебе строить")
 		return
@@ -183,6 +188,9 @@ func (g *Game) ownTower(c *Chatter, key string, args []string) *Tower {
 }
 
 func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
+	if g.busyAtDice(c, key) {
+		return
+	}
 	if g.Banned[key] {
 		g.reply(c.Name, "стример запретил тебе строить")
 		return

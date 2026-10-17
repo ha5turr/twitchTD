@@ -54,8 +54,9 @@ func (g *Game) Export() Save {
 	for _, t := range g.Towers {
 		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost})
 	}
+	escrow := g.diceEscrow() // stakes on dice tables count as the players' gold
 	for key, c := range g.Chatters {
-		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold, c.Kills, c.Drinks, c.Class})
+		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class})
 	}
 	return s
 }

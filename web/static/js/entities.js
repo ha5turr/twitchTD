@@ -238,7 +238,7 @@ class TowerView {
       this.art = towerArt(this.kind, sprite);
       if (this.art) this.root.addChildAt(this.art, this.kind === 'trap' || this.kind === 'wall' ? 0 : 1);
     }
-    drawTower(g, this.kind, RARITY[Math.min(t.lvl, 5) - 1], t.lvl, !!this.art);
+    drawTower(g, this.kind, RARITY[Math.min(t.lvl, 5) - 1], t.lvl, { pixel: hasTileset(), art: !!this.art });
   }
 
   frame(t, enemies) {

@@ -41,6 +41,7 @@ export async function loadTileset(base = 'assets/0x72/') {
 
 // row lists n frames of w x h laid out left to right from (x, y).
 const row = (x, y, w, h, n) => Array.from({ length: n }, (_, i) => [x + i * w, y, w, h]);
+const kt = (c, r) => [[c * 17, r * 17, 16, 16]];
 
 // Extra CC0 sheets that fill gaps in the 0x72 pack (see each LICENSE.txt):
 // torches and braziers from the Extended add-on, and buildings from
@@ -60,6 +61,35 @@ const EXTRA = [
   {
     file: 'assets/miniworld/Tombstones.png',
     defs: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`tomb_${i}`, [[(i % 4) * 16, Math.floor(i / 4) * 16, 16, 16]]])),
+  },
+  {
+    // Idylwild's Chromatic Campfires: 48 px cells, four frames per colour.
+    file: 'assets/campfires/campfires.png',
+    defs: {
+      campfire: Array.from({ length: 4 }, (_, i) => [i * 48 + 6, 144, 36, 40]),
+      campfire_blue: Array.from({ length: 4 }, (_, i) => [i * 48 + 6, 0, 36, 40]),
+    },
+  },
+  {
+    // Kenney's Roguelike Indoors: 16 px tiles with a 1 px gap, so objects
+    // wider than a tile are put together from single tiles.
+    file: 'assets/kenney/roguelike-indoors.png',
+    defs: {
+      k_chair_r: kt(2, 4),
+      k_chair_l: kt(3, 4),
+      k_table_top: kt(5, 0),
+      k_table_mid: [[85, 7, 16, 2]], // a plain strip, stretched to length
+      k_table_bot: kt(5, 1),
+      k_oval_l: kt(3, 0),
+      k_oval_r: kt(4, 0),
+      k_candles: kt(20, 0),
+      k_torch: kt(21, 6),
+      k_shield: kt(22, 9),
+      k_bar: kt(0, 16),
+      k_bar_drawers: kt(1, 16),
+      k_bar_bottles: kt(5, 16),
+      k_bar_bottles2: kt(6, 16),
+    },
   },
 ];
 

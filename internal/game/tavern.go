@@ -22,6 +22,9 @@ var drinkAliases = map[string]string{
 }
 
 func (g *Game) cmdDrink(c *Chatter, key string, args []string) {
+	if g.busyAtDice(c, key) {
+		return
+	}
 	kind := "ale"
 	if len(args) > 0 {
 		k, ok := drinkAliases[strings.ToLower(args[0])]
