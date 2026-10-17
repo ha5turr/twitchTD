@@ -195,8 +195,8 @@ class TowerView {
     this.bar = new Graphics();
     this.bar.position.set(this.cx, this.cy - 44);
     this.charges = new Text({ text: '', style: { fontFamily: FONT_PIXEL, fontSize: 11, fill: 0xe8e8e8, stroke: { color: 0x000000, width: 4 } } });
-    this.charges.anchor.set(1, 1);
-    this.charges.position.set(this.cx + 44, this.cy - 26);
+    this.charges.anchor.set(0, 1); // top left: the quality dots take the right edge
+    this.charges.position.set(this.cx - 44, this.cy - 26);
     layer.labels.addChild(this.name, this.bar, this.charges);
     this.level = 0;
     this.built = null;

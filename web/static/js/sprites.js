@@ -115,14 +115,16 @@ const STONE = 0x1b1a1f;
 const STONE_EDGE = 0x4a4238;
 
 // qualityDots shows a building's quality: one dot per level in the loot
-// rarity colour (white, green, blue, purple, orange), on a dark plate so
-// they read on any floor.
-export function qualityDots(g, rarity, level, y) {
-  const gap = 13;
-  const x0 = -((level - 1) * gap) / 2;
-  g.roundRect(x0 - 10, y - 8, (level - 1) * gap + 20, 16, 8).fill({ color: 0x000000, alpha: 0.55 });
+// rarity colour (white, green, blue, purple, orange), stacked bottom up in a
+// thin column at the right edge of the cell. There it clears the sprite in
+// the middle, the owner's nick below and the progress bar above.
+const DOTS_X = 41; // between the stone base (34) and the cell edge (48)
+export function qualityDots(g, rarity, level) {
+  const gap = 10;
+  const top = ((level - 1) * gap) / 2; // the column is centred on the cell
+  g.roundRect(DOTS_X - 7, -top - 7, 14, (level - 1) * gap + 14, 7).fill({ color: 0x000000, alpha: 0.6 });
   for (let i = 0; i < level; i++) {
-    g.circle(x0 + i * gap, y, 5).fill(rarity).stroke({ width: 1.5, color: 0x000000 });
+    g.circle(DOTS_X, top - i * gap, 4).fill(rarity).stroke({ width: 1.5, color: 0x000000 });
   }
 }
 
@@ -131,12 +133,12 @@ export function qualityDots(g, rarity, level, y) {
 export function drawTower(g, kind, rarity, level, pixel = false) {
   const onPath = kind === 'trap' || kind === 'wall';
   if (pixel && onPath) {
-    qualityDots(g, rarity, level, 36); // no base: it sits low in the trench
+    qualityDots(g, rarity, level); // no base: it sits low in the trench
     return;
   }
   g.roundRect(-34, -34, 68, 68, 10).fill(STONE).stroke({ width: 3, color: STONE_EDGE });
   if (pixel && TOWER_ART[kind]) {
-    qualityDots(g, rarity, level, 34);
+    qualityDots(g, rarity, level);
     return;
   }
   switch (kind) {
@@ -173,7 +175,7 @@ export function drawTower(g, kind, rarity, level, pixel = false) {
       g.poly([-22, -10, 0, -28, 22, -10]).fill(0xc8a165);
       g.rect(-3, -2, 6, 12).fill(STONE);
   }
-  qualityDots(g, rarity, level, 34);
+  qualityDots(g, rarity, level);
 }
 
 // drawProjectile draws a shot of the given building kind.
