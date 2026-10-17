@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(git add *)",
-      "Bash(git commit -q -m 'Move quality dots to a column at the right of the cell *)"
-    ]
-  }
-}
