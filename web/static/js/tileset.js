@@ -64,6 +64,10 @@ const EXTRA = [
   },
   { file: 'assets/soul/soul.png', defs: { soul: row(0, 0, 16, 16, 4) } },
   {
+    file: 'assets/spiders/spiders.png', // side walk cycles facing right
+    defs: { spider_purple: row(0, 0, 16, 16, 4), spider_dark: row(0, 16, 16, 16, 4), spider_orange: row(0, 32, 16, 16, 4) },
+  },
+  {
     // Tiny Creatures: 16 px tiles with a 1 px gap, like Kenney's sheets.
     file: 'assets/tiny-creatures/creatures.png',
     defs: { tc_wraith: kt(9, 1), tc_ice_spirit: kt(9, 4), tc_rat: kt(4, 9) },

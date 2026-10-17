@@ -5,6 +5,7 @@ config.json
 *.db-shm
 *.db-wal
 web/static/assets/*.zip
+web/static/assets/*.rar
 web/static/assets/doc.png
 web/static/assets/pumpkin_dude.png
 .claude/settings.local.json

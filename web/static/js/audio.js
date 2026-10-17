@@ -44,9 +44,9 @@ export class Sound {
     this.ambientBus.gain.value = 0.7;
     this.ambientBus.connect(this.master);
     this.out = this.master;
-    this.volume = 0.6;
+    this.volume = 0.2; // the server's settings arrive right after connecting
     this.muted = false;
-    this.ambientOn = true;
+    this.ambientOn = false;
     this.last = {};
     this.voices = 0;
     this.noiseBuf = this.makeNoise();

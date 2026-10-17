@@ -188,8 +188,8 @@ export function drawProjectile(g, kind) {
   else g.circle(0, 0, 4).fill(0xffe3a8);
 }
 
-// Pixel art, mostly from the 0x72 pack. Kinds missing here (spiders and
-// their queen) keep the vector drawings above.
+// Pixel art, mostly from the 0x72 pack; the vector drawings above stay as
+// the fallback while a sheet is missing.
 export const ENEMY_ART = {
   skeleton: { name: 'skelet_run', scale: 3 },
   ghoul: { name: 'tiny_zombie_run', scale: 3 },
@@ -210,6 +210,8 @@ export const ENEMY_ART = {
   frostspirit: { name: 'tc_ice_spirit', scale: 2.6, float: true, alpha: 0.9 },
   ghost_king: { name: 'tc_wraith', scale: 5, float: true },
   rat: { name: 'tc_rat', scale: 2.2, hop: true },
+  spider: { name: 'spider_dark', scale: 3.6 },
+  spider_queen: { name: 'spider_purple', scale: 5.5 },
 };
 
 // Building icons from the pack, drawn over the stone base.

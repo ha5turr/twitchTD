@@ -38,8 +38,8 @@ func loadConfig(path string) (appConfig, error) {
 		Config:        game.DefaultConfig(),
 		StreamerBot:   streamerbot.DefaultConfig(),
 		DB:            "twitchtd.db",
-		Volume:        0.6,
-		Ambient:       true,
+		Volume:        0.2,
+		Ambient:       false,
 		AmbientVolume: 0.7,
 		SoundGroups:   defaultSoundGroups(),
 	}
