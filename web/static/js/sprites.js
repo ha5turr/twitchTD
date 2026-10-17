@@ -188,8 +188,8 @@ export function drawProjectile(g, kind) {
   else g.circle(0, 0, 4).fill(0xffe3a8);
 }
 
-// Pixel art from the 0x72 pack. Kinds missing here (spiders, rats, ghosts,
-// frost spirits and their bosses) keep the vector drawings above.
+// Pixel art, mostly from the 0x72 pack. Kinds missing here (spiders and
+// their queen) keep the vector drawings above.
 export const ENEMY_ART = {
   skeleton: { name: 'skelet_run', scale: 3 },
   ghoul: { name: 'tiny_zombie_run', scale: 3 },
@@ -204,6 +204,12 @@ export const ENEMY_ART = {
   lich: { name: 'necromancer', scale: 5, tint: 0xd0a8ff },
   ice_golem: { name: 'ice_zombie', scale: 6.4 },
   frost_demon: { name: 'big_demon_run', scale: 3.6, tint: 0xa8dcff },
+  // From other CC0 sheets. float: hovers up and down; hop: a still sprite
+  // that bounces as it runs.
+  ghost: { name: 'soul', scale: 3, float: true, alpha: 0.85 },
+  frostspirit: { name: 'tc_ice_spirit', scale: 2.6, float: true, alpha: 0.9 },
+  ghost_king: { name: 'tc_wraith', scale: 5, float: true },
+  rat: { name: 'tc_rat', scale: 2.2, hop: true },
 };
 
 // Building icons from the pack, drawn over the stone base.

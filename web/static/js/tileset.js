@@ -62,6 +62,12 @@ const EXTRA = [
     file: 'assets/miniworld/Tombstones.png',
     defs: Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`tomb_${i}`, [[(i % 4) * 16, Math.floor(i / 4) * 16, 16, 16]]])),
   },
+  { file: 'assets/soul/soul.png', defs: { soul: row(0, 0, 16, 16, 4) } },
+  {
+    // Tiny Creatures: 16 px tiles with a 1 px gap, like Kenney's sheets.
+    file: 'assets/tiny-creatures/creatures.png',
+    defs: { tc_wraith: kt(9, 1), tc_ice_spirit: kt(9, 4), tc_rat: kt(4, 9) },
+  },
   { file: 'assets/miniworld/Mausoleum.png', defs: { mausoleum: [[0, 0, 32, 32]], mausoleum_pale: [[32, 0, 32, 32]] } },
   {
     file: 'assets/miniworld/Rocks.png', // rows: grey, mossy, green, snowy

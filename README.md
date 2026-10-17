@@ -190,6 +190,8 @@ go run ./cmd/balance -games 40
 - [Dungeon Tileset II Extended](https://nijikokun.itch.io/dungeontileset-ii-extended) от Niji (`assets/extended`): настенные и напольные факелы, жаровня.
 - [MiniWorld Sprites](https://opengameart.org/content/miniworld-sprites) от Shade (`assets/miniworld`, только нужные листы): баллиста (поворачивается к ближайшему врагу), каменная башня, часовня, частокол, надгробия.
 - [Idylwild's Chromatic Campfires](https://opengameart.org/content/idylwilds-chromatic-campfires) (`assets/campfires`): костры жаровен и очага в таверне.
+- [Upwards Floating Soul](https://opengameart.org/content/upwards-floating-soul) от patvanmackelberg (`assets/soul`): призрак.
+- [Tiny Creatures](https://opengameart.org/content/tiny-creatures) от Clint Bellanger (`assets/tiny-creatures`): крыса, инеистый дух, Призрачный Король.
 - [Roguelike Indoors](https://kenney.nl/assets/roguelike-indoors) от Kenney (`assets/kenney`): столы, стулья, канделябры, щиты и барная стойка таверны.
 
 | Постройка | Вид |

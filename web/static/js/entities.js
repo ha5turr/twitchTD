@@ -92,10 +92,13 @@ class EnemyView {
     this.r = st.r * CELL;
     this.root = new Container();
     const art = hasTileset() && ENEMY_ART[e.kind];
-    if (art) {
+    if (art && frames(art.name)) {
       // A pixel sprite centred on the enemy's point, feet below it.
       this.body = sprite(art.name, art.scale, 0.15);
-      this.body.y = this.body.height / 2;
+      this.body.y = this.footY = this.body.height / 2;
+      this.motion = art.float ? 'float' : art.hop ? 'hop' : null;
+      this.phase = Math.random() * 6;
+      if (art.alpha) this.body.alpha = art.alpha;
       this.baseTint = art.tint ?? 0xffffff;
       this.body.tint = this.baseTint;
       this.r = this.body.height / 2;
@@ -149,6 +152,8 @@ class EnemyView {
       // Sprites face the way they walk.
       this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
     }
+    if (this.motion === 'float') this.body.y = this.footY - 6 + Math.sin(t * 3 + this.phase) * 5;
+    else if (this.motion === 'hop') this.body.y = this.footY - Math.abs(Math.sin(t * 12 + this.phase)) * 5;
     // Burning enemies flicker orange.
     this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
     this.bar.position.set(r.x, r.y - this.r - (this.boss ? 34 : 14));
