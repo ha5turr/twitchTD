@@ -217,7 +217,7 @@ func DefaultConfig() Config {
 			"ice_golem":    {Name: "Ледяной Голем", HPMult: 1, Speed: 0.5, Armor: 0.5, WallDPS: 80, Bounty: 80, SlowImmune: true, Boss: true},
 			"frost_demon":  {Name: "Демон Стужи", HPMult: 1, Speed: 0.65, Armor: 0.25, WallDPS: 70, Bounty: 80, SlowImmune: true, Boss: true},
 			// A guest boss of any biome, deliberately unfair: see sdf.go.
-			"sdf": {Name: "ЭссДиЭф", HPMult: 4, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
+			"sdf": {Name: "ЭссДиЭф", HPMult: 10, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
 		},
 		Towers: map[string]TowerSpec{
 			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, UpgMult: 1.45, MaxLevel: 5},
@@ -228,7 +228,7 @@ func DefaultConfig() Config {
 			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 1.6, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
 			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
 			// The only real answer to ЭссДиЭф: shoots him anywhere on the map.
-			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.008, UpgMult: 1.35, MaxLevel: 5},
+			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
 		WebcamFrom: "N1",
 		WebcamTo:   "P5",

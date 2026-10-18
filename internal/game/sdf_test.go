@@ -57,7 +57,7 @@ func TestClownHitsOnlySdf(t *testing.T) {
 	if sk.HP != 1000 {
 		t.Fatal("clowns ignore everyone else")
 	}
-	if e.HP >= 10000*0.99 {
+	if e.HP >= 10000 {
 		t.Fatalf("clowns hit ЭссДиЭф anywhere on the map: hp %.0f", e.HP)
 	}
 	arrow := g.Cfg.Towers["arrow"]
