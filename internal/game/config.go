@@ -194,7 +194,7 @@ func DefaultConfig() Config {
 		CountPerWave:       2,
 		BossHPMult:         10,
 		BossEvery:          5,
-		SdfChance:          0.15,
+		SdfChance:          0.2,
 		Enemies: map[string]EnemySpec{
 			"skeleton":    {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
 			"ghoul":       {Name: "Гуль", HPMult: 0.6, Speed: 1.9, WallDPS: 4, Bounty: 3},
