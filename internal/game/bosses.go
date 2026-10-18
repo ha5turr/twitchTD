@@ -96,6 +96,9 @@ func (g *Game) tickBoss(e *Enemy, dt float64) {
 		e.blocked = nil
 		e.Pos = g.routePos(e.Dist)
 		ev.X, ev.Y = e.Pos.X, e.Pos.Y
+	case sdfKind:
+		ev = g.sdfTrick(e)
+		e.ability = sdfEvery
 	case "ice_golem": // freezes every building around it
 		e.ability = 7
 		g.disableTowers(e, 2, 3, 0)

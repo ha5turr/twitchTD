@@ -114,7 +114,7 @@ func (g *Game) Restore(s Save) {
 		switch {
 		case !p.In() || !known || g.Map.Grid.At(p) != wantCell(g.Cfg.Towers[st.Kind]):
 			refund = st.Invested // the webcam zone or config changed
-		case !st.Built:
+		case !st.Built, st.Kind == clownKind: // clowns only live while ЭссДиЭф does
 			refund = st.Invested
 		default:
 			refund = st.PendingCost

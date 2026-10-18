@@ -2,7 +2,7 @@
 // glide toward the latest position so motion stays smooth at 60 fps.
 import { CELL, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
-import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile } from './sprites.js';
+import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
 import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
@@ -94,9 +94,11 @@ class EnemyView {
     const art = hasTileset() && ENEMY_ART[e.kind];
     if (art && frames(art.name)) {
       // A pixel sprite centred on the enemy's point, feet below it.
-      this.body = sprite(art.name, art.scale, 0.15);
+      this.body = sprite(art.name, art.scale, art.speed ?? 0.15);
       this.body.y = this.footY = this.body.height / 2;
       this.motion = art.float ? 'float' : art.hop ? 'hop' : null;
+      this.art = art;
+      this.heading = 'side';
       this.phase = Math.random() * 6;
       if (art.alpha) this.body.alpha = art.alpha;
       this.baseTint = art.tint ?? 0xffffff;
@@ -125,6 +127,7 @@ class EnemyView {
   set(e) {
     this.target = toPx(e.x, e.y);
     this.burn = !!e.burn;
+    this.act = e.act ?? 0;
     if (e.hp !== this.hp) {
       this.hp = e.hp;
       const w = Math.max(36, this.r * 2);
@@ -146,9 +149,16 @@ class EnemyView {
   frame(k, t) {
     const r = this.root;
     const dx = this.target.x - r.x;
-    r.x += dx * k;
-    r.y += (this.target.y - r.y) * k;
-    if (Math.abs(dx) > 0.5 && this.body.anchor) {
+    const dy = this.target.y - r.y;
+    if (Math.hypot(dx, dy) > CELL * 3) {
+      r.position.set(this.target.x, this.target.y); // a teleport, not a walk
+    } else {
+      r.x += dx * k;
+      r.y += dy * k;
+    }
+    if (this.art?.dirs) {
+      this.animate(dx, dy);
+    } else if (Math.abs(dx) > 0.5 && this.body.anchor) {
       // Sprites face the way they walk.
       this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
     }
@@ -157,6 +167,27 @@ class EnemyView {
     // Burning enemies flicker orange.
     this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
     this.bar.position.set(r.x, r.y - this.r - (this.boss ? 34 : 14));
+  }
+
+  // animate picks the walk cycle for the heading, or plays an act (the
+  // burp or the fart) once over the time he stands still for it.
+  animate(dx, dy) {
+    const a = this.art;
+    if (!this.act && Math.hypot(dx, dy) > 0.3) {
+      this.heading = Math.abs(dx) >= Math.abs(dy) ? 'side' : dy > 0 ? 'down' : 'up';
+      if (this.heading === 'side') this.facing = dx < 0 ? -1 : 1;
+    }
+    const name = this.act ? a.acts[this.act] : a.dirs[this.heading];
+    const want = frames(name);
+    if (want && this.body.textures !== want) {
+      this.body.textures = want;
+      this.body.loop = !this.act;
+      this.body.animationSpeed = this.act ? want.length / (2 * 60) : a.speed ?? 0.15;
+      this.body.gotoAndPlay(0);
+    }
+    // Side views face right in the sheet; front, back and the burp face us.
+    const sideways = name === a.dirs.side || name === a.acts[2];
+    this.body.scale.x = Math.abs(this.body.scale.x) * (sideways ? this.facing ?? 1 : 1);
   }
 
   destroy() {
@@ -370,8 +401,12 @@ class WorkerView {
 class ProjView {
   constructor(p, layer) {
     this.kind = p.kind;
-    this.root = new Graphics();
-    drawProjectile(this.root, p.kind);
+    if (p.kind === 'clown') {
+      this.root = emoji('🤡', 30); // clowns throw clowns
+    } else {
+      this.root = new Graphics();
+      drawProjectile(this.root, p.kind);
+    }
     const px = toPx(p.x, p.y);
     this.root.position.set(px.x, px.y);
     this.target = px;

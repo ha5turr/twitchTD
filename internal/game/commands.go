@@ -23,6 +23,7 @@ var towerAliases = map[string]string{
 	"trap": "trap", "t": "trap", "капкан": "trap", "капканы": "trap", "ловушка": "trap", "шипы": "trap",
 	"drums": "drums", "d": "drums", "барабаны": "drums", "барабан": "drums",
 	"wall": "wall", "w": "wall", "баррикада": "wall", "стена": "wall",
+	"clown": "clown", "клоун": "clown", "🤡": "clown",
 }
 
 // HandleChat registers activity and executes a command if the line is one.
@@ -74,6 +75,9 @@ func (g *Game) HandleChat(m ChatMessage) {
 			where := ""
 			if s.OnPath() {
 				where = ", на дорогу"
+			}
+			if s.Only != "" {
+				where = ", только против ЭссДиЭфа"
 			}
 			parts = append(parts, fmt.Sprintf("%s (%s) %d%s", s.Name, k, s.Cost, where))
 		}
@@ -143,7 +147,13 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	case g.Towers[p] != nil:
 		g.reply(c.Name, p.Name()+": клетка занята")
 		return
-	case !g.isStreamer(key) && g.towersOf(key) >= g.Cfg.TowerLimit:
+	case kind == clownKind && !g.sdfOut():
+		g.reply(c.Name, "клоуна можно поставить, только пока на поле ЭссДиЭф")
+		return
+	case kind == clownKind && g.clownsOf(key) > 0:
+		g.reply(c.Name, "у тебя уже есть клоун")
+		return
+	case kind != clownKind && !g.isStreamer(key) && g.towersOf(key)-g.clownsOf(key) >= g.Cfg.TowerLimit:
 		g.reply(c.Name, fmt.Sprintf("лимит построек %d", g.Cfg.TowerLimit))
 		return
 	}
@@ -294,7 +304,7 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		}
 		for i := 0; i < n; i++ {
 			if spec.Boss {
-				g.spawnBoss(args[0], hp*g.Cfg.BossHPMult)
+				g.spawnBoss(args[0], hp*g.Cfg.BossHPMult*spec.HPMult)
 			} else {
 				g.spawnEnemy(args[0], hp*spec.HPMult, 0.4*float64(i))
 			}

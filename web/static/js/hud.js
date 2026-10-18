@@ -21,7 +21,15 @@ const ABILITY = {
   frost_demon: 'ледяная тропа!',
 };
 
-const DISABLED = { spider_queen: 'опутана', cave_troll: 'оглушена', ice_golem: 'заморожена' };
+const DISABLED = { spider_queen: 'опутана', cave_troll: 'оглушена', ice_golem: 'заморожена', sdf: 'в шоке' };
+
+// What ЭссДиЭф does with each burp or fart.
+const SDF_TRICK = {
+  disable: 'башни в шоке',
+  destroy: 'постройки снесены',
+  offroad: 'сошёл с тропы',
+  tavern: 'грабит таверну',
+};
 const FIELD_CX = LEFT + (COLS * CELL) / 2;
 const FIELD_CY = TOP + (ROWS * CELL) / 2;
 
@@ -178,11 +186,22 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.6, 'оглушён!', 0xff9a6a, FONT_UI, 22);
         break;
       case 'waveStart':
-        if (ev.text) this.showBanner(ENEMIES[ev.text]?.name ?? 'Босс', `волна ${ev.amount} · босс приближается`, 4);
+        if (ev.text === 'sdf') this.showBanner('ЭссДиЭф', 'стройте клоунов: !b C4 clown', 6);
+        else if (ev.text) this.showBanner(ENEMIES[ev.text]?.name ?? 'Босс', `волна ${ev.amount} · босс приближается`, 4);
         else this.showBanner(`Волна ${ev.amount}`);
         break;
       case 'ability':
-        this.floatAt(ev.x, ev.y - 0.8, ABILITY[ev.text] ?? '', 0xffd6a0, FONT_UI, 28);
+        if (ev.text === 'sdf') {
+          // Every trick comes with the catchphrase and what he just did.
+          this.floatAt(ev.x, ev.y - 1.4, 'УЗРИТЕ ВИЖН!', 0x9dff3a, FONT_UI, 40, 2.4);
+          this.floatAt(ev.x, ev.y - 0.9, SDF_TRICK[ev.user] ?? '', 0xffd6a0, FONT_UI, 24, 2.4);
+        } else {
+          this.floatAt(ev.x, ev.y - 0.8, ABILITY[ev.text] ?? '', 0xffd6a0, FONT_UI, 28);
+        }
+        break;
+      case 'destroyed':
+        this.floatAt(ev.x, ev.y - 0.4, `${ev.text}: снесено`, 0xff6a5a, FONT_UI, 20);
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
         break;
       case 'disabled':
         this.floatAt(ev.x, ev.y - 0.5, DISABLED[ev.text] ?? 'выведена', 0xbfe8ff, FONT_UI, 20);
@@ -220,13 +239,13 @@ export class Hud {
     }
   }
 
-  floatAt(x, y, s, color, font = FONT_PIXEL, size = 18) {
+  floatAt(x, y, s, color, font = FONT_PIXEL, size = 18, life = 1.3) {
     const px = toPx(x, y);
     const t = new Text({ text: s, style: { fontFamily: font, fontSize: size, fontWeight: '700', fill: color, stroke: { color: 0x000000, width: 5 } } });
     t.anchor.set(0.5);
-    t.position.set(px.x, px.y - 20);
+    t.position.set(Math.max(px.x, t.width / 2 + 8), px.y - 20); // keep it on screen at the left edge
     this.floatLayer.addChild(t);
-    this.floaters.push({ t, life: 1.3 });
+    this.floaters.push({ t, life });
   }
 
   showBanner(main, sub = '', secs = 3) {

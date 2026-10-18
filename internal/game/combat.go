@@ -26,6 +26,16 @@ type Enemy struct {
 	traps     map[int]bool // traps already sprung by this enemy
 	ability   float64      // boss ability cooldown
 	shieldUp  bool
+
+	// ЭссДиЭф (sdf.go).
+	pause      float64 // stands still for a burp or a fart
+	act        int     // 1 burp, 2 fart, while paused
+	tricks     int
+	offLeft    float64 // seconds left off the path
+	offAmt     float64 // 0 on the path .. 1 fully off
+	offset     vec
+	tavernLeft float64        // seconds left robbing the tavern
+	loot       map[string]int // gold stolen from each chatter
 }
 
 type Tower struct {
@@ -107,7 +117,10 @@ func (g *Game) StartWave() {
 	if g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0 {
 		pair := biomeBosses[g.Map.Biome]
 		boss = pair[(g.Wave/g.Cfg.BossEvery-1)%len(pair)]
-		g.queue = append(g.queue, spawn{boss, g.waveHP * g.Cfg.BossHPMult})
+		if g.rng.Float64() < g.Cfg.SdfChance {
+			boss = sdfKind // a guest from nowhere, in any biome
+		}
+		g.queue = append(g.queue, spawn{boss, g.waveHP * g.Cfg.BossHPMult * g.Cfg.Enemies[boss].HPMult})
 	}
 	g.spawnTimer = 0
 	g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: boss})
@@ -116,6 +129,7 @@ func (g *Game) StartWave() {
 func (g *Game) endWave() {
 	g.Phase = PhaseBuild
 	g.Timer = g.Cfg.BuildPhaseSec
+	g.packClowns()
 	bonus := 10 + 2*g.Wave
 	owners := map[string]bool{}
 	for _, t := range g.Towers {
@@ -214,8 +228,12 @@ func (g *Game) tickEnemies(dt float64) {
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
 		case e.blocked != nil:
 			g.hackBarricade(e, spec, dt)
+		case e.pause > 0 || e.tavernLeft > 0: // ЭссДиЭф busy with a trick
 		default:
 			g.move(e, spec, spec.Speed*g.speedMult()*e.slowMult*dt)
+		}
+		if e.Kind == sdfKind {
+			g.tickSdf(e, dt)
 		}
 	}
 }
@@ -335,6 +353,9 @@ func (g *Game) tickTowers(dt float64) {
 		tc := center(t.Cell)
 		var target *Enemy
 		for _, e := range g.Enemies {
+			if spec.Only != "" && e.Kind != spec.Only {
+				continue // clowns see nobody but ЭссДиЭф
+			}
 			if !e.dead && e.Pos.sub(tc).len() <= spec.Range && (target == nil || e.Dist > target.Dist) {
 				target = e
 			}
@@ -345,9 +366,13 @@ func (g *Game) tickTowers(dt float64) {
 		dmgAura, rateAura := g.auras(t)
 		t.cooldown = 1 / (spec.Rate * rateAura)
 		mult := g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * dmgAura
+		damage := spec.Damage * mult
+		if spec.BossPct > 0 {
+			damage = spec.BossPct * target.MaxHP * mult
+		}
 		g.Projectiles = append(g.Projectiles, &Projectile{
 			ID: g.id(), Kind: t.Kind, Pos: tc, Target: target.ID, Aim: target.Pos,
-			Damage: spec.Damage * mult, Magic: spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
+			Damage: damage, Magic: spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
 			Splash: spec.Splash, BurnDPS: spec.BurnDPS * mult, BurnSec: spec.BurnSec,
 		})
 	}
@@ -420,6 +445,9 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 		return
 	}
 	e.dead = true
+	if e.loot != nil {
+		g.returnLoot(e)
+	}
 	bounty := g.Cfg.Enemies[e.Kind].Bounty
 	if e.summoned {
 		bounty = 1

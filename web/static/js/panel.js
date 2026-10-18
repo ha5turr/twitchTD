@@ -15,19 +15,20 @@ const TOOLS = [
   ['trap', 'Капканы', '#9aa0a8'],
   ['drums', 'Барабаны', '#8a3a2a'],
   ['wall', 'Баррикада', '#7a5230'],
+  ['clown', 'Клоун 🤡', '#e04aa8'],
   ['remove', 'Снести', '#d0574a'],
 ];
 const BOSSES = [
   ['bone_knight', 'Костяной Рыцарь'], ['cult_leader', 'Вожак Культа'], ['spider_queen', 'Королева Пауков'],
   ['cave_troll', 'Пещерный Тролль'], ['lich', 'Лич'], ['ghost_king', 'Призрачный Король'],
-  ['ice_golem', 'Ледяной Голем'], ['frost_demon', 'Демон Стужи'],
+  ['ice_golem', 'Ледяной Голем'], ['frost_demon', 'Демон Стужи'], ['sdf', 'ЭссДиЭф'],
 ];
 const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель' };
 const SETTINGS = [
   ['towerLimit', 'Лимит построек', 'int'], ['walletCap', 'Потолок кошелька', 'int'], ['startGold', 'Стартовое золото', 'int'],
   ['keepGold', 'Хранить золото между играми', 'bool'], ['chatGold', 'Золото за сообщение', 'int'], ['bitsGold', 'Золото за бит', 'num'],
   ['subGold', 'Золото за подписку', 'int'], ['donationGoldPerRub', 'Золото за 1 ₽', 'num'], ['buildPhaseSec', 'Фаза стройки, с', 'num'],
-  ['bossEvery', 'Босс каждые N волн', 'int'], ['baseHP', 'Базовое ХП врагов', 'num'], ['hpGrowth', 'Рост ХП за волну', 'num'],
+  ['bossEvery', 'Босс каждые N волн', 'int'], ['sdfChance', 'Шанс ЭссДиЭфа на волне босса (0–1)', 'num'],['baseHP', 'Базовое ХП врагов', 'num'], ['hpGrowth', 'Рост ХП за волну', 'num'],
   ['chatterHPCoef', 'ХП от числа чатерсов', 'num'], ['webcamFrom', 'Вебка: от клетки', 'text'], ['webcamTo', 'Вебка: до клетки', 'text'],
 ];
 

@@ -61,6 +61,8 @@ type Config struct {
 	CountPerWave  int     `json:"countPerWave"`
 	BossHPMult    float64 `json:"bossHPMult"`
 	BossEvery     int     `json:"bossEvery"`
+	// Chance that a boss wave brings ЭссДиЭф instead of the biome's boss.
+	SdfChance float64 `json:"sdfChance"`
 
 	Enemies map[string]EnemySpec `json:"enemies"`
 	Towers  map[string]TowerSpec `json:"towers"`
@@ -124,13 +126,18 @@ type TowerSpec struct {
 	AuraDmg   float64 `json:"auraDmg"`  // damage bonus, 0.15 = +15%
 	AuraRate  float64 `json:"auraRate"` // fire rate bonus
 	WallHeal  float64 `json:"wallHeal"` // tavern wall repair, HP per second per level
+
+	// Only: the building fires at this enemy kind alone, and only while it is
+	// on the field; BossPct is its damage as a share of the target's max HP.
+	Only    string  `json:"only"`
+	BossPct float64 `json:"bossPct"`
 }
 
 // OnPath reports whether the building stands on the enemy path.
 func (s TowerSpec) OnPath() bool { return s.Role == RoleTrap || s.Role == RoleWall }
 
 // TowerKinds lists buildings in the order chat sees them.
-var TowerKinds = []string{"arrow", "magic", "fire", "shrine", "trap", "drums", "wall"}
+var TowerKinds = []string{"arrow", "magic", "fire", "shrine", "trap", "drums", "wall", "clown"}
 
 func DefaultConfig() Config {
 	return Config{
@@ -187,6 +194,7 @@ func DefaultConfig() Config {
 		CountPerWave:       2,
 		BossHPMult:         10,
 		BossEvery:          5,
+		SdfChance:          0.15,
 		Enemies: map[string]EnemySpec{
 			"skeleton":    {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
 			"ghoul":       {Name: "Гуль", HPMult: 0.6, Speed: 1.9, WallDPS: 4, Bounty: 3},
@@ -208,6 +216,8 @@ func DefaultConfig() Config {
 			"ghost_king":   {Name: "Призрачный Король", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Ghost: true, Boss: true},
 			"ice_golem":    {Name: "Ледяной Голем", HPMult: 1, Speed: 0.5, Armor: 0.5, WallDPS: 80, Bounty: 80, SlowImmune: true, Boss: true},
 			"frost_demon":  {Name: "Демон Стужи", HPMult: 1, Speed: 0.65, Armor: 0.25, WallDPS: 70, Bounty: 80, SlowImmune: true, Boss: true},
+			// A guest boss of any biome, deliberately unfair: see sdf.go.
+			"sdf": {Name: "ЭссДиЭф", HPMult: 4, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
 		},
 		Towers: map[string]TowerSpec{
 			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, UpgMult: 1.45, MaxLevel: 5},
@@ -217,6 +227,8 @@ func DefaultConfig() Config {
 			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 25, Slow: 0.5, SlowSec: 2, Charges: 6, UpgMult: 1.45, MaxLevel: 5},
 			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 1.6, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
 			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
+			// The only real answer to ЭссДиЭф: shoots him anywhere on the map.
+			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.008, UpgMult: 1.35, MaxLevel: 5},
 		},
 		WebcamFrom: "N1",
 		WebcamTo:   "P5",

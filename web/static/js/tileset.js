@@ -64,6 +64,12 @@ const EXTRA = [
   },
   { file: 'assets/soul/soul.png', defs: { soul: row(0, 0, 16, 16, 4) } },
   {
+    // ЭссДиЭф: 56x75 cells, feet centred on the bottom edge; walks facing
+    // right, toward the viewer and away from him, then the burp and the fart.
+    file: 'assets/sdf/sdf.png',
+    defs: Object.fromEntries(['side', 'front', 'back', 'burp', 'fart'].map((n, i) => [`sdf_${n}`, row(0, i * 75, 56, 75, 4)])),
+  },
+  {
     file: 'assets/spiders/spiders.png', // side walk cycles facing right
     defs: { spider_purple: row(0, 0, 16, 16, 4), spider_dark: row(0, 16, 16, 16, 4), spider_orange: row(0, 32, 16, 16, 4) },
   },

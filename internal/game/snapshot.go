@@ -76,6 +76,7 @@ type EnemyView struct {
 	Slow   bool    `json:"slow,omitempty"`
 	Burn   bool    `json:"burn,omitempty"`
 	Shield bool    `json:"shield,omitempty"`
+	Act    int     `json:"act,omitempty"` // ЭссДиЭф: 1 burping, 2 farting
 }
 
 type TowerView struct {
@@ -134,7 +135,7 @@ func (g *Game) StateMessage() StateMsg {
 	for _, e := range g.Enemies {
 		s.Enemies = append(s.Enemies, EnemyView{
 			e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP),
-			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp,
+			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act,
 		})
 	}
 	owners := map[string]int{}

@@ -26,6 +26,7 @@ export const ENEMIES = {
   ghost_king: { name: 'Призрачный Король', color: 0xdff0ff, r: 0.44, boss: true },
   ice_golem: { name: 'Ледяной Голем', color: 0x8fc8e8, r: 0.48, boss: true },
   frost_demon: { name: 'Демон Стужи', color: 0x5ab0e0, r: 0.44, boss: true },
+  sdf: { name: 'ЭссДиЭф', color: 0x8a9a3a, r: 0.5, boss: true },
 };
 
 export const TOWERS = {
@@ -36,6 +37,7 @@ export const TOWERS = {
   trap: { name: 'Капканы' },
   drums: { name: 'Барабаны войны' },
   wall: { name: 'Баррикада' },
+  clown: { name: 'Клоун', light: 0xff5ab0 },
 };
 
 const eyes = (g, r, color = 0x1a0f0f) =>
@@ -168,6 +170,11 @@ export function drawTower(g, kind, rarity, level, { pixel = false, art = false }
       g.rect(-4, -24, 8, 28).fill(0xffe08a);
       g.rect(-12, -16, 24, 7).fill(0xffe08a);
       break;
+    case 'clown':
+      g.circle(0, -4, 22).fill(0xfff0f6).stroke({ width: 3, color: 0x2a1b0f });
+      g.circle(0, 0, 6).fill(0xe02a2a);
+      g.circle(-8, -10, 3).circle(8, -10, 3).fill(0x2a1b0f);
+      break;
     case 'drums':
       g.ellipse(-10, 4, 12, 16).fill(0x8a3a2a).stroke({ width: 2, color: 0x2a1b0f });
       g.ellipse(12, 6, 10, 13).fill(0x7a5a2a).stroke({ width: 2, color: 0x2a1b0f });
@@ -212,6 +219,13 @@ export const ENEMY_ART = {
   rat: { name: 'tc_rat', scale: 2.2, hop: true },
   spider: { name: 'spider_dark', scale: 3.6 },
   spider_queen: { name: 'spider_purple', scale: 5.5 },
+  // dirs: walk cycles by heading (side ones face right); acts: the burp
+  // and the fart he stands still for.
+  sdf: {
+    name: 'sdf_side', scale: 1.8, speed: 0.08,
+    dirs: { side: 'sdf_side', down: 'sdf_front', up: 'sdf_back' },
+    acts: { 1: 'sdf_burp', 2: 'sdf_fart' },
+  },
 };
 
 // Building icons from the pack, drawn over the stone base.
@@ -236,6 +250,11 @@ export const TOWER_ART = {
     [{ name: 'wall_fountain_mid_red', scale: 3, y: 24 }],
   ],
   shrine: [[{ name: 'chapel', scale: 3, y: 26 }], [{ name: 'wall_fountain_mid_blue', scale: 3, y: 24 }]],
+  // A tower with a clown on top; text layers are emoji drawn by the font.
+  clown: [
+    [{ name: 'stone_tower', scale: 3, y: 26, tint: 0xffb8e0 }, { text: '🤡', size: 40, y: -30 }],
+    [{ text: '🤡', size: 56, y: 0 }],
+  ],
   // The bard is the pack's elf heroine; drawTower adds her drum.
   drums: [[{ name: 'elf_f_idle', scale: 2.6, x: -8, y: 32, speed: 0.1 }]],
 };
@@ -247,10 +266,19 @@ const PATH_ART = {
   wall: [[{ name: 'spear_wall', scale: 3, y: 30 }], [{ name: 'crate', scale: 2, x: -16, y: 30 }, { name: 'crate', scale: 2, x: 16, y: 30 }]],
 };
 
+// emoji makes a centred emoji, drawn by the system's colour emoji font.
+export function emoji(s, size, x = 0, y = 0) {
+  const t = new PIXI.Text({ text: s, style: { fontSize: size, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif' } });
+  t.anchor.set(0.5);
+  t.position.set(x, y);
+  return t;
+}
+
 // towerArt builds a building's sprites, or null to keep the vector drawing.
 export function towerArt(kind, makeSprite) {
   for (const layers of TOWER_ART[kind] ?? PATH_ART[kind] ?? []) {
     const sprites = layers.map((l) => {
+      if (l.text) return emoji(l.text, l.size, l.x ?? 0, l.y);
       const s = makeSprite(l.name, l.scale, l.speed ?? 0.12);
       if (!s) return null;
       s.position.set(l.x ?? 0, l.y);

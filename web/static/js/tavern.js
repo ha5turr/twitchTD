@@ -227,6 +227,8 @@ export class Tavern {
     if (ev.kind === 'card') this.card.show(ev.user, this.mercs.get(ev.user), this.limits, ev.amount ?? 0);
     if (ev.kind === 'class' && m) m.redraw = true;
     if (ev.kind === 'diceRoll') this.dice.result(ev);
+    if (ev.kind === 'robbed' && m) m.shout(`−${ev.amount} з, ЭссДиЭф!`, 4);
+    if (ev.kind === 'loot' && m) m.shout(`+${ev.amount} з вернулись`, 4);
   }
 
   frame(dt) {
@@ -322,6 +324,12 @@ class Merc {
     this.root.addChildAt(this.body, 0);
   }
 
+  // shout shows a line over the mercenary for a few seconds.
+  shout(text, secs = 3) {
+    this.shoutText = text;
+    this.shoutLeft = secs;
+  }
+
   drink(what) {
     if (this.out) return;
     this.mode = 'bar';
@@ -380,7 +388,9 @@ class Merc {
     this.mug.rotation = this.mode === 'drinking' ? -0.4 - Math.abs(Math.sin(this.t * 4)) * 0.6 : 0;
 
     let bubble = '';
-    if (this.mode === 'drinking') bubble = `${this.drinkName}!`;
+    this.shoutLeft = Math.max(0, (this.shoutLeft ?? 0) - dt);
+    if (this.shoutLeft > 0) bubble = this.shoutText;
+    else if (this.mode === 'drinking') bubble = `${this.drinkName}!`;
     else if (this.drunk >= 4) bubble = Math.floor(this.t * 2) % 2 ? '♪ ♫' : '♫ ♪';
     this.bubble.text = bubble;
     this.bubble.visible = !!bubble;
