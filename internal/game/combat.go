@@ -13,7 +13,7 @@ type Enemy struct {
 	Dist   float64 // distance travelled along the route, in cells
 	Pos    vec
 	AtGate bool
-	Title  string // bosses carry a chatter's name
+	Title  string // a boss's name for the health bar
 
 	dead      bool
 	summoned  bool    // raised by a boss: worth almost no gold
@@ -164,14 +164,11 @@ func (g *Game) tickSpawns(dt float64) {
 	}
 }
 
-// spawnBoss brings in a boss named after a random chatter in the tavern.
+// spawnBoss brings in a boss under its own name.
 func (g *Game) spawnBoss(kind string, hp float64) *Enemy {
 	e := g.spawnEnemy(kind, hp, 0)
 	e.ability = 3 // let it walk into view before the first trick
 	e.Title = g.Cfg.Enemies[kind].Name
-	if name := g.randomActiveName(); name != "" {
-		e.Title += " " + name
-	}
 	return e
 }
 

@@ -47,22 +47,6 @@ func pickEnemy(roll float64, pool []weighted, wave int) string {
 	return pool[0].kind
 }
 
-func (g *Game) randomActiveName() string {
-	cutoff := g.Now().Add(-activeWindow(g.Cfg))
-	var names []string
-	for key, c := range g.Chatters {
-		if key != StreamerName && c.LastSeen.After(cutoff) {
-			names = append(names, c.Name)
-		}
-	}
-	if len(names) == 0 {
-		return ""
-	}
-	// Sort for determinism: map order is random, the rng is seeded.
-	slices.Sort(names)
-	return names[g.rng.IntN(len(names))]
-}
-
 // tickBoss runs the boss's ability on its cooldown.
 func (g *Game) tickBoss(e *Enemy, dt float64) {
 	e.ability -= dt
