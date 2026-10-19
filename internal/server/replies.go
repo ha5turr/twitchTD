@@ -24,8 +24,12 @@ func newReplier(say func(string)) *replier {
 	return &replier{say: say, interval: 1500 * time.Millisecond, maxLen: 450}
 }
 
+// add queues a line; an empty user makes it an announcement to the whole chat.
 func (r *replier) add(user, text string) {
-	line := "@" + user + " " + text
+	line := text
+	if user != "" {
+		line = "@" + user + " " + text
+	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for _, q := range r.queue {

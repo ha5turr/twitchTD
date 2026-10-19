@@ -57,8 +57,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdSell(c, key, args)
 	case "!me", "!я":
 		cl, _ := classByKey(c.Class)
-		g.reply(c.Name, fmt.Sprintf("%s, золото %d/%d, построек %d/%d, убийств %d",
-			strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills))
+		g.reply(c.Name, fmt.Sprintf("%s, золото %d/%d, построек %d/%d, убийств %d, душ %d",
+			strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills, c.Souls))
 		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
 	case "!link", "!привязать":
 		g.cmdLink(c, key)
@@ -68,6 +68,14 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdClass(c, args)
 	case "!drink", "!d", "!выпить", "!пить":
 		g.cmdDrink(c, key, args)
+	case "!помощь", "!help", "!команды", "!h":
+		g.cmdHelp(c, args)
+	case "!души", "!souls":
+		g.cmdSouls(c)
+	case "!ачивки", "!achievements", "!ach":
+		g.cmdAchievements(c)
+	case "!мемы", "!memes":
+		g.cmdMemes(c, key, args)
 	case "!towers", "!башни":
 		var parts []string
 		for _, k := range TowerKinds {
@@ -266,6 +274,8 @@ func (g *Game) cmdSell(c *Chatter, key string, args []string) {
 // cmdAdmin handles !td* commands for the streamer and moderators.
 func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 	switch cmd {
+	case "!tdmeme", "!tdмемы": // memecoin requests: list, done or reject
+		g.cmdMemeAdmin(c, args)
 	case "!tdwave":
 		g.StartWave()
 	case "!tdnew":
@@ -328,6 +338,14 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 			if n, err := strconv.Atoi(args[1]); err == nil {
 				name := strings.TrimPrefix(args[0], "@")
 				g.addGold(g.chatter(strings.ToLower(name), name), n)
+			}
+		}
+	case "!tdsouls": // !tdsouls nick N: grant (or with a minus take) souls by hand
+		if len(args) == 2 {
+			if n, err := strconv.Atoi(args[1]); err == nil {
+				name := strings.TrimPrefix(args[0], "@")
+				p := g.chatter(strings.ToLower(name), name)
+				p.Souls = max(0, p.Souls+n)
 			}
 		}
 	}

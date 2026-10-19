@@ -77,6 +77,10 @@ export class Hud {
     this.banner = this.text('', ui(84, 0xf2e6c9, { stroke: { color: 0x000000, width: 10 } }), FIELD_CX, TOP + 380, 0.5);
     this.subBanner = this.text('', ui(36, 0xc9b98f), FIELD_CX, TOP + 470, 0.5);
     this.bannerTime = 0;
+    // Achievements: a line under the column letters, one after another.
+    this.toast = this.text('', ui(28, 0xffd24a), FIELD_CX, TOP + 40, 0.5);
+    this.toasts = [];
+    this.toastTime = 0;
 
     this.summary = new SummaryPanel();
     // A white flash over the field when a reward rains arrows from the sky.
@@ -199,6 +203,9 @@ export class Hud {
           this.floatAt(ev.x, ev.y - 0.8, ABILITY[ev.text] ?? '', 0xffd6a0, FONT_UI, 28);
         }
         break;
+      case 'achievement':
+        this.toasts.push(`🏆 ${ev.user}: «${ev.text}»  +${ev.amount} душ`);
+        break;
       case 'destroyed':
         this.floatAt(ev.x, ev.y - 0.4, `${ev.text}: снесено`, 0xff6a5a, FONT_UI, 20);
         this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
@@ -263,6 +270,12 @@ export class Hud {
       if (f.life <= 0) f.t.destroy();
       return f.life > 0;
     });
+    this.toastTime -= dt;
+    if (this.toastTime <= 0 && this.toasts.length) {
+      this.toast.text = this.toasts.shift();
+      this.toastTime = 4;
+    }
+    this.toast.alpha = Math.max(0, Math.min(1, this.toastTime * 2));
     this.bannerTime -= dt;
     const a = Math.max(0, Math.min(1, this.bannerTime * 2));
     this.banner.alpha = this.subBanner.alpha = a;

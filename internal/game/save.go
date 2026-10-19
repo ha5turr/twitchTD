@@ -1,5 +1,7 @@
 package game
 
+import "slices"
+
 // Save is what survives a server restart or a pause between stream breaks:
 // the map is regenerated from its seed, enemies in flight are dropped and the
 // interrupted wave is replayed after a build phase.
@@ -16,6 +18,7 @@ type Save struct {
 	Banned    map[string]bool   `json:"banned"`
 	Links     map[string]string `json:"links"`
 	LinkCodes map[string]string `json:"linkCodes"`
+	Memes     []*MemeRequest    `json:"memes"`
 }
 
 // wantCell is the kind of cell a building stands on.
@@ -44,19 +47,21 @@ type SavedChatter struct {
 	Kills  int
 	Drinks int
 	Class  string
+
+	Progress Progress
 }
 
 func (g *Game) Export() Save {
 	s := Save{
 		Seed: g.Map.Seed, Biome: g.Map.Biome, Wave: g.Wave, Walls: g.Walls, Over: g.Phase == PhaseGameOver,
-		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned,
+		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned, Memes: g.Memes,
 	}
 	for _, t := range g.Towers {
 		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost})
 	}
 	escrow := g.diceEscrow() // stakes on dice tables count as the players' gold
 	for key, c := range g.Chatters {
-		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class})
+		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class, c.progress()})
 	}
 	return s
 }
@@ -65,6 +70,7 @@ func (g *Game) Export() Save {
 // donation links.
 func (g *Game) LoadEconomy(s Save) {
 	g.Treasury = s.Treasury
+	g.loadMemes(s.Memes)
 	for k, v := range s.Links {
 		g.Links[k] = v
 	}
@@ -81,6 +87,7 @@ func (g *Game) LoadChatters(cs []SavedChatter) {
 	for _, sc := range cs {
 		c := g.chatter(sc.Login, sc.Name)
 		c.Gold, c.Kills, c.Drinks = sc.Gold, sc.Kills, sc.Drinks
+		c.setProgress(sc.Progress)
 		if _, ok := classByKey(sc.Class); ok {
 			c.Class = sc.Class
 		}
@@ -129,4 +136,29 @@ func (g *Game) Restore(s Save) {
 	g.mapChanged = true
 	g.events = nil
 	g.emit(Event{Kind: "resumed", Amount: g.Wave + 1, Text: string(s.Biome)})
+}
+
+// Progress is what a chatter keeps between games: souls, achievements and
+// the lifetime counters behind them.
+type Progress struct {
+	Souls int            `json:"souls,omitempty"`
+	Ach   []string       `json:"ach,omitempty"`
+	Stats map[string]int `json:"stats,omitempty"`
+}
+
+func (c *Chatter) progress() Progress {
+	p := Progress{Souls: c.Souls, Stats: c.Stats}
+	for id := range c.Ach {
+		p.Ach = append(p.Ach, id)
+	}
+	slices.Sort(p.Ach)
+	return p
+}
+
+func (c *Chatter) setProgress(p Progress) {
+	c.Souls, c.Stats = p.Souls, p.Stats
+	c.Ach = map[string]bool{}
+	for _, id := range p.Ach {
+		c.Ach[id] = true
+	}
 }

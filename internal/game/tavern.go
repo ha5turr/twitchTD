@@ -49,6 +49,9 @@ func (g *Game) cmdDrink(c *Chatter, key string, args []string) {
 	c.Drunk += float64(d.Mugs)
 	c.Drinks++
 	c.GameDrinks++
+	if c.Drinks >= drinksNeeded {
+		g.unlock(key, "drunkard")
+	}
 	g.emit(Event{Kind: "drink", User: c.Name, Text: kind, Amount: int(math.Ceil(c.Drunk))})
 }
 

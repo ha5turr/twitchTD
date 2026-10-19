@@ -58,6 +58,7 @@ func (g *Game) sdfPlay(e *Enemy, trick string) Event {
 	case "destroy": // no refund: that is the joke
 		for _, t := range g.towersNear(e.Pos, sdfFlatten) {
 			g.removeTower(t)
+			g.unlock(t.Owner, "farted_down")
 			for _, o := range g.Enemies {
 				if o.blocked == t {
 					o.blocked = nil
@@ -107,6 +108,7 @@ func (g *Game) robTavern(e *Enemy) {
 			e.loot = map[string]int{}
 		}
 		e.loot[key] += take
+		g.unlock(key, "robbed")
 		g.emit(Event{Kind: "robbed", User: c.Name, Amount: take})
 	}
 }
@@ -180,5 +182,18 @@ func (g *Game) packClowns() {
 		}
 		cp := center(t.Cell)
 		g.emit(Event{Kind: "sell", User: t.Owner, X: cp.X, Y: cp.Y, Amount: t.Invested})
+	}
+}
+
+// crownClown gives the top damage dealer against a fallen ЭссДиЭф his title.
+func (g *Game) crownClown(e *Enemy) {
+	best, most := "", 0.0
+	for key, d := range e.hurtBy {
+		if d > most || d == most && key < best {
+			best, most = key, d
+		}
+	}
+	if best != "" {
+		g.unlock(best, "clown_king")
 	}
 }

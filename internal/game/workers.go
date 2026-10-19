@@ -153,12 +153,18 @@ func (g *Game) finish(t *Tower, w *Worker) {
 		t.Built = true
 		g.readyTower(t)
 		g.emit(Event{Kind: "built", User: w.Name, X: cp.X, Y: cp.Y, Text: t.Kind})
+		if c := g.Chatters[t.Owner]; c != nil && c.count("builds", 1) >= buildsNeeded {
+			g.unlock(t.Owner, "architect")
+		}
 		return
 	}
 	t.Level++
 	t.PendingCost = 0
 	g.readyTower(t) // a stronger barricade is also a repaired one
 	g.emit(Event{Kind: "upgraded", User: w.Name, X: cp.X, Y: cp.Y, Amount: t.Level})
+	if t.Level >= g.Cfg.Towers[t.Kind].MaxLevel {
+		g.unlock(t.Owner, "masterpiece")
+	}
 }
 
 func (g *Game) enemyNear(p vec) bool {

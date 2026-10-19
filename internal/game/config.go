@@ -43,6 +43,14 @@ type Config struct {
 	DiceWaitSec  float64 `json:"diceWaitSec"`  // how long a table waits for an opponent
 	DiceRollSec  float64 `json:"diceRollSec"`  // suspense before the dice are thrown
 
+	// Souls (progress.go): earned at game over by those who fought.
+	SoulsGoldPct     float64 `json:"soulsGoldPct"`   // share of the gold left in the wallet
+	SoulsPerDamage   float64 `json:"soulsPerDamage"` // per point of damage dealt this game
+	SoulsPerKill     float64 `json:"soulsPerKill"`
+	SoulsGameCap     int     `json:"soulsGameCap"`     // most souls one game can give
+	SoulsPerMemecoin int     `json:"soulsPerMemecoin"` // price of a memecoin request
+	MemeMax          int     `json:"memeMax"`          // most memecoins in one request
+
 	Rewards            []RewardSpec       `json:"rewards"`  // channel point rewards by title
 	BitsGold           float64            `json:"bitsGold"` // gold per bit
 	SubGold            int                `json:"subGold"`
@@ -169,11 +177,17 @@ func DefaultConfig() Config {
 			"mead":   {Name: "Медовуха", Price: 25, Mugs: 2},
 			"potion": {Name: "Чёрное зелье", Price: 60, Mugs: 4},
 		},
-		DrunkDecaySec: 90,
-		DiceTables:    2,
-		DiceMinStake:  10,
-		DiceWaitSec:   120,
-		DiceRollSec:   3,
+		DrunkDecaySec:    90,
+		DiceTables:       2,
+		DiceMinStake:     10,
+		DiceWaitSec:      120,
+		DiceRollSec:      3,
+		SoulsGoldPct:     0.05,
+		SoulsPerDamage:   0.004,
+		SoulsPerKill:     0.2,
+		SoulsGameCap:     80,
+		SoulsPerMemecoin: 10,
+		MemeMax:          50,
 		Rewards: []RewardSpec{
 			{Title: "Мешок золота", Action: "gold", Amount: 300},
 			{Title: "Починить стены", Action: "repair", Amount: 200},

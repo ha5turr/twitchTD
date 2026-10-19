@@ -34,8 +34,9 @@ type Enemy struct {
 	offLeft    float64 // seconds left off the path
 	offAmt     float64 // 0 on the path .. 1 fully off
 	offset     vec
-	tavernLeft float64        // seconds left robbing the tavern
-	loot       map[string]int // gold stolen from each chatter
+	tavernLeft float64            // seconds left robbing the tavern
+	loot       map[string]int     // gold stolen from each chatter
+	hurtBy     map[string]float64 // damage dealt to him, by chatter
 }
 
 type Tower struct {
@@ -436,6 +437,12 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	c := g.Chatters[owner]
 	if c != nil {
 		c.GameDamage += min(dmg, e.HP) // overkill does not count
+		if e.Kind == sdfKind {
+			if e.hurtBy == nil {
+				e.hurtBy = map[string]float64{}
+			}
+			e.hurtBy[owner] += min(dmg, e.HP)
+		}
 	}
 	e.HP -= dmg
 	if e.HP > 0 {
@@ -444,6 +451,9 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	e.dead = true
 	if e.loot != nil {
 		g.returnLoot(e)
+	}
+	if e.hurtBy != nil {
+		g.crownClown(e)
 	}
 	bounty := g.Cfg.Enemies[e.Kind].Bounty
 	if e.summoned {
@@ -455,6 +465,7 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	if c != nil {
 		c.Kills++
 		c.GameKills++
+		g.onKill(owner, c, e)
 		bounty = g.addGold(c, bounty)
 	}
 	g.emit(Event{Kind: "kill", User: owner, X: e.Pos.X, Y: e.Pos.Y, Amount: bounty, Text: e.Kind})
