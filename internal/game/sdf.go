@@ -27,7 +27,9 @@ const (
 	sdfFlatten   = 1.6 // radius of the flattening, cells
 )
 
-var sdfTricks = []string{"disable", "destroy", "offroad", "tavern"}
+// sdfTricks lists the tricks with their weights: the tavern robbery costs
+// chat real gold, so it comes up only one time in ten.
+var sdfTricks = []weighted{{"disable", 0, 3}, {"destroy", 0, 3}, {"offroad", 0, 3}, {"tavern", 0, 1}}
 
 // sdfTavern is where he stands while robbing: the middle of the tavern,
 // left of the field (grid x is negative there).
@@ -36,7 +38,7 @@ var sdfTavern = vec{-2, GridH / 2}
 // sdfTrick plays one trick and returns the event that announces it:
 // Amount is the act (1 burp, 2 fart), User the trick.
 func (g *Game) sdfTrick(e *Enemy) Event {
-	return g.sdfPlay(e, sdfTricks[g.rng.IntN(len(sdfTricks))])
+	return g.sdfPlay(e, pickEnemy(g.rng.Float64(), sdfTricks, 0))
 }
 
 func (g *Game) sdfPlay(e *Enemy, trick string) Event {

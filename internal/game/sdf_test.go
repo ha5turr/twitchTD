@@ -162,3 +162,17 @@ func TestSdfChance(t *testing.T) {
 		t.Fatal("chance 0 never does")
 	}
 }
+
+func TestSdfRobsRarely(t *testing.T) {
+	g, e := sdfGame(t)
+	n := 0
+	for i := 0; i < 1000; i++ {
+		if g.sdfTrick(e).User == "tavern" {
+			n++
+		}
+		e.tavernLeft = 0
+	}
+	if n < 50 || n > 160 {
+		t.Fatalf("the tavern robbery should be about one trick in ten, got %d of 1000", n)
+	}
+}
