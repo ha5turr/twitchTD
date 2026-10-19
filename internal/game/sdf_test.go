@@ -149,17 +149,41 @@ func TestSdfRobsTheTavern(t *testing.T) {
 func TestSdfChance(t *testing.T) {
 	g, _ := newTestGame(t)
 	g.Cfg.SdfChance = 1
-	g.Wave = g.Cfg.BossEvery - 1
+	g.Wave = g.Cfg.SdfFromWave - 1
 	g.StartWave()
 	if last := g.queue[len(g.queue)-1]; last.kind != sdfKind || last.hp != g.waveHP*g.Cfg.BossHPMult*g.Cfg.Enemies[sdfKind].HPMult {
 		t.Fatalf("chance 1 always brings him, with his extra hit points: %+v", last)
 	}
 	g2, _ := newTestGame(t)
 	g2.Cfg.SdfChance = 0
-	g2.Wave = g2.Cfg.BossEvery - 1
+	g2.Wave = g2.Cfg.SdfFromWave - 1
 	g2.StartWave()
 	if g2.queue[len(g2.queue)-1].kind == sdfKind {
 		t.Fatal("chance 0 never does")
+	}
+}
+
+func TestSdfFromWave(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.Cfg.SdfChance = 1
+	g.Cfg.SdfFromWave = 10
+	for _, w := range []int{5, 10, 15} {
+		g.Wave = w - 1
+		g.Phase = PhaseBuild
+		g.StartWave()
+		if got := g.queue[len(g.queue)-1].kind == sdfKind; got != (w >= 10) {
+			t.Fatalf("wave %d: sdf=%v, he comes only from wave 10", w, got)
+		}
+	}
+	g2, _ := newTestGame(t)
+	g2.Cfg.SdfFromWave = 100
+	g2.HandleChat(ChatMessage{User: "streamer", Mod: true, Broadcaster: true, Text: "!tdspawn sdf"})
+	found := false
+	for _, e := range g2.Enemies {
+		found = found || e.Kind == sdfKind
+	}
+	if !found {
+		t.Fatal("!tdspawn sdf works on any wave")
 	}
 }
 

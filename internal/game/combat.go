@@ -132,7 +132,7 @@ func (g *Game) StartWave() {
 	if g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0 {
 		pair := biomeBosses[g.Map.Biome]
 		boss = pair[(g.Wave/g.Cfg.BossEvery-1)%len(pair)]
-		if g.rng.Float64() < g.Cfg.SdfChance {
+		if g.Wave >= g.Cfg.SdfFromWave && g.rng.Float64() < g.Cfg.SdfChance {
 			boss = sdfKind // a guest from nowhere, in any biome
 		}
 		g.queue = append(g.queue, spawn{boss, g.waveHP * g.Cfg.BossHPMult * g.Cfg.Enemies[boss].HPMult})

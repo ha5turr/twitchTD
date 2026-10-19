@@ -99,6 +99,8 @@ type Config struct {
 	EnemyRegen    float64 `json:"enemyRegen"` // every enemy heals this share of its max HP per second
 	// Chance that a boss wave brings ЭссДиЭф instead of the biome's boss.
 	SdfChance float64 `json:"sdfChance"`
+	// ЭссДиЭф never comes before this wave (`!tdspawn sdf` still works any time).
+	SdfFromWave int `json:"sdfFromWave"`
 
 	Enemies map[string]EnemySpec `json:"enemies"`
 	Towers  map[string]TowerSpec `json:"towers"`
@@ -263,6 +265,7 @@ func DefaultConfig() Config {
 		BossEvery:          5,
 		EnemyRegen:         0.002,
 		SdfChance:          0.2,
+		SdfFromWave:        10,
 		Enemies: map[string]EnemySpec{
 			"skeleton":    {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
 			"ghoul":       {Name: "Гуль", HPMult: 0.6, Speed: 1.9, WallDPS: 4, Bounty: 3},

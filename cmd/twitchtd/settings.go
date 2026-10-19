@@ -17,7 +17,7 @@ import (
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
 	"towerLimit", "walletCap", "keepGold", "startGold", "chatGold", "bitsGold", "subGold",
-	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "baseHP", "hpGrowth", "chatterHPCoef",
+	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
 
@@ -149,6 +149,8 @@ func validate(cfg appConfig) error {
 		return fmt.Errorf("громкость от 0 до 1")
 	case cfg.SdfChance < 0 || cfg.SdfChance > 1:
 		return fmt.Errorf("шанс ЭссДиЭфа от 0 до 1")
+	case cfg.SdfFromWave < 1:
+		return fmt.Errorf("волна первого ЭссДиЭфа должна быть от 1")
 	}
 	known := map[string]bool{}
 	for _, g := range game.SoundGroups {
