@@ -121,6 +121,7 @@ type ChatterView struct {
 	Active bool   `json:"active"`
 	Banned bool   `json:"banned,omitempty"`
 	Souls  int    `json:"souls,omitempty"`
+	Rank   int    `json:"rank,omitempty"` // index in Ranks
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
@@ -165,7 +166,7 @@ func (g *Game) StateMessage() StateMsg {
 			continue
 		}
 		s.Chatters = append(s.Chatters, ChatterView{
-			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls,
+			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(),
 		})
 	}
 	s.Dice = []DiceView{}

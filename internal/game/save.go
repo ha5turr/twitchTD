@@ -157,6 +157,9 @@ func (c *Chatter) progress() Progress {
 
 func (c *Chatter) setProgress(p Progress) {
 	c.Souls, c.Stats = p.Souls, p.Stats
+	if c.earned() < c.Souls { // souls from before ranks existed
+		c.count("souls", c.Souls-c.earned())
+	}
 	c.Ach = map[string]bool{}
 	for _, id := range p.Ach {
 		c.Ach[id] = true

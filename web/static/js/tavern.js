@@ -5,7 +5,7 @@
 // Layout, top to bottom: fireplace, tables with seats right under it, two
 // dice tables, the bar counter with the barkeeper, and the fame board in the
 // bottom left corner, clear of the default webcam (bottom right).
-import { H, TOP, LEFT, CELL, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
+import { H, TOP, LEFT, CELL, FONT_UI, FONT_PIXEL, nickColor, RANKS } from './layout.js';
 import { drawFigure, CLASSES } from './figures.js';
 import { HERO_ART } from './sprites.js';
 import { hasTileset, sprite, frames, texture, PX } from './tileset.js';
@@ -283,6 +283,12 @@ class Merc {
   }
 
   set(c, out) {
+    if ((c.rank ?? 0) !== this.rank) {
+      // In the tavern the nick shows the rank colour; out on the field it
+      // keeps the personal colour, so buildings stay easy to tell apart.
+      this.rank = c.rank ?? 0;
+      this.nameText.style.fill = RANKS[this.rank]?.color ?? RANKS[0].color;
+    }
     if (c.gold !== this.gold) {
       this.gold = c.gold;
       this.goldText.text = `${c.gold} з`;
@@ -538,15 +544,22 @@ class Card {
     this.name = new Text({ text: '', style: st(22) });
     this.cls = new Text({ text: '', style: st(16, 0x6a4a2a) });
     this.lines = new Text({ text: '', style: { ...st(17), lineHeight: 24 } });
+    // The rank, in its colour, on the class line at the right.
+    this.rank = new Text({ text: '', style: { ...st(15), stroke: { color: 0x1a0f08, width: 4 } } });
+    this.rank.anchor.set(1, 0);
+    this.rank.position.set(238, 37);
     this.name.position.set(14, 8);
     this.cls.position.set(14, 36);
     this.lines.position.set(14, 60);
-    this.root.addChild(this.name, this.cls, this.lines);
+    this.root.addChild(this.name, this.cls, this.lines, this.rank);
     this.time = 0;
   }
 
   show(user, merc, limits, towers) {
     this.name.text = short(user);
+    const rank = RANKS[merc?.rank ?? 0] ?? RANKS[0];
+    this.rank.text = rank.name;
+    this.rank.style.fill = rank.color;
     this.cls.text = CLASSES[merc?.classKey]?.name ?? '';
     this.lines.text = `золото ${merc?.gold ?? '?'} / ${limits.cap}\nпостроек ${towers} / ${limits.towers} · убийств ${merc?.kills ?? 0}`;
     const x = merc && !merc.out ? merc.root.x : LEFT / 2;

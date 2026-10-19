@@ -135,3 +135,34 @@ func TestProgressSurvivesSave(t *testing.T) {
 		t.Fatalf("souls, achievements, counters and requests are kept: %+v memes %d", c2, len(g2.Memes))
 	}
 }
+
+func TestRanksFollowLifetimeSouls(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{User: "anna", Text: "привет"})
+	c := g.Chatters["anna"]
+	if c.rank() != 0 || Ranks[0].Name != "Неофит" {
+		t.Fatal("everyone starts as Неофит")
+	}
+	g.TakeEvents()
+	g.giveSouls("anna", c, Ranks[2].Souls)
+	ranked := false
+	for _, e := range g.TakeEvents() {
+		ranked = ranked || e.Kind == "rank" && e.Text == Ranks[2].Name
+	}
+	if c.rank() != 2 || !ranked {
+		t.Fatalf("souls raise the rank and announce it: rank %d", c.rank())
+	}
+	c.Souls = 0 // spent on memecoins
+	if c.rank() != 2 {
+		t.Fatal("spending souls never lowers the rank")
+	}
+	g.HandleChat(ChatMessage{User: "mod", Mod: true, Text: "!tdsouls anna 10000"})
+	if c.rank() != len(Ranks)-1 {
+		t.Fatal("souls granted by hand count too")
+	}
+	var old Chatter
+	old.setProgress(Progress{Souls: 600}) // saved before ranks existed
+	if old.rank() != 3 {
+		t.Fatalf("old balances count as earned: rank %d", old.rank())
+	}
+}

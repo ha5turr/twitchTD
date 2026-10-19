@@ -72,7 +72,7 @@ func (g *Game) unlock(key, id string) {
 		c.Ach = map[string]bool{}
 	}
 	c.Ach[id] = true
-	c.Souls += a.Souls
+	g.giveSouls(key, c, a.Souls)
 	g.emit(Event{Kind: "achievement", User: c.Name, Text: a.Name, Amount: a.Souls})
 	g.reply(c.Name, fmt.Sprintf("ачивка «%s», +%d душ", a.Name, a.Souls))
 }
@@ -122,7 +122,7 @@ func (g *Game) awardSouls(held int) {
 		}
 		s := int(float64(c.Gold)*g.Cfg.SoulsGoldPct + c.GameDamage*g.Cfg.SoulsPerDamage + float64(c.GameKills)*g.Cfg.SoulsPerKill)
 		s = min(max(s, 1), g.Cfg.SoulsGameCap)
-		c.Souls += s
+		g.giveSouls(key, c, s)
 		list = append(list, earned{c.Name, s})
 		g.emit(Event{Kind: "souls", User: c.Name, Amount: s})
 		if c.count("games", 1) >= gamesNeeded {
@@ -164,7 +164,7 @@ func (g *Game) cmdSouls(c *Chatter) {
 			got++
 		}
 	}
-	g.reply(c.Name, fmt.Sprintf("душ %d, ачивок %d из %d. Мемкоины: !мемы N (%d душ за мемкоин)", c.Souls, got, len(Achievements), g.Cfg.SoulsPerMemecoin))
+	g.reply(c.Name, fmt.Sprintf("%s. Душ %d, ачивок %d из %d. Мемкоины: !мемы N (%d душ за мемкоин)", c.rankLine(), c.Souls, got, len(Achievements), g.Cfg.SoulsPerMemecoin))
 }
 
 func (g *Game) cmdAchievements(c *Chatter) {
@@ -183,4 +183,61 @@ func (g *Game) cmdAchievements(c *Chatter) {
 		return
 	}
 	g.reply(c.Name, fmt.Sprintf("ачивки (%d из %d): %s", len(got), len(Achievements), strings.Join(got, ", ")))
+}
+
+// Title is a rank earned by the souls gathered over all time (spending
+// them does not lower it). The overlay paints it in the rarity colour.
+type Title struct {
+	Name  string
+	Souls int // lifetime souls needed
+}
+
+// Ranks, from grey to gold. At some 40 souls a game: Ученик after a game or
+// two, Скиталец after ~5, Первопроходец ~12, Странник ~30, Эталон ~75 and
+// Полубог after ~175 games.
+var Ranks = []Title{
+	{"Неофит", 0},
+	{"Ученик", 50},
+	{"Скиталец", 200},
+	{"Первопроходец", 500},
+	{"Странник", 1200},
+	{"Эталон", 3000},
+	{"Полубог", 7000},
+}
+
+// earned is the lifetime souls of a chatter.
+func (c *Chatter) earned() int { return c.Stats["souls"] }
+
+// rank returns the index of the chatter's rank in Ranks.
+func (c *Chatter) rank() int {
+	r := 0
+	for i, rk := range Ranks {
+		if c.earned() >= rk.Souls {
+			r = i
+		}
+	}
+	return r
+}
+
+// giveSouls pays souls that count toward the rank and announces a new rank.
+func (g *Game) giveSouls(key string, c *Chatter, n int) {
+	if n <= 0 {
+		return
+	}
+	was := c.rank()
+	c.Souls += n
+	c.count("souls", n)
+	if now := c.rank(); now > was && key != StreamerName {
+		g.emit(Event{Kind: "rank", User: c.Name, Text: Ranks[now].Name, Amount: now})
+		g.reply(c.Name, fmt.Sprintf("новое звание: %s!", Ranks[now].Name))
+	}
+}
+
+// rankLine is the chatter's rank and what is left to the next one.
+func (c *Chatter) rankLine() string {
+	r := c.rank()
+	if r == len(Ranks)-1 {
+		return Ranks[r].Name
+	}
+	return fmt.Sprintf("%s (до звания %s ещё %d душ)", Ranks[r].Name, Ranks[r+1].Name, Ranks[r+1].Souls-c.earned())
 }

@@ -1,5 +1,5 @@
 // Top bar, the tavern wall, floating numbers, banners and the game over screen.
-import { W, H, TOP, LEFT, CELL, COLS, ROWS, toPx, BIOMES, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
+import { W, H, TOP, LEFT, CELL, COLS, ROWS, toPx, BIOMES, FONT_UI, FONT_PIXEL, nickColor, RANKS } from './layout.js';
 import { ENEMIES } from './sprites.js';
 
 const { Container, Graphics, Text } = PIXI;
@@ -204,7 +204,10 @@ export class Hud {
         }
         break;
       case 'achievement':
-        this.toasts.push(`🏆 ${ev.user}: «${ev.text}»  +${ev.amount} душ`);
+        this.toasts.push({ text: `🏆 ${ev.user}: «${ev.text}»  +${ev.amount} душ`, color: 0xffd24a });
+        break;
+      case 'rank':
+        this.toasts.push({ text: `⬆ ${ev.user} теперь ${ev.text}`, color: RANKS[ev.amount]?.color ?? 0xffd24a });
         break;
       case 'destroyed':
         this.floatAt(ev.x, ev.y - 0.4, `${ev.text}: снесено`, 0xff6a5a, FONT_UI, 20);
@@ -272,7 +275,9 @@ export class Hud {
     });
     this.toastTime -= dt;
     if (this.toastTime <= 0 && this.toasts.length) {
-      this.toast.text = this.toasts.shift();
+      const next = this.toasts.shift();
+      this.toast.text = next.text;
+      this.toast.style.fill = next.color;
       this.toastTime = 4;
     }
     this.toast.alpha = Math.max(0, Math.min(1, this.toastTime * 2));

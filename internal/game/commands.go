@@ -57,8 +57,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdSell(c, key, args)
 	case "!me", "!я":
 		cl, _ := classByKey(c.Class)
-		g.reply(c.Name, fmt.Sprintf("%s, золото %d/%d, построек %d/%d, убийств %d, душ %d",
-			strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills, c.Souls))
+		g.reply(c.Name, fmt.Sprintf("%s, %s, золото %d/%d, построек %d/%d, убийств %d, душ %d",
+			Ranks[c.rank()].Name, strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills, c.Souls))
 		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
 	case "!link", "!привязать":
 		g.cmdLink(c, key)
@@ -344,8 +344,13 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		if len(args) == 2 {
 			if n, err := strconv.Atoi(args[1]); err == nil {
 				name := strings.TrimPrefix(args[0], "@")
-				p := g.chatter(strings.ToLower(name), name)
-				p.Souls = max(0, p.Souls+n)
+				key := strings.ToLower(name)
+				p := g.chatter(key, name)
+				if n > 0 {
+					g.giveSouls(key, p, n) // a gift counts toward the rank
+				} else {
+					p.Souls = max(0, p.Souls+n)
+				}
 			}
 		}
 	}
