@@ -15,7 +15,7 @@ func (g *Game) payHold(t *Tower, dt float64) {
 	if c == nil || t.Owner == StreamerName {
 		return
 	}
-	t.holdGold += g.Cfg.WallHoldGold * dt
+	t.holdGold += g.Cfg.WallHoldGold * g.rewardMult * dt
 	if n := int(t.holdGold); n > 0 {
 		t.holdGold -= float64(n)
 		g.addGold(c, n)

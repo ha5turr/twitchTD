@@ -233,8 +233,10 @@ export const ENEMY_ART = {
 // Mercenaries look like the pack's heroes, one per class.
 export const HERO_ART = {
   ranger: 'elf_m', mage: 'wizzard_m', pyro: 'wizzard_f', cleric: 'angel',
-  rogue: 'lizard_m', bard: 'elf_f', warrior: 'knight_m',
+  rogue: 'lizard_m', bard: 'elf_f', warrior: 'knight_m', druid: 'dwarf_f',
 };
+// HERO_TINT recolours a hero borrowed for a class that has no sprite of its own.
+export const HERO_TINT = { druid: 0x9fdc7a };
 // Building art: each entry is a list of sprite layers drawn bottom to top,
 // tried in order of preference so a missing extra sheet falls back to the
 // 0x72 pack. aim: the sprite turns toward the nearest enemy (ballista).

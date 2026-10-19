@@ -23,7 +23,7 @@ const BOSSES = [
   ['cave_troll', 'Пещерный Тролль'], ['lich', 'Лич'], ['ghost_king', 'Призрачный Король'],
   ['ice_golem', 'Ледяной Голем'], ['frost_demon', 'Демон Стужи'], ['sdf', 'ЭссДиЭф'],
 ];
-const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель' };
+const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель', druid: 'Друид' };
 const SETTINGS = [
   ['towerLimit', 'Лимит построек', 'int'], ['walletCap', 'Потолок кошелька', 'int'], ['startGold', 'Стартовое золото', 'int'],
   ['keepGold', 'Хранить золото между играми', 'bool'], ['chatGold', 'Золото за сообщение', 'int'], ['bitsGold', 'Золото за бит', 'num'],

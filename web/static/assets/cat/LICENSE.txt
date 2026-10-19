@@ -1,0 +1,5 @@
+Cat sprites by Shepardskin
+https://opengameart.org/content/cat-sprites
+License: CC0 1.0 Universal (public domain). Credit not required.
+The sheet is the original-size GIF with its background made transparent.
+Rows: sitting and idle, walk, run (all facing left).

@@ -7,7 +7,7 @@
 // bottom left corner, clear of the default webcam (bottom right).
 import { H, TOP, LEFT, CELL, FONT_UI, FONT_PIXEL, nickColor, RANKS } from './layout.js';
 import { drawFigure, CLASSES } from './figures.js';
-import { HERO_ART } from './sprites.js';
+import { HERO_ART, HERO_TINT } from './sprites.js';
 import { hasTileset, sprite, frames, texture, PX } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
@@ -187,7 +187,8 @@ export class Tavern {
 
   update(st) {
     this.limits = { cap: st.walletCap, towers: st.towerLimit };
-    const outside = new Set((st.workers ?? []).map((w) => w.name));
+    // Mercenaries out building, and druids out hunting as panthers, leave the tavern.
+    const outside = new Set([...(st.workers ?? []), ...(st.panthers ?? [])].map((w) => w.name));
     const active = st.chatters.filter((c) => c.active || c.towers > 0 || outside.has(c.name));
     const seen = new Set();
     let hidden = 0;
@@ -229,6 +230,11 @@ export class Tavern {
     if (ev.kind === 'diceRoll') this.dice.result(ev);
     if (ev.kind === 'robbed' && m) m.shout(`−${ev.amount} з, ЭссДиЭф!`, 4);
     if (ev.kind === 'loot' && m) m.shout(`+${ev.amount} з вернулись`, 4);
+    if (ev.kind === 'pickpocket') {
+      // A rogue lifts a few coins from someone at the next table.
+      m?.shout(`+${ev.amount} з, хе-хе`, 3);
+      this.mercs.get(ev.text)?.shout(`−${ev.amount} з?!`, 3);
+    }
   }
 
   frame(dt) {
@@ -320,6 +326,7 @@ class Merc {
       this.idle = frames(`${hero}_idle`);
       this.run = frames(`${hero}_run`) ?? this.idle;
       this.body = sprite(`${hero}_idle`, 2, 0.12);
+      this.body.tint = HERO_TINT[this.cls] ?? 0xffffff;
       this.height = this.body.height;
     } else {
       this.idle = this.run = null;

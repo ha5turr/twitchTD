@@ -63,6 +63,8 @@ type StateMsg struct {
 	Summary  *Summary       `json:"summary,omitempty"` // only on the game over screen
 	Dice     []DiceView     `json:"dice"`
 	Memes    []*MemeRequest `json:"memes,omitempty"` // memecoin requests for the panel
+	Panthers []PantherView  `json:"panthers,omitempty"`
+	Reward   float64        `json:"reward,omitempty"` // reward multiplier, above 1 after boss waves
 }
 
 type EnemyView struct {
@@ -174,6 +176,10 @@ func (g *Game) StateMessage() StateMsg {
 		s.Dice = append(s.Dice, DiceView{d.ID, d.Table, d.HostName, d.Stake, d.GuestName, d.GuestStake, math.Ceil(d.wait)})
 	}
 	s.Memes = g.Memes
+	for _, p := range g.Panthers {
+		s.Panthers = append(s.Panthers, PantherView{p.Name, round2(p.Pos.X), round2(p.Pos.Y)})
+	}
+	s.Reward = round2(g.rewardMult)
 	if g.Phase == PhaseGameOver {
 		s.Summary = g.summary
 	}
@@ -198,4 +204,11 @@ type DiceView struct {
 	Guest      string  `json:"guest,omitempty"`
 	GuestStake int     `json:"guestStake,omitempty"`
 	Wait       float64 `json:"wait"` // seconds left for an opponent
+}
+
+// PantherView is a druid on the hunt.
+type PantherView struct {
+	Name string  `json:"name"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
 }

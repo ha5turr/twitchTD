@@ -37,14 +37,33 @@ type Config struct {
 	ClassBonus float64 `json:"classBonus"` // extra damage of a class's signature building
 
 	// Support buildings and barricades (hotfix "We Deeply sorry").
-	DrumAssistPct    float64              `json:"drumAssistPct"`    // share of a kill's bounty for each drum that sped up the shot
-	ShrineWallRepair float64              `json:"shrineWallRepair"` // share of every barricade's HP a shrine mends after a wave, per level
-	WallHoldGold     float64              `json:"wallHoldGold"`     // gold per second for each enemy a barricade holds
-	WallRepairShare  float64              `json:"wallRepairShare"`  // price of a full repair as a share of the barricade's last price
-	WallRefundPct    int                  `json:"wallRefundPct"`    // refund when a barricade is broken
-	WallRefundClass  int                  `json:"wallRefundClass"`  // the same for the Воитель
-	Drinks           map[string]DrinkSpec `json:"drinks"`
-	DrunkDecaySec    float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
+	DrumAssistPct    float64 `json:"drumAssistPct"`    // share of a kill's bounty for each drum that sped up the shot
+	ShrineWallRepair float64 `json:"shrineWallRepair"` // share of every barricade's HP a shrine mends after a wave, per level
+	WallHoldGold     float64 `json:"wallHoldGold"`     // gold per second for each enemy a barricade holds
+	WallRepairShare  float64 `json:"wallRepairShare"`  // price of a full repair as a share of the barricade's last price
+	WallRefundPct    int     `json:"wallRefundPct"`    // refund when a barricade is broken
+	WallRefundClass  int     `json:"wallRefundClass"`  // the same for the Воитель
+
+	// Class passives (rogues.go).
+	RogueEverySec     float64 `json:"rogueEverySec"`
+	RogueStealPct     float64 `json:"rogueStealPct"` // share of the victim's gold
+	RogueStealMax     int     `json:"rogueStealMax"`
+	DruidEverySec     float64 `json:"druidEverySec"`
+	DruidPantherSec   float64 `json:"druidPantherSec"`
+	DruidPantherSpeed float64 `json:"druidPantherSpeed"` // cells per second
+	DruidMaul         float64 `json:"druidMaul"`         // damage per bite, in base enemy HP of the wave
+
+	// Traps (hotfix 2).
+	TrapBleed      float64 `json:"trapBleed"` // bleeding per second as a share of the snap's damage
+	TrapBleedSec   float64 `json:"trapBleedSec"`
+	TrapHealCut    float64 `json:"trapHealCut"` // share of healing lost while the cut is fresh
+	TrapHealCutSec float64 `json:"trapHealCutSec"`
+	TrapAssistPct  float64 `json:"trapAssistPct"` // share of the bounty for the trap owner when someone else kills
+
+	// Rewards grow after every boss wave by this share (kills, assists, barricades).
+	RewardGrowth  float64              `json:"rewardGrowth"`
+	Drinks        map[string]DrinkSpec `json:"drinks"`
+	DrunkDecaySec float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
 
 	DiceTables   int     `json:"diceTables"`   // games of dice that can run at once
 	DiceMinStake int     `json:"diceMinStake"` // smallest stake in gold
@@ -77,6 +96,7 @@ type Config struct {
 	CountPerWave  int     `json:"countPerWave"`
 	BossHPMult    float64 `json:"bossHPMult"`
 	BossEvery     int     `json:"bossEvery"`
+	EnemyRegen    float64 `json:"enemyRegen"` // every enemy heals this share of its max HP per second
 	// Chance that a boss wave brings ЭссДиЭф instead of the biome's boss.
 	SdfChance float64 `json:"sdfChance"`
 
@@ -128,6 +148,12 @@ type TowerSpec struct {
 	Splash  float64 `json:"splash"`  // radius of area damage, cells
 	BurnDPS float64 `json:"burnDps"` // damage over time after a hit, ignores armor
 	BurnSec float64 `json:"burnSec"`
+	// Lightning (magic): every StrikeEvery seconds, faster with each level, a
+	// bolt hits all enemies within StrikeRadius of one in range for
+	// StrikeDmg times the tower's damage.
+	StrikeEvery  float64 `json:"strikeEvery"`
+	StrikeDmg    float64 `json:"strikeDmg"`
+	StrikeRadius float64 `json:"strikeRadius"`
 
 	// Traps.
 	Slow    float64 `json:"slow"` // speed multiplier while slowed
@@ -186,10 +212,23 @@ func DefaultConfig() Config {
 		WallRepairShare:      0.3,
 		WallRefundPct:        50,
 		WallRefundClass:      75,
+		RogueEverySec:        60,
+		RogueStealPct:        0.05,
+		RogueStealMax:        15,
+		DruidEverySec:        45,
+		DruidPantherSec:      10,
+		DruidPantherSpeed:    4,
+		DruidMaul:            0.8,
+		TrapBleed:            0.15,
+		TrapBleedSec:         4,
+		TrapHealCut:          0.5,
+		TrapHealCutSec:       3,
+		TrapAssistPct:        0.5,
+		RewardGrowth:         0.15,
 		Drinks: map[string]DrinkSpec{
-			"ale":    {Name: "Эль", Price: 10, Mugs: 1},
-			"mead":   {Name: "Медовуха", Price: 25, Mugs: 2},
-			"potion": {Name: "Чёрное зелье", Price: 60, Mugs: 4},
+			"ale":    {Name: "Эль", Price: 10, Mugs: 1, Boost: 1.5, After: 0.5, Sec: 20},
+			"mead":   {Name: "Медовуха", Price: 25, Mugs: 2, Boost: 2, After: 0.5, Sec: 30},
+			"potion": {Name: "Чёрное зелье", Price: 60, Mugs: 4, Boost: 1.5, Sec: 20},
 		},
 		DrunkDecaySec:    90,
 		DiceTables:       2,
@@ -216,12 +255,13 @@ func DefaultConfig() Config {
 		TreasuryGoldPerSec: 40,
 		IgnoreUsers:        []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts"},
 		BaseHP:             30,
-		HPGrowth:           1.11,
+		HPGrowth:           1.13,
 		ChatterHPCoef:      0.25,
 		BaseCount:          6,
 		CountPerWave:       2,
 		BossHPMult:         10,
 		BossEvery:          5,
+		EnemyRegen:         0.002,
 		SdfChance:          0.2,
 		Enemies: map[string]EnemySpec{
 			"skeleton":    {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
@@ -245,14 +285,14 @@ func DefaultConfig() Config {
 			"ice_golem":    {Name: "Ледяной Голем", HPMult: 1, Speed: 0.5, Armor: 0.5, WallDPS: 80, Bounty: 80, SlowImmune: true, Boss: true},
 			"frost_demon":  {Name: "Демон Стужи", HPMult: 1, Speed: 0.65, Armor: 0.25, WallDPS: 70, Bounty: 80, SlowImmune: true, Boss: true},
 			// A guest boss of any biome, deliberately unfair: see sdf.go.
-			"sdf": {Name: "ЭссДиЭф", HPMult: 10, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
+			"sdf": {Name: "ЭссДиЭф", HPMult: 15, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
 		},
 		Towers: map[string]TowerSpec{
 			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, UpgMult: 1.45, MaxLevel: 5},
-			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, UpgMult: 1.45, MaxLevel: 5},
+			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, StrikeEvery: 8, StrikeDmg: 1.5, StrikeRadius: 1, UpgMult: 1.45, MaxLevel: 5},
 			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 90, Damage: 10, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 4, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
 			"shrine": {Name: "Святилище", Role: RoleAura, Cost: 100, AuraRange: 1.6, AuraDmg: 0.15, WallHeal: 1.5, UpgMult: 1.5, MaxLevel: 5},
-			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 45, Slow: 0.5, SlowSec: 2, Charges: 6, UpgMult: 1.45, MaxLevel: 5},
+			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 45, Slow: 0.5, SlowSec: 2, Charges: 9, UpgMult: 1.45, MaxLevel: 5},
 			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 3, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
 			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
 			// The only real answer to ЭссДиЭф: shoots him anywhere on the map.

@@ -73,6 +73,7 @@ export class Hud {
     this.floatLayer = new Container();
     this.blasts = new Graphics();
     this.rings = [];
+    this.bolts = [];
     this.ui.addChild(this.blasts, this.floatLayer);
     this.banner = this.text('', ui(84, 0xf2e6c9, { stroke: { color: 0x000000, width: 10 } }), FIELD_CX, TOP + 380, 0.5);
     this.subBanner = this.text('', ui(36, 0xc9b98f), FIELD_CX, TOP + 470, 0.5);
@@ -225,6 +226,26 @@ export class Hud {
       case 'assist':
         this.floatAt(ev.x, ev.y + 0.3, `+${ev.amount} барабанщику`, 0xffd24a, FONT_UI, 16);
         break;
+      case 'lightning': {
+        const p = toPx(ev.x, ev.y);
+        const pts = [[p.x + 20, p.y - 260]];
+        for (let i = 1; i < 6; i++) pts.push([p.x + (Math.random() - 0.5) * 40, p.y - 260 + (260 * i) / 6]);
+        pts.push([p.x, p.y]);
+        this.bolts.push({ x: p.x, y: p.y, pts, life: 0.3 });
+        break;
+      }
+      case 'maul':
+        this.floatAt(ev.x, ev.y - 0.4, 'кусь!', 0xb0ff8a, FONT_UI, 20);
+        break;
+      case 'panther':
+        this.toasts.push({ text: `🐆 ${ev.user} обращается в пантеру`, color: 0xb0ff8a });
+        break;
+      case 'rewardUp':
+        this.showBanner('Награды растут', `убийства, ассисты и баррикады платят +${ev.amount}%`, 4);
+        break;
+      case 'drinkTower':
+        this.floatAt(ev.x, ev.y - 0.5, ev.amount > 0 ? 'медовуха ×2' : 'медовуха ×0.5', ev.amount > 0 ? 0xffd24a : 0x9a9a9a, FONT_UI, 18);
+        break;
       case 'mended':
         this.floatAt(ev.x, ev.y - 0.4, 'починено', 0x9fe8a0, FONT_UI, 18);
         break;
@@ -301,6 +322,17 @@ export class Hud {
       if (r.life <= 0) return false;
       const k = 1 - r.life / 0.35;
       this.blasts.circle(r.x, r.y, 20 + 70 * k).stroke({ width: 1 + 6 * (1 - k), color: 0xff8a3a, alpha: 1 - k });
+      return true;
+    });
+    // Lightning from the obelisks: a jagged bolt from above and a blue ring.
+    this.bolts = this.bolts.filter((b) => {
+      b.life -= dt;
+      if (b.life <= 0) return false;
+      const a = Math.min(1, b.life / 0.15);
+      this.blasts.moveTo(b.pts[0][0], b.pts[0][1]);
+      for (const [x, y] of b.pts.slice(1)) this.blasts.lineTo(x, y);
+      this.blasts.stroke({ width: 4, color: 0xd8e8ff, alpha: a });
+      this.blasts.circle(b.x, b.y, 60 * (1.3 - a * 0.3)).stroke({ width: 3, color: 0x7ab8ff, alpha: a });
       return true;
     });
   }

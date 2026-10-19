@@ -2,7 +2,7 @@
 // glide toward the latest position so motion stays smooth at 60 fps.
 import { CELL, LEFT, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
-import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
+import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, HERO_TINT, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
 import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
@@ -15,11 +15,12 @@ export class Entities {
     this.towers = new Map();
     this.proj = new Map();
     this.workers = new Map();
+    this.panthers = new Map(); // druids on the hunt
     this.t = 0;
   }
 
   clear() {
-    for (const m of [this.enemies, this.towers, this.proj, this.workers]) {
+    for (const m of [this.enemies, this.towers, this.proj, this.workers, this.panthers]) {
       for (const v of m.values()) v.destroy();
       m.clear();
     }
@@ -31,6 +32,8 @@ export class Entities {
     sync(this.proj, state.proj, (p) => new ProjView(p, this), (v, p) => v.set(p));
     const workers = (state.workers ?? []).map((w) => ({ ...w, id: w.name }));
     sync(this.workers, workers, (w) => new WorkerView(w, this), (v, w) => v.set(w));
+    const panthers = (state.panthers ?? []).map((p) => ({ ...p, id: p.name }));
+    sync(this.panthers, panthers, (p) => new PantherView(p, this), (v, p) => v.set(p));
   }
 
   // Names of mercenaries currently out of the tavern.
@@ -44,6 +47,7 @@ export class Entities {
     for (const v of this.enemies.values()) v.frame(k, this.t);
     for (const v of this.proj.values()) v.frame(Math.min(1, dt * 30));
     for (const v of this.workers.values()) v.frame(k, dt);
+    for (const v of this.panthers.values()) v.frame(k, this.t);
     for (const v of this.towers.values()) v.frame(this.t, this.enemies);
   }
 
@@ -56,6 +60,7 @@ export class Entities {
     }
     // Each mercenary carries a lantern, so it is visible on dark ground.
     for (const w of this.workers.values()) out.push({ x: w.root.x, y: w.root.y - 10, r: 80, color: 0xffcf8a, a: 0.7 });
+    for (const p of this.panthers.values()) out.push({ x: p.root.x, y: p.root.y - 10, r: 70, color: 0xb0ff8a, a: 0.6 });
     for (const p of this.proj.values()) {
       if (p.kind === 'magic') out.push({ x: p.root.x, y: p.root.y, r: 70, color: 0xb58cff, a: 0.8 });
       if (p.kind === 'fire') out.push({ x: p.root.x, y: p.root.y, r: 90, color: 0xff7a2a, a: 0.9 });
@@ -338,6 +343,7 @@ class WorkerView {
       this.idle = frames(`${hero}_idle`);
       this.run = frames(`${hero}_run`) ?? this.idle;
       this.body = sprite(`${hero}_idle`, 2.5, 0.15);
+      this.body.tint = HERO_TINT[w.class] ?? 0xffffff;
       this.height = this.body.height;
     } else {
       this.body = new Graphics();
@@ -431,5 +437,45 @@ class ProjView {
 
   destroy() {
     this.root.destroy();
+  }
+}
+
+// A druid turned black panther, mauling enemies on the field: Shepardskin's
+// black cat, scaled up, running.
+class PantherView {
+  constructor(p, layer) {
+    this.root = new Container();
+    this.body = hasTileset() && sprite('panther_run', 3.4, 0.25);
+    if (!this.body) {
+      this.body = new Graphics();
+      this.body.ellipse(0, -10, 22, 11).fill(0x1a1a22).circle(18, -18, 8).fill(0x1a1a22).circle(21, -20, 2).fill(0xd8ff5a);
+    }
+    this.root.addChild(this.body);
+    this.name = new Text({ text: p.name, style: { fontFamily: FONT_UI, fontSize: 14, fontWeight: '700', fill: nickColor(p.name), stroke: { color: 0x000000, width: 4 } } });
+    this.name.anchor.set(0.5, 1);
+    this.name.y = -this.body.height - 4;
+    this.root.addChild(this.name);
+    const px = toPx(p.x, p.y);
+    this.root.position.set(px.x, px.y + 20);
+    this.target = { x: this.root.x, y: this.root.y };
+    this.t = Math.random() * 6;
+    layer.world.addChild(this.root);
+  }
+
+  set(p) {
+    const px = toPx(p.x, p.y);
+    this.target = { x: px.x, y: px.y + 20 };
+  }
+
+  frame(k, t) {
+    const dx = this.target.x - this.root.x;
+    this.root.x += dx * k;
+    this.root.y += (this.target.y - this.root.y) * k;
+    // The cat runs to the left in its sheet: mirror it when heading right.
+    if (Math.abs(dx) > 0.5 && this.body.anchor) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? 1 : -1);
+  }
+
+  destroy() {
+    this.root.destroy({ children: true });
   }
 }

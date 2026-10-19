@@ -64,6 +64,11 @@ const EXTRA = [
   },
   { file: 'assets/soul/soul.png', defs: { soul: row(0, 0, 16, 16, 4) } },
   {
+    // Shepardskin's black cat, the druid's panther form: the run row, facing left.
+    file: 'assets/cat/cat.png',
+    defs: { panther_run: [[2, 34, 22, 16], [24, 34, 22, 16], [47, 34, 22, 16], [69, 34, 22, 16], [92, 34, 22, 16], [116, 34, 21, 16]] },
+  },
+  {
     // ЭссДиЭф: 56x75 cells, feet centred on the bottom edge; walks facing
     // right, toward the viewer and away from him, then the burp and the fart.
     file: 'assets/sdf/sdf.png',

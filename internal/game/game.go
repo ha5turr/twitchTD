@@ -46,6 +46,12 @@ type Chatter struct {
 	Ach        map[string]bool // achievements earned
 	Stats      map[string]int  // lifetime counters behind achievements
 	diceStreak int
+
+	// Drinks (drinks.go): the buildings hit buff times as hard for buffLeft
+	// seconds; the ale then switches to nextBuff for nextSec seconds.
+	buff, buffLeft    float64
+	nextBuff, nextSec float64
+	passiveCD         float64 // rogue and druid: seconds to the next trick (rogues.go)
 }
 
 // Event is a one-off happening the overlay animates (floating text, sounds).
@@ -93,6 +99,7 @@ type Game struct {
 	Banned      map[string]bool   // chatters the streamer forbade to build
 	Dice        []*DiceGame       // games of dice in the tavern
 	Memes       []*MemeRequest    // memecoin requests waiting for the streamer
+	Panthers    []*Panther        // druids on the hunt
 
 	// Admin reaches the overlay settings (sound) for mod chat commands.
 	Admin SettingsAdmin
@@ -108,6 +115,7 @@ type Game struct {
 	waveHP     float64              // base enemy HP of the current wave
 	rushLeft   float64              // seconds of the frost demon's speed-up left
 	assist     []string             // drummers behind the shot being resolved
+	rewardMult float64              // grows after every boss wave: kills, assists and barricades pay more
 	helpAt     map[string]time.Time // last !помощь answer per topic
 	nextMeme   int
 }
@@ -155,6 +163,8 @@ func (g *Game) NewGame(biome Biome) {
 	g.Projectiles = nil
 	g.queue = nil
 	g.summary = nil
+	g.rewardMult = 1
+	g.Panthers = nil
 	// Dice stakes go back before wallets reset, so a new game never eats them.
 	for _, d := range g.Dice {
 		g.refundDice(d)
@@ -242,6 +252,8 @@ func (g *Game) Tick(dt float64) {
 		return
 	}
 	g.soberUp(dt)
+	g.tickDrinks(dt)
+	g.tickRogues(dt)
 	g.tickTreasury(dt)
 	g.tickDice(dt)
 	switch g.Phase {
@@ -263,6 +275,7 @@ func (g *Game) Tick(dt float64) {
 		}
 	}
 	g.tickEnemies(dt)
+	g.tickDruids(dt)
 	g.tickWorkers(dt)
 	g.tickTowers(dt)
 	g.tickProjectiles(dt)
