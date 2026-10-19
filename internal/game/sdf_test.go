@@ -26,8 +26,12 @@ func TestClownBuildRules(t *testing.T) {
 	g.Chatters["anna"].Gold = 1000
 	p := freeCell(t, g)
 	g.HandleChat(ChatMessage{User: "anna", Text: "!build " + p.Name() + " клоун"})
-	if g.Towers[p] != nil || !strings.Contains(lastReply(g), "ЭссДиЭф") {
-		t.Fatal("no clowns while ЭссДиЭф is away")
+	if r := lastReply(g); g.Towers[p] != nil || !strings.Contains(r, "неизвестная постройка") {
+		t.Fatalf("while ЭссДиЭф is away clowns do not exist: %q", r)
+	}
+	g.HandleChat(ChatMessage{User: "anna", Text: "!towers"})
+	if r := lastReply(g); strings.Contains(strings.ToLower(r), "клоун") || strings.Contains(r, "ЭссДиЭф") {
+		t.Fatalf("the tower list keeps the secret: %q", r)
 	}
 	g.Cfg.TowerLimit = 1
 	g.HandleChat(ChatMessage{User: "anna", Text: "!build " + p.Name()})

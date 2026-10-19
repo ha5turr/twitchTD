@@ -72,12 +72,15 @@ func (g *Game) HandleChat(m ChatMessage) {
 		var parts []string
 		for _, k := range TowerKinds {
 			s := g.Cfg.Towers[k]
+			if s.Only != "" && !g.sdfOut() {
+				continue // the clown is a secret until his boss shows up
+			}
 			where := ""
 			if s.OnPath() {
 				where = ", на дорогу"
 			}
 			if s.Only != "" {
-				where = ", только против ЭссДиЭфа"
+				where = ", только сейчас"
 			}
 			parts = append(parts, fmt.Sprintf("%s (%s) %d%s", s.Name, k, s.Cost, where))
 		}
@@ -127,7 +130,7 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	kind := "arrow"
 	if len(rest) > 0 {
 		k, ok := towerAliases[strings.ToLower(rest[0])]
-		if !ok {
+		if !ok || k == clownKind && !g.sdfOut() { // no hint that clowns exist
 			g.reply(c.Name, "неизвестная постройка, список: !towers")
 			return
 		}
@@ -146,9 +149,6 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 		return
 	case g.Towers[p] != nil:
 		g.reply(c.Name, p.Name()+": клетка занята")
-		return
-	case kind == clownKind && !g.sdfOut():
-		g.reply(c.Name, "клоуна можно поставить, только пока на поле ЭссДиЭф")
 		return
 	case kind == clownKind && g.clownsOf(key) > 0:
 		g.reply(c.Name, "у тебя уже есть клоун")
