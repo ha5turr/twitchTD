@@ -64,6 +64,12 @@ const EXTRA = [
   },
   { file: 'assets/soul/soul.png', defs: { soul: row(0, 0, 16, 16, 4) } },
   {
+    // Superdark's Elvenking in a green robe, the druid's human form. The
+    // sheet has one 4-frame cycle, used for standing and running alike.
+    file: 'assets/forest/druid.png',
+    defs: { druid_idle: row(0, 0, 24, 24, 4), druid_run: row(0, 0, 24, 24, 4) },
+  },
+  {
     // Shepardskin's black cat, the druid's panther form: the run row, facing left.
     file: 'assets/cat/cat.png',
     defs: { panther_run: [[2, 34, 22, 16], [24, 34, 22, 16], [47, 34, 22, 16], [69, 34, 22, 16], [92, 34, 22, 16], [116, 34, 21, 16]] },

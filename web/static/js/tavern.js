@@ -7,7 +7,7 @@
 // bottom left corner, clear of the default webcam (bottom right).
 import { H, TOP, LEFT, CELL, FONT_UI, FONT_PIXEL, nickColor, RANKS } from './layout.js';
 import { drawFigure, CLASSES } from './figures.js';
-import { HERO_ART, HERO_TINT } from './sprites.js';
+import { HERO_ART } from './sprites.js';
 import { hasTileset, sprite, frames, texture, PX } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
@@ -326,7 +326,6 @@ class Merc {
       this.idle = frames(`${hero}_idle`);
       this.run = frames(`${hero}_run`) ?? this.idle;
       this.body = sprite(`${hero}_idle`, 2, 0.12);
-      this.body.tint = HERO_TINT[this.cls] ?? 0xffffff;
       this.height = this.body.height;
     } else {
       this.idle = this.run = null;

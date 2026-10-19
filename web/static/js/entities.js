@@ -2,7 +2,7 @@
 // glide toward the latest position so motion stays smooth at 60 fps.
 import { CELL, LEFT, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
-import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, HERO_TINT, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
+import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
 import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
@@ -343,7 +343,6 @@ class WorkerView {
       this.idle = frames(`${hero}_idle`);
       this.run = frames(`${hero}_run`) ?? this.idle;
       this.body = sprite(`${hero}_idle`, 2.5, 0.15);
-      this.body.tint = HERO_TINT[w.class] ?? 0xffffff;
       this.height = this.body.height;
     } else {
       this.body = new Graphics();
