@@ -234,6 +234,9 @@ export class Hud {
         this.bolts.push({ x: p.x, y: p.y, pts, life: 0.3 });
         break;
       }
+      case 'net':
+        this.floatAt(ev.x, ev.y - 0.6, 'сеть!', 0xd8c08a, FONT_UI, 20);
+        break;
       case 'maul':
         this.floatAt(ev.x, ev.y - 0.4, 'кусь!', 0xb0ff8a, FONT_UI, 20);
         break;

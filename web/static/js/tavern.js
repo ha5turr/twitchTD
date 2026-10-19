@@ -66,6 +66,11 @@ export class Tavern {
     if (!hasTileset()) drawFigure(keeper, 0x7a3a2a, '');
     keeper.position.set(LEFT / 2, BAR_Y + 62);
     this.world.addChild(keeper);
+    // Everyone knows the barkeeper by name.
+    const bob = new Text({ text: 'Боб', style: label(15, 0xf2d48a) });
+    bob.anchor.set(0.5, 1);
+    bob.position.set(LEFT / 2, BAR_Y + 62 - (hasTileset() ? keeper.height : 46) - 2);
+    this.ui.addChild(bob);
   }
 
   // drawFurniture builds the hall from sprites: the 0x72 back wall with a
@@ -188,7 +193,7 @@ export class Tavern {
   update(st) {
     this.limits = { cap: st.walletCap, towers: st.towerLimit };
     // Mercenaries out building, and druids out hunting as panthers, leave the tavern.
-    const outside = new Set([...(st.workers ?? []), ...(st.panthers ?? [])].map((w) => w.name));
+    const outside = new Set([...(st.workers ?? []).filter((w) => w.state !== 'rest'), ...(st.panthers ?? [])].map((w) => w.name));
     const active = st.chatters.filter((c) => c.active || c.towers > 0 || outside.has(c.name));
     const seen = new Set();
     let hidden = 0;

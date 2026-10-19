@@ -33,6 +33,7 @@ type Enemy struct {
 	bleedDPS   float64
 	bleedOwner string
 	healCut    float64         // seconds left of halved healing
+	netLeft    float64         // seconds left tangled in a ballista net
 	helpers    map[string]bool // trap owners who hurt it: they share the kill
 
 	// ЭссДиЭф (sdf.go).
@@ -64,6 +65,7 @@ type Tower struct {
 	Disabled    float64 // seconds left webbed, stunned or frozen by a boss
 	cooldown    float64
 	strikeCD    float64 // magic: seconds to the next lightning strike
+	netCD       float64 // ballista: seconds to the next net
 	drink       float64 // mead: this building hits drink times as hard
 	drinkLeft   float64
 	repairing   bool    // a barricade waits for its mercenary to mend it
@@ -232,6 +234,7 @@ func (g *Game) tickEnemies(dt float64) {
 			}
 		}
 		e.healCut = max(0, e.healCut-dt)
+		e.netLeft = max(0, e.netLeft-dt)
 		// Every enemy slowly closes its wounds; trolls much faster.
 		g.heal(e, (g.Cfg.EnemyRegen+spec.Regen)*e.MaxHP*dt)
 		if spec.Heal > 0 {
@@ -251,6 +254,7 @@ func (g *Game) tickEnemies(dt float64) {
 			// Guards on the walls shoot back, so a leak costs hit points but
 			// is not the end by itself; a boss at the gate still is.
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
+		case e.netLeft > 0: // tangled in a ballista net: neither walks nor hacks
 		case e.blocked != nil:
 			g.hackBarricade(e, spec, dt)
 		case e.pause > 0 || e.tavernLeft > 0: // ЭссДиЭф busy with a trick
@@ -380,6 +384,9 @@ func (g *Game) tickTowers(dt float64) {
 		}
 		if spec.Role != RoleShooter {
 			continue
+		}
+		if spec.NetEvery > 0 {
+			g.tickNet(t, spec, dt)
 		}
 		if spec.StrikeEvery > 0 {
 			g.tickStrike(t, spec, dt)
@@ -607,4 +614,32 @@ func (g *Game) tickStrike(t *Tower, spec TowerSpec, dt float64) {
 	}
 	g.assist = nil
 	g.emit(Event{Kind: "lightning", X: p.X, Y: p.Y, Text: t.Owner})
+}
+
+// tickNet lets a ballista throw a net at the enemy furthest along in range:
+// everyone within NetRadius of it stops for NetSec, unhurt. Better
+// ballistas throw more often.
+func (g *Game) tickNet(t *Tower, spec TowerSpec, dt float64) {
+	t.netCD -= dt
+	if t.netCD > 0 {
+		return
+	}
+	tc := center(t.Cell)
+	var at *Enemy
+	for _, e := range g.Enemies {
+		if !e.dead && e.netLeft <= 0 && e.Pos.sub(tc).len() <= spec.Range && (at == nil || e.Dist > at.Dist) {
+			at = e
+		}
+	}
+	if at == nil {
+		return // keeps the net ready until someone comes
+	}
+	t.netCD = spec.NetEvery / (1 + 0.25*float64(t.Level-1))
+	p := at.Pos
+	for _, e := range g.Enemies {
+		if !e.dead && e.Pos.sub(p).len() <= spec.NetRadius {
+			e.netLeft = spec.NetSec
+		}
+	}
+	g.emit(Event{Kind: "net", X: p.X, Y: p.Y, Text: t.Owner})
 }

@@ -7,6 +7,11 @@ import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
+// Drums of war: their aura reaches DRUM_RANGE cells (the drums' auraRange in
+// config.go), shown as a pulse every DRUM_EVERY seconds.
+const DRUM_RANGE = 3;
+const DRUM_EVERY = 5;
+
 export class Entities {
   constructor() {
     this.world = new Container(); // affected by lighting
@@ -30,7 +35,9 @@ export class Entities {
     sync(this.enemies, state.enemies, (e) => new EnemyView(e, this), (v, e) => v.set(e));
     sync(this.towers, state.towers, (t) => new TowerView(t, this), (v, t) => v.set(t));
     sync(this.proj, state.proj, (p) => new ProjView(p, this), (v, p) => v.set(p));
-    const workers = (state.workers ?? []).map((w) => ({ ...w, id: w.name }));
+    // A mercenary resting after a scare is back inside: it sits in the tavern,
+    // not at the gate, even while enemies batter the gate till the wave ends.
+    const workers = (state.workers ?? []).filter((w) => w.state !== 'rest').map((w) => ({ ...w, id: w.name }));
     sync(this.workers, workers, (w) => new WorkerView(w, this), (v, w) => v.set(w));
     const panthers = (state.panthers ?? []).map((p) => ({ ...p, id: p.name }));
     sync(this.panthers, panthers, (p) => new PantherView(p, this), (v, p) => v.set(p));
@@ -148,13 +155,26 @@ class EnemyView {
       this.bar.rect(-w / 2, 0, w, 6).fill({ color: 0x000000, alpha: 0.7 });
       this.bar.rect(-w / 2, 0, w * f, 6).fill(f > 0.5 ? 0x5fd35f : f > 0.25 ? 0xe0b03a : 0xe04a3a);
     }
-    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '');
+    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
       this.fx.clear();
       if (e.slow) this.fx.ellipse(0, r * 0.8, r * 1.1, r * 0.35).stroke({ width: 3, color: 0x8fd4ff });
       if (e.shield) this.fx.arc(0, 0, r + 8, -2.2, 2.2).stroke({ width: 5, color: 0xffe08a });
+      if (e.net) {
+        // A rope net thrown over the body: a diamond mesh inside a ring.
+        const n = r + 6;
+        const s = Math.SQRT1_2;
+        for (let d = -n + 5; d < n; d += 10) {
+          const h = Math.sqrt(n * n - d * d); // half the chord at distance d
+          // Chords along both diagonals, so the mesh stays inside the ring.
+          this.fx.moveTo(d * s - h * s, d * -s - h * s).lineTo(d * s + h * s, d * -s + h * s);
+          this.fx.moveTo(d * s - h * s, d * s + h * s).lineTo(d * s + h * s, d * s - h * s);
+        }
+        this.fx.stroke({ width: 2, color: 0xd8c08a, alpha: 0.9 });
+        this.fx.circle(0, 0, n).stroke({ width: 3, color: 0x8a6a3a });
+      }
     }
   }
 
@@ -296,6 +316,21 @@ class TowerView {
     this.web.visible = this.disabled;
     this.web.rotation = Math.sin(t) * 0.05;
     if (this.art?.aimSprite && enemies) this.aim(enemies);
+    if (this.kind === 'drums') this.drumPulse(t);
+  }
+
+  // drumPulse shows the reach of the drums' aura now and then: a faint warm
+  // ring that rolls out to the edge of it every few seconds, like a beat.
+  drumPulse(t) {
+    if (!this.pulse) {
+      this.pulse = new Graphics();
+      this.root.addChildAt(this.pulse, 0);
+      this.phase = Math.random() * DRUM_EVERY;
+    }
+    const k = ((t + this.phase) % DRUM_EVERY) / 1.4; // the ring lives 1.4 s
+    this.pulse.clear();
+    if (k >= 1 || !this.built || this.disabled) return;
+    this.pulse.circle(0, 0, (0.25 + 0.75 * k) * DRUM_RANGE * CELL).stroke({ width: 3, color: 0xffb36b, alpha: 0.28 * (1 - k) });
   }
 
   // aim turns the ballista toward the nearest enemy in reach, one of four

@@ -156,6 +156,12 @@ type TowerSpec struct {
 	StrikeEvery  float64 `json:"strikeEvery"`
 	StrikeDmg    float64 `json:"strikeDmg"`
 	StrikeRadius float64 `json:"strikeRadius"`
+	// Nets (ballista): every NetEvery seconds, more often with each level, a
+	// net holds every enemy within NetRadius of one in range for NetSec,
+	// without damage.
+	NetEvery  float64 `json:"netEvery"`
+	NetSec    float64 `json:"netSec"`
+	NetRadius float64 `json:"netRadius"`
 
 	// Traps.
 	Slow    float64 `json:"slow"` // speed multiplier while slowed
@@ -255,7 +261,7 @@ func DefaultConfig() Config {
 		DonationGoldPerRub: 10,
 		CurrencyRub:        map[string]float64{"RUB": 1, "USD": 90, "EUR": 100, "UAH": 2.2, "KZT": 0.18, "BYN": 28},
 		TreasuryGoldPerSec: 40,
-		IgnoreUsers:        []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts"},
+		IgnoreUsers:        []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts", "hasturyan"},
 		BaseHP:             30,
 		HPGrowth:           1.13,
 		ChatterHPCoef:      0.25,
@@ -291,7 +297,7 @@ func DefaultConfig() Config {
 			"sdf": {Name: "ЭссДиЭф", HPMult: 15, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
 		},
 		Towers: map[string]TowerSpec{
-			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, UpgMult: 1.45, MaxLevel: 5},
+			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, NetEvery: 12, NetSec: 2, NetRadius: 0.7, UpgMult: 1.45, MaxLevel: 5},
 			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, StrikeEvery: 8, StrikeDmg: 1.5, StrikeRadius: 1, UpgMult: 1.45, MaxLevel: 5},
 			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 90, Damage: 10, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 4, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
 			"shrine": {Name: "Святилище", Role: RoleAura, Cost: 100, AuraRange: 1.6, AuraDmg: 0.15, WallHeal: 1.5, UpgMult: 1.5, MaxLevel: 5},
