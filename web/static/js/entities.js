@@ -1,6 +1,6 @@
 // Dynamic entities. The server sends positions 20 times a second; sprites
 // glide toward the latest position so motion stays smooth at 60 fps.
-import { CELL, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
+import { CELL, LEFT, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
 import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
 import { hasTileset, sprite, frames, texture } from './tileset.js';
@@ -126,6 +126,13 @@ class EnemyView {
 
   set(e) {
     this.target = toPx(e.x, e.y);
+    // At the gate the route ends just past the wall: keep the whole body on
+    // the field side, so big bosses do not stand inside the tavern. (Far
+    // left of the wall is ЭссДиЭф robbing the tavern, that one stays.)
+    if (e.x > -1) {
+      const half = this.body.anchor ? Math.abs(this.body.width) / 2 : this.r;
+      this.target.x = Math.max(this.target.x, LEFT + half * 0.8);
+    }
     this.burn = !!e.burn;
     this.act = e.act ?? 0;
     if (e.hp !== this.hp) {

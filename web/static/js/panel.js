@@ -176,7 +176,7 @@ function renderChatters() {
   body.replaceChildren(...rows.map((c) => {
     const tr = document.createElement('tr');
     const cell = (text, cls) => { const td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; return td; };
-    tr.append(cell(c.name), cell(CLASSES[c.class] ?? ''), cell(c.gold, 'num'), cell(c.towers, 'num'), cell(c.kills, 'num'));
+    tr.append(cell(c.name), cell(CLASSES[c.class] ?? ''), cell(c.gold, 'num'), cell(c.souls ?? 0, 'num'), cell(c.towers, 'num'), cell(c.kills, 'num'));
     const act = document.createElement('td');
     const gold = document.createElement('button');
     gold.textContent = '+100';
@@ -190,6 +190,40 @@ function renderChatters() {
     tr.append(act);
     return tr;
   }));
+  renderMemes();
+}
+
+// Memecoin requests: the streamer credits them in MemeAlerts by hand.
+let memesKey = null;
+function renderMemes() {
+  const list = state.memes ?? [];
+  const key = list.map((r) => r.id).join(',');
+  if (key === memesKey) return; // keep buttons stable between updates
+  memesKey = key;
+  const cell = (text, cls) => { const td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; return td; };
+  const rows = list.map((r) => {
+    const tr = document.createElement('tr');
+    tr.append(cell(`#${r.id}`), cell(r.name), cell(r.coins, 'num'), cell(r.souls, 'num'));
+    const act = document.createElement('td');
+    const done = document.createElement('button');
+    done.textContent = 'Выдано';
+    done.className = 'on';
+    done.onclick = () => say(`!tdmeme done ${r.id}`);
+    const reject = document.createElement('button');
+    reject.textContent = 'Отказать';
+    reject.onclick = () => say(`!tdmeme reject ${r.id}`);
+    act.append(done, ' ', reject);
+    tr.append(act);
+    return tr;
+  });
+  if (!rows.length) {
+    const tr = document.createElement('tr');
+    const td = cell('заявок нет', 'muted');
+    td.colSpan = 5;
+    tr.append(td);
+    rows.push(tr);
+  }
+  $('memes').replaceChildren(...rows);
 }
 
 // Settings.

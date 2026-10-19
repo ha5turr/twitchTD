@@ -40,6 +40,12 @@ type Chatter struct {
 	GameKills   int
 	GameDrinks  int
 	classLocked bool // the class was changed this game
+
+	// Kept between games (progress.go).
+	Souls      int
+	Ach        map[string]bool // achievements earned
+	Stats      map[string]int  // lifetime counters behind achievements
+	diceStreak int
 }
 
 // Event is a one-off happening the overlay animates (floating text, sounds).
@@ -86,6 +92,7 @@ type Game struct {
 	LinkCodes   map[string]string // "4821" -> login, from !link
 	Banned      map[string]bool   // chatters the streamer forbade to build
 	Dice        []*DiceGame       // games of dice in the tavern
+	Memes       []*MemeRequest    // memecoin requests waiting for the streamer
 
 	// Admin reaches the overlay settings (sound) for mod chat commands.
 	Admin SettingsAdmin
@@ -97,9 +104,12 @@ type Game struct {
 	events     []Event
 	mapChanged bool
 	summary    *Summary
-	cellDist   []float64 // route distance to the centre of each path cell
-	waveHP     float64   // base enemy HP of the current wave
-	rushLeft   float64   // seconds of the frost demon's speed-up left
+	cellDist   []float64            // route distance to the centre of each path cell
+	waveHP     float64              // base enemy HP of the current wave
+	rushLeft   float64              // seconds of the frost demon's speed-up left
+	assist     []string             // drummers behind the shot being resolved
+	helpAt     map[string]time.Time // last !помощь answer per topic
+	nextMeme   int
 }
 
 func New(cfg Config, seed uint64) *Game {
@@ -110,6 +120,7 @@ func New(cfg Config, seed uint64) *Game {
 		Links:     map[string]string{},
 		LinkCodes: map[string]string{},
 		Banned:    map[string]bool{},
+		helpAt:    map[string]time.Time{},
 		rng:       rand.New(rand.NewPCG(seed, seed^0x9e3779b97f4a7c15)),
 	}
 	g.NewGame("")
@@ -262,6 +273,7 @@ func (g *Game) Tick(dt float64) {
 		g.Timer = g.Cfg.GameOverSec
 		g.Workers = map[string]*Worker{}
 		g.summary = g.makeSummary()
+		g.awardSouls(g.summary.Wave)
 		g.emit(Event{Kind: "gameOver", Amount: g.Wave})
 	}
 }

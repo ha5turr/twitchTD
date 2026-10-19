@@ -64,7 +64,7 @@ func (g *Game) removeTower(t *Tower) {
 // needsWork reports whether the tower at cell still has unfinished work.
 func (g *Game) needsWork(cell Pos) *Tower {
 	t := g.Towers[cell]
-	if t == nil || (t.Built && t.PendingCost == 0) {
+	if t == nil || (t.Built && t.PendingCost == 0 && !t.repairing) {
 		return nil
 	}
 	return t
@@ -149,16 +149,28 @@ func (g *Game) tickWorkers(dt float64) {
 func (g *Game) finish(t *Tower, w *Worker) {
 	cp := center(t.Cell)
 	t.Progress = 0
+	if t.repairing {
+		t.repairing = false
+		t.HP = t.MaxHP
+		g.emit(Event{Kind: "mended", User: w.Name, X: cp.X, Y: cp.Y})
+		return
+	}
 	if !t.Built {
 		t.Built = true
 		g.readyTower(t)
 		g.emit(Event{Kind: "built", User: w.Name, X: cp.X, Y: cp.Y, Text: t.Kind})
+		if c := g.Chatters[t.Owner]; c != nil && c.count("builds", 1) >= buildsNeeded {
+			g.unlock(t.Owner, "architect")
+		}
 		return
 	}
 	t.Level++
 	t.PendingCost = 0
 	g.readyTower(t) // a stronger barricade is also a repaired one
 	g.emit(Event{Kind: "upgraded", User: w.Name, X: cp.X, Y: cp.Y, Amount: t.Level})
+	if t.Level >= g.Cfg.Towers[t.Kind].MaxLevel {
+		g.unlock(t.Owner, "masterpiece")
+	}
 }
 
 func (g *Game) enemyNear(p vec) bool {

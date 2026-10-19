@@ -43,25 +43,26 @@ func (g *Game) MapMessage() MapMsg {
 }
 
 type StateMsg struct {
-	T        string        `json:"t"` // "state"
-	Phase    Phase         `json:"phase"`
-	Timer    float64       `json:"timer"`
-	Wave     int           `json:"wave"`
-	Walls    float64       `json:"walls"`
-	WallsMax float64       `json:"wallsMax"`
-	Paused   bool          `json:"paused"`
-	Cap      int           `json:"walletCap"`
-	Limit    int           `json:"towerLimit"`
-	Treasury int           `json:"treasury"`
-	Active   int           `json:"active"`
-	Enemies  []EnemyView   `json:"enemies"`
-	Towers   []TowerView   `json:"towers"`
-	Proj     []ProjView    `json:"proj"`
-	Chatters []ChatterView `json:"chatters"`
-	Workers  []WorkerView  `json:"workers"`
-	Events   []Event       `json:"events,omitempty"`
-	Summary  *Summary      `json:"summary,omitempty"` // only on the game over screen
-	Dice     []DiceView    `json:"dice"`
+	T        string         `json:"t"` // "state"
+	Phase    Phase          `json:"phase"`
+	Timer    float64        `json:"timer"`
+	Wave     int            `json:"wave"`
+	Walls    float64        `json:"walls"`
+	WallsMax float64        `json:"wallsMax"`
+	Paused   bool           `json:"paused"`
+	Cap      int            `json:"walletCap"`
+	Limit    int            `json:"towerLimit"`
+	Treasury int            `json:"treasury"`
+	Active   int            `json:"active"`
+	Enemies  []EnemyView    `json:"enemies"`
+	Towers   []TowerView    `json:"towers"`
+	Proj     []ProjView     `json:"proj"`
+	Chatters []ChatterView  `json:"chatters"`
+	Workers  []WorkerView   `json:"workers"`
+	Events   []Event        `json:"events,omitempty"`
+	Summary  *Summary       `json:"summary,omitempty"` // only on the game over screen
+	Dice     []DiceView     `json:"dice"`
+	Memes    []*MemeRequest `json:"memes,omitempty"` // memecoin requests for the panel
 }
 
 type EnemyView struct {
@@ -119,6 +120,8 @@ type ChatterView struct {
 	Drunk  int    `json:"drunk"`
 	Active bool   `json:"active"`
 	Banned bool   `json:"banned,omitempty"`
+	Souls  int    `json:"souls,omitempty"`
+	Rank   int    `json:"rank,omitempty"` // index in Ranks
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
@@ -163,13 +166,14 @@ func (g *Game) StateMessage() StateMsg {
 			continue
 		}
 		s.Chatters = append(s.Chatters, ChatterView{
-			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key],
+			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(),
 		})
 	}
 	s.Dice = []DiceView{}
 	for _, d := range g.Dice {
 		s.Dice = append(s.Dice, DiceView{d.ID, d.Table, d.HostName, d.Stake, d.GuestName, d.GuestStake, math.Ceil(d.wait)})
 	}
+	s.Memes = g.Memes
 	if g.Phase == PhaseGameOver {
 		s.Summary = g.summary
 	}

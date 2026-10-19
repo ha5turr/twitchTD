@@ -57,3 +57,14 @@ function hslToHex(h, s, l) {
   const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
   return (Math.round(f(0) * 255) << 16) | (Math.round(f(8) * 255) << 8) | Math.round(f(4) * 255);
 }
+
+// Ranks earned by lifetime souls, in the loot rarity colours (progress.go).
+export const RANKS = [
+  { name: 'Неофит', color: 0x9a9a9a },
+  { name: 'Ученик', color: 0xf2f2f2 },
+  { name: 'Скиталец', color: 0x5fd35f },
+  { name: 'Первопроходец', color: 0x4a9cff },
+  { name: 'Странник', color: 0xb26bff },
+  { name: 'Эталон', color: 0xff9a2a },
+  { name: 'Полубог', color: 0xffd700 },
+];

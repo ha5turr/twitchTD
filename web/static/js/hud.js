@@ -1,5 +1,5 @@
 // Top bar, the tavern wall, floating numbers, banners and the game over screen.
-import { W, H, TOP, LEFT, CELL, COLS, ROWS, toPx, BIOMES, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
+import { W, H, TOP, LEFT, CELL, COLS, ROWS, toPx, BIOMES, FONT_UI, FONT_PIXEL, nickColor, RANKS } from './layout.js';
 import { ENEMIES } from './sprites.js';
 
 const { Container, Graphics, Text } = PIXI;
@@ -77,6 +77,10 @@ export class Hud {
     this.banner = this.text('', ui(84, 0xf2e6c9, { stroke: { color: 0x000000, width: 10 } }), FIELD_CX, TOP + 380, 0.5);
     this.subBanner = this.text('', ui(36, 0xc9b98f), FIELD_CX, TOP + 470, 0.5);
     this.bannerTime = 0;
+    // Achievements: a line under the column letters, one after another.
+    this.toast = this.text('', ui(28, 0xffd24a), FIELD_CX, TOP + 40, 0.5);
+    this.toasts = [];
+    this.toastTime = 0;
 
     this.summary = new SummaryPanel();
     // A white flash over the field when a reward rains arrows from the sky.
@@ -199,6 +203,12 @@ export class Hud {
           this.floatAt(ev.x, ev.y - 0.8, ABILITY[ev.text] ?? '', 0xffd6a0, FONT_UI, 28);
         }
         break;
+      case 'achievement':
+        this.toasts.push({ text: `🏆 ${ev.user}: «${ev.text}»  +${ev.amount} душ`, color: 0xffd24a });
+        break;
+      case 'rank':
+        this.toasts.push({ text: `⬆ ${ev.user} теперь ${ev.text}`, color: RANKS[ev.amount]?.color ?? 0xffd24a });
+        break;
       case 'destroyed':
         this.floatAt(ev.x, ev.y - 0.4, `${ev.text}: снесено`, 0xff6a5a, FONT_UI, 20);
         this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
@@ -210,7 +220,13 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.3, 'щёлк', 0xe8e8e8, FONT_UI, 18);
         break;
       case 'wallBroken':
-        this.floatAt(ev.x, ev.y - 0.4, 'баррикада пала', 0xff9a6a, FONT_UI, 22);
+        this.floatAt(ev.x, ev.y - 0.4, ev.amount ? `баррикада пала, +${ev.amount} назад` : 'баррикада пала', 0xff9a6a, FONT_UI, 22);
+        break;
+      case 'assist':
+        this.floatAt(ev.x, ev.y + 0.3, `+${ev.amount} барабанщику`, 0xffd24a, FONT_UI, 16);
+        break;
+      case 'mended':
+        this.floatAt(ev.x, ev.y - 0.4, 'починено', 0x9fe8a0, FONT_UI, 18);
         break;
       case 'donation':
         this.showBanner(`${ev.user}: ${ev.text}`, `+${ev.amount ?? 0} золота`, 5);
@@ -263,6 +279,14 @@ export class Hud {
       if (f.life <= 0) f.t.destroy();
       return f.life > 0;
     });
+    this.toastTime -= dt;
+    if (this.toastTime <= 0 && this.toasts.length) {
+      const next = this.toasts.shift();
+      this.toast.text = next.text;
+      this.toast.style.fill = next.color;
+      this.toastTime = 4;
+    }
+    this.toast.alpha = Math.max(0, Math.min(1, this.toastTime * 2));
     this.bannerTime -= dt;
     const a = Math.max(0, Math.min(1, this.bannerTime * 2));
     this.banner.alpha = this.subBanner.alpha = a;

@@ -249,6 +249,7 @@ func (g *Game) tickDice(dt float64) {
 			msg += fmt.Sprintf(" (%d не влезло в кошелёк и ушло в казну)", d.pot()-got)
 		}
 		g.reply(winName, msg)
+		g.diceAchievements(d, winKey, a, b)
 	}
 }
 
@@ -263,4 +264,27 @@ func (g *Game) diceEscrow() map[string]int {
 		}
 	}
 	return m
+}
+
+// diceAchievements tracks win streaks and the big and humiliating throws.
+func (g *Game) diceAchievements(d *DiceGame, winKey string, a, b int) {
+	loseKey, lost := d.Guest, b
+	if winKey == d.Guest {
+		loseKey, lost = d.Host, a
+	}
+	if c := g.Chatters[winKey]; c != nil {
+		c.diceStreak++
+		if c.diceStreak >= streakNeeded {
+			g.unlock(winKey, "lucky")
+		}
+	}
+	if c := g.Chatters[loseKey]; c != nil {
+		c.diceStreak = 0
+	}
+	if d.pot() >= bigPot {
+		g.unlock(winKey, "high_roller")
+	}
+	if lost == 1 && max(a, b) == 20 {
+		g.unlock(loseKey, "nat1")
+	}
 }

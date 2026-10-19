@@ -309,5 +309,5 @@ export const EVENT_SOUNDS = {
   donation: 'fanfare', support: 'fanfare', reward: 'fanfare', strike: 'strike',
   gameOver: 'gameover', newGame: 'newgame', ability: 'ability', wallBroken: 'blast', disabled: 'ability',
   diceOpen: 'coin', diceJoin: 'dice', diceRoll: 'dice',
-  destroyed: 'blast', robbed: 'coin', loot: 'coin',
+  destroyed: 'blast', robbed: 'coin', loot: 'coin', achievement: 'fanfare', rank: 'fanfare',
 };

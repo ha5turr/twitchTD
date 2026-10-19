@@ -34,14 +34,30 @@ type Config struct {
 	StunRadius     float64 `json:"stunRadius"` // cells
 	StunRestSec    float64 `json:"stunRestSec"`
 
-	ClassBonus    float64              `json:"classBonus"` // extra damage of a class's signature building
-	Drinks        map[string]DrinkSpec `json:"drinks"`
-	DrunkDecaySec float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
+	ClassBonus float64 `json:"classBonus"` // extra damage of a class's signature building
+
+	// Support buildings and barricades (hotfix "We Deeply sorry").
+	DrumAssistPct    float64              `json:"drumAssistPct"`    // share of a kill's bounty for each drum that sped up the shot
+	ShrineWallRepair float64              `json:"shrineWallRepair"` // share of every barricade's HP a shrine mends after a wave, per level
+	WallHoldGold     float64              `json:"wallHoldGold"`     // gold per second for each enemy a barricade holds
+	WallRepairShare  float64              `json:"wallRepairShare"`  // price of a full repair as a share of the barricade's last price
+	WallRefundPct    int                  `json:"wallRefundPct"`    // refund when a barricade is broken
+	WallRefundClass  int                  `json:"wallRefundClass"`  // the same for the Воитель
+	Drinks           map[string]DrinkSpec `json:"drinks"`
+	DrunkDecaySec    float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
 
 	DiceTables   int     `json:"diceTables"`   // games of dice that can run at once
 	DiceMinStake int     `json:"diceMinStake"` // smallest stake in gold
 	DiceWaitSec  float64 `json:"diceWaitSec"`  // how long a table waits for an opponent
 	DiceRollSec  float64 `json:"diceRollSec"`  // suspense before the dice are thrown
+
+	// Souls (progress.go): earned at game over by those who fought.
+	SoulsGoldPct     float64 `json:"soulsGoldPct"`   // share of the gold left in the wallet
+	SoulsPerDamage   float64 `json:"soulsPerDamage"` // per point of damage dealt this game
+	SoulsPerKill     float64 `json:"soulsPerKill"`
+	SoulsGameCap     int     `json:"soulsGameCap"`     // most souls one game can give
+	SoulsPerMemecoin int     `json:"soulsPerMemecoin"` // price of a memecoin request
+	MemeMax          int     `json:"memeMax"`          // most memecoins in one request
 
 	Rewards            []RewardSpec       `json:"rewards"`  // channel point rewards by title
 	BitsGold           float64            `json:"bitsGold"` // gold per bit
@@ -164,16 +180,28 @@ func DefaultConfig() Config {
 		StunRadius:           0.45,
 		StunRestSec:          2,
 		ClassBonus:           0.2,
+		DrumAssistPct:        0.5,
+		ShrineWallRepair:     0.1,
+		WallHoldGold:         0.5,
+		WallRepairShare:      0.3,
+		WallRefundPct:        50,
+		WallRefundClass:      75,
 		Drinks: map[string]DrinkSpec{
 			"ale":    {Name: "Эль", Price: 10, Mugs: 1},
 			"mead":   {Name: "Медовуха", Price: 25, Mugs: 2},
 			"potion": {Name: "Чёрное зелье", Price: 60, Mugs: 4},
 		},
-		DrunkDecaySec: 90,
-		DiceTables:    2,
-		DiceMinStake:  10,
-		DiceWaitSec:   120,
-		DiceRollSec:   3,
+		DrunkDecaySec:    90,
+		DiceTables:       2,
+		DiceMinStake:     10,
+		DiceWaitSec:      120,
+		DiceRollSec:      3,
+		SoulsGoldPct:     0.05,
+		SoulsPerDamage:   0.004,
+		SoulsPerKill:     0.2,
+		SoulsGameCap:     80,
+		SoulsPerMemecoin: 10,
+		MemeMax:          50,
 		Rewards: []RewardSpec{
 			{Title: "Мешок золота", Action: "gold", Amount: 300},
 			{Title: "Починить стены", Action: "repair", Amount: 200},
@@ -224,8 +252,8 @@ func DefaultConfig() Config {
 			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, UpgMult: 1.45, MaxLevel: 5},
 			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 90, Damage: 10, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 4, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
 			"shrine": {Name: "Святилище", Role: RoleAura, Cost: 100, AuraRange: 1.6, AuraDmg: 0.15, WallHeal: 1.5, UpgMult: 1.5, MaxLevel: 5},
-			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 25, Slow: 0.5, SlowSec: 2, Charges: 6, UpgMult: 1.45, MaxLevel: 5},
-			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 1.6, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
+			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 45, Slow: 0.5, SlowSec: 2, Charges: 6, UpgMult: 1.45, MaxLevel: 5},
+			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 3, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
 			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
 			// The only real answer to ЭссДиЭф: shoots him anywhere on the map.
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},

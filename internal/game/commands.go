@@ -53,12 +53,14 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdBuild(c, key, args)
 	case "!up", "!u", "!улучшить":
 		g.cmdUpgrade(c, key, args)
+	case "!repair", "!чинить", "!починить":
+		g.cmdRepair(c, key, args)
 	case "!sell", "!продать":
 		g.cmdSell(c, key, args)
 	case "!me", "!я":
 		cl, _ := classByKey(c.Class)
-		g.reply(c.Name, fmt.Sprintf("%s, золото %d/%d, построек %d/%d, убийств %d",
-			strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills))
+		g.reply(c.Name, fmt.Sprintf("%s, %s, золото %d/%d, построек %d/%d, убийств %d, душ %d",
+			Ranks[c.rank()].Name, strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills, c.Souls))
 		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
 	case "!link", "!привязать":
 		g.cmdLink(c, key)
@@ -68,16 +70,27 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdClass(c, args)
 	case "!drink", "!d", "!выпить", "!пить":
 		g.cmdDrink(c, key, args)
+	case "!помощь", "!help", "!команды", "!h":
+		g.cmdHelp(c, args)
+	case "!души", "!souls":
+		g.cmdSouls(c)
+	case "!ачивки", "!achievements", "!ach":
+		g.cmdAchievements(c)
+	case "!мемы", "!memes":
+		g.cmdMemes(c, key, args)
 	case "!towers", "!башни":
 		var parts []string
 		for _, k := range TowerKinds {
 			s := g.Cfg.Towers[k]
+			if s.Only != "" && !g.sdfOut() {
+				continue // the clown is a secret until his boss shows up
+			}
 			where := ""
 			if s.OnPath() {
 				where = ", на дорогу"
 			}
 			if s.Only != "" {
-				where = ", только против ЭссДиЭфа"
+				where = ", только сейчас"
 			}
 			parts = append(parts, fmt.Sprintf("%s (%s) %d%s", s.Name, k, s.Cost, where))
 		}
@@ -127,7 +140,7 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	kind := "arrow"
 	if len(rest) > 0 {
 		k, ok := towerAliases[strings.ToLower(rest[0])]
-		if !ok {
+		if !ok || k == clownKind && !g.sdfOut() { // no hint that clowns exist
 			g.reply(c.Name, "неизвестная постройка, список: !towers")
 			return
 		}
@@ -146,9 +159,6 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 		return
 	case g.Towers[p] != nil:
 		g.reply(c.Name, p.Name()+": клетка занята")
-		return
-	case kind == clownKind && !g.sdfOut():
-		g.reply(c.Name, "клоуна можно поставить, только пока на поле ЭссДиЭф")
 		return
 	case kind == clownKind && g.clownsOf(key) > 0:
 		g.reply(c.Name, "у тебя уже есть клоун")
@@ -214,7 +224,7 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 	case t.Level >= spec.MaxLevel:
 		g.reply(c.Name, "уже максимальный уровень")
 		return
-	case !t.Built || t.PendingCost > 0:
+	case !t.Built || t.PendingCost > 0 || t.repairing:
 		g.reply(c.Name, t.Cell.Name()+": наёмник ещё работает над ней")
 		return
 	}
@@ -266,6 +276,8 @@ func (g *Game) cmdSell(c *Chatter, key string, args []string) {
 // cmdAdmin handles !td* commands for the streamer and moderators.
 func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 	switch cmd {
+	case "!tdmeme", "!tdмемы": // memecoin requests: list, done or reject
+		g.cmdMemeAdmin(c, args)
 	case "!tdwave":
 		g.StartWave()
 	case "!tdnew":
@@ -328,6 +340,19 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 			if n, err := strconv.Atoi(args[1]); err == nil {
 				name := strings.TrimPrefix(args[0], "@")
 				g.addGold(g.chatter(strings.ToLower(name), name), n)
+			}
+		}
+	case "!tdsouls": // !tdsouls nick N: grant (or with a minus take) souls by hand
+		if len(args) == 2 {
+			if n, err := strconv.Atoi(args[1]); err == nil {
+				name := strings.TrimPrefix(args[0], "@")
+				key := strings.ToLower(name)
+				p := g.chatter(key, name)
+				if n > 0 {
+					g.giveSouls(key, p, n) // a gift counts toward the rank
+				} else {
+					p.Souls = max(0, p.Souls+n)
+				}
 			}
 		}
 	}
