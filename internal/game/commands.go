@@ -53,6 +53,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdBuild(c, key, args)
 	case "!up", "!u", "!улучшить":
 		g.cmdUpgrade(c, key, args)
+	case "!repair", "!чинить", "!починить":
+		g.cmdRepair(c, key, args)
 	case "!sell", "!продать":
 		g.cmdSell(c, key, args)
 	case "!me", "!я":
@@ -222,7 +224,7 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 	case t.Level >= spec.MaxLevel:
 		g.reply(c.Name, "уже максимальный уровень")
 		return
-	case !t.Built || t.PendingCost > 0:
+	case !t.Built || t.PendingCost > 0 || t.repairing:
 		g.reply(c.Name, t.Cell.Name()+": наёмник ещё работает над ней")
 		return
 	}

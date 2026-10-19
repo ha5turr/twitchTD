@@ -64,7 +64,7 @@ func (g *Game) removeTower(t *Tower) {
 // needsWork reports whether the tower at cell still has unfinished work.
 func (g *Game) needsWork(cell Pos) *Tower {
 	t := g.Towers[cell]
-	if t == nil || (t.Built && t.PendingCost == 0) {
+	if t == nil || (t.Built && t.PendingCost == 0 && !t.repairing) {
 		return nil
 	}
 	return t
@@ -149,6 +149,12 @@ func (g *Game) tickWorkers(dt float64) {
 func (g *Game) finish(t *Tower, w *Worker) {
 	cp := center(t.Cell)
 	t.Progress = 0
+	if t.repairing {
+		t.repairing = false
+		t.HP = t.MaxHP
+		g.emit(Event{Kind: "mended", User: w.Name, X: cp.X, Y: cp.Y})
+		return
+	}
 	if !t.Built {
 		t.Built = true
 		g.readyTower(t)

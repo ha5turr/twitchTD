@@ -220,7 +220,13 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.3, 'щёлк', 0xe8e8e8, FONT_UI, 18);
         break;
       case 'wallBroken':
-        this.floatAt(ev.x, ev.y - 0.4, 'баррикада пала', 0xff9a6a, FONT_UI, 22);
+        this.floatAt(ev.x, ev.y - 0.4, ev.amount ? `баррикада пала, +${ev.amount} назад` : 'баррикада пала', 0xff9a6a, FONT_UI, 22);
+        break;
+      case 'assist':
+        this.floatAt(ev.x, ev.y + 0.3, `+${ev.amount} барабанщику`, 0xffd24a, FONT_UI, 16);
+        break;
+      case 'mended':
+        this.floatAt(ev.x, ev.y - 0.4, 'починено', 0x9fe8a0, FONT_UI, 18);
         break;
       case 'donation':
         this.showBanner(`${ev.user}: ${ev.text}`, `+${ev.amount ?? 0} золота`, 5);

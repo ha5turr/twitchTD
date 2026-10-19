@@ -55,6 +55,8 @@ type Tower struct {
 	Charges     int     // traps
 	Disabled    float64 // seconds left webbed, stunned or frozen by a boss
 	cooldown    float64
+	repairing   bool    // a barricade waits for its mercenary to mend it
+	holdGold    float64 // gold earned for holding enemies, not paid out yet
 }
 
 type Projectile struct {
@@ -70,6 +72,7 @@ type Projectile struct {
 	Splash  float64
 	BurnDPS float64
 	BurnSec float64
+	Assist  []string // owners of the drums that sped this shot up
 }
 
 // levelMult is how much a building's main stat grows with its level.
@@ -131,6 +134,7 @@ func (g *Game) endWave() {
 	g.Phase = PhaseBuild
 	g.Timer = g.Cfg.BuildPhaseSec
 	g.packClowns()
+	g.shrinesMendWalls()
 	bonus := 10 + 2*g.Wave
 	owners := map[string]bool{}
 	for _, t := range g.Towers {
@@ -274,10 +278,10 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 	}
 	e.traps[t.ID] = true
 	t.Charges--
-	if !spec.SlowImmune {
-		e.slowMult = ts.Slow
-		e.slowLeft = ts.SlowSec
-	}
+	// A trap slows everyone, even those immune to frost: each charge is one
+	// snap with its full damage.
+	e.slowMult = ts.Slow
+	e.slowLeft = ts.SlowSec
 	g.damage(e, ts.Damage*g.levelMult(t)*g.classBonus(t.Owner, t.Kind), t.Owner, false)
 	cp := center(t.Cell)
 	g.emit(Event{Kind: "trap", X: cp.X, Y: cp.Y, Amount: t.Charges})
@@ -290,10 +294,11 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, dt float64) {
 		return
 	}
 	t.HP -= spec.WallDPS * dt
+	g.payHold(t, dt)
 	if t.HP <= 0 {
 		g.removeTower(t)
 		cp := center(t.Cell)
-		g.emit(Event{Kind: "wallBroken", X: cp.X, Y: cp.Y})
+		g.emit(Event{Kind: "wallBroken", X: cp.X, Y: cp.Y, Amount: g.wallRefund(t)})
 		for _, o := range g.Enemies {
 			if o.blocked == t {
 				o.blocked = nil
@@ -372,6 +377,7 @@ func (g *Game) tickTowers(dt float64) {
 			ID: g.id(), Kind: t.Kind, Pos: tc, Target: target.ID, Aim: target.Pos,
 			Damage: damage, Magic: spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
 			Splash: spec.Splash, BurnDPS: spec.BurnDPS * mult, BurnSec: spec.BurnSec,
+			Assist: g.drummers(t),
 		})
 	}
 }
@@ -399,6 +405,7 @@ func (g *Game) tickProjectiles(dt float64) {
 			alive = append(alive, p)
 			continue
 		}
+		g.assist = p.Assist // drummers share the kills of this shot
 		switch {
 		case p.Splash > 0: // fire hits everything around where it lands
 			for _, e := range g.Enemies {
@@ -411,6 +418,7 @@ func (g *Game) tickProjectiles(dt float64) {
 		case target != nil:
 			g.damage(target, p.Damage, p.Owner, p.Magic)
 		}
+		g.assist = nil
 	}
 	g.Projectiles = alive
 }
@@ -468,9 +476,42 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 		g.onKill(owner, c, e)
 		bounty = g.addGold(c, bounty)
 	}
+	g.payAssists(owner, e)
 	g.emit(Event{Kind: "kill", User: owner, X: e.Pos.X, Y: e.Pos.Y, Amount: bounty, Text: e.Kind})
 }
 
 func (g *Game) sweepDead() {
 	g.Enemies = slices.DeleteFunc(g.Enemies, func(e *Enemy) bool { return e.dead })
+}
+
+// drummers lists the other chatters whose drums speed t up: they get a
+// share of every kill it makes. Drums help anyone's buildings.
+func (g *Game) drummers(t *Tower) []string {
+	var out []string
+	tc := center(t.Cell)
+	for _, a := range g.Towers {
+		spec := g.Cfg.Towers[a.Kind]
+		if spec.AuraRate <= 0 || !g.active(a) || a.Owner == t.Owner || center(a.Cell).sub(tc).len() > spec.AuraRange {
+			continue
+		}
+		if !slices.Contains(out, a.Owner) {
+			out = append(out, a.Owner)
+		}
+	}
+	return out
+}
+
+// payAssists gives each drummer behind the killing shot a share of the
+// bounty on top of what the killer got.
+func (g *Game) payAssists(killer string, e *Enemy) {
+	if e.summoned {
+		return
+	}
+	share := int(math.Round(float64(g.Cfg.Enemies[e.Kind].Bounty) * g.Cfg.DrumAssistPct))
+	for _, key := range g.assist {
+		if c := g.Chatters[key]; c != nil && key != killer && key != StreamerName && share > 0 {
+			got := g.addGold(c, share)
+			g.emit(Event{Kind: "assist", User: c.Name, X: e.Pos.X, Y: e.Pos.Y, Amount: got})
+		}
+	}
 }
