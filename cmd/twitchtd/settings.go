@@ -16,7 +16,7 @@ import (
 // editable lists the settings the streamer panel may change at runtime. The
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
-	"towerLimit", "walletCap", "keepGold", "startGold", "chatGold", "bitsGold", "subGold",
+	"towerLimit", "wallRepairCdSec", "walletCap", "keepGold", "startGold", "chatGold", "bitsGold", "subGold",
 	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
@@ -143,6 +143,8 @@ func validate(cfg appConfig) error {
 	switch {
 	case cfg.TowerLimit < 1, cfg.WalletCap < 1, cfg.BuildPhaseSec < 5, cfg.BossEvery < 1:
 		return fmt.Errorf("лимит построек, потолок кошелька, фаза стройки (от 5 с) и частота боссов должны быть положительными")
+	case cfg.WallRepairCDSec < 0:
+		return fmt.Errorf("кд починки баррикады не может быть отрицательным")
 	case cfg.HPGrowth < 1 || cfg.HPGrowth > 2, cfg.BaseHP <= 0:
 		return fmt.Errorf("рост ХП должен быть от 1 до 2, базовое ХП больше нуля")
 	case cfg.Volume < 0 || cfg.Volume > 1, cfg.AmbientVolume < 0 || cfg.AmbientVolume > 1:

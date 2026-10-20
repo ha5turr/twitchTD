@@ -41,6 +41,7 @@ type Config struct {
 	ShrineWallRepair float64 `json:"shrineWallRepair"` // share of every barricade's HP a shrine mends after a wave, per level
 	WallHoldGold     float64 `json:"wallHoldGold"`     // gold per second for each enemy a barricade holds
 	WallRepairShare  float64 `json:"wallRepairShare"`  // price of a full repair as a share of the barricade's last price
+	WallRepairCDSec  float64 `json:"wallRepairCdSec"`  // a barricade can be mended again only this long after the last repair
 	WallRefundPct    int     `json:"wallRefundPct"`    // refund when a barricade is broken
 	WallRefundClass  int     `json:"wallRefundClass"`  // the same for the Воитель
 
@@ -250,6 +251,7 @@ func DefaultConfig() Config {
 		ShrineWallRepair:     0.1,
 		WallHoldGold:         0.5,
 		WallRepairShare:      0.3,
+		WallRepairCDSec:      40,
 		WallRefundPct:        50,
 		WallRefundClass:      75,
 		RogueEverySec:        60,
