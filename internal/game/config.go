@@ -369,7 +369,7 @@ func DefaultConfig() Config {
 		Towers: map[string]TowerSpec{
 			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, NetEvery: 20, NetSec: 2, NetRadius: 0.7, UpgMult: 1.45, MaxLevel: 5},
 			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, StrikeEvery: 8, StrikeDmg: 1.5, StrikeRadius: 1, UpgMult: 1.45, MaxLevel: 5},
-			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 90, Damage: 10, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 4, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
+			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 90, Damage: 14, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 5, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
 			"shrine": {Name: "Святилище", Role: RoleAura, Cost: 100, AuraRange: 1.6, AuraDmg: 0.15, WallHeal: 1.5, UpgMult: 1.5, MaxLevel: 5},
 			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 38, Slow: 0.5, SlowSec: 2, Charges: 9, UpgMult: 1.45, MaxLevel: 5},
 			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 3, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
