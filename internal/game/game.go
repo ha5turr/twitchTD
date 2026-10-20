@@ -173,6 +173,9 @@ func (g *Game) NewGame(biome Biome) {
 	g.summary = nil
 	g.rewardMult = 1
 	g.RewardUses = nil
+	if !g.Cfg.KeepTreasury {
+		g.Treasury, g.treasuryAcc = 0, 0
+	}
 	g.Panthers, g.Runs, g.meteors = nil, nil, nil
 	// Dice stakes go back before wallets reset, so a new game never eats them.
 	for _, d := range g.Dice {

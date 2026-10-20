@@ -132,3 +132,17 @@ func TestRewardPerUserCap(t *testing.T) {
 		t.Fatal("a new game resets the cap")
 	}
 }
+
+func TestKeepTreasury(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.Treasury = 500
+	g.NewGame("")
+	if g.Treasury != 500 {
+		t.Fatal("by default the treasury outlives the game")
+	}
+	g.Cfg.KeepTreasury = false
+	g.NewGame("")
+	if g.Treasury != 0 {
+		t.Fatal("with keepTreasury off a new game empties it")
+	}
+}

@@ -26,7 +26,7 @@ const BOSSES = [
 const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель', druid: 'Друид' };
 const SETTINGS = [
   ['towerLimit', 'Лимит построек', 'int'], ['streamerPlays', 'Стример играет из чата на равных', 'bool'], ['wallRepairCdSec', 'Кд починки баррикады, с', 'num'], ['walletCap', 'Потолок кошелька', 'int'], ['startGold', 'Стартовое золото', 'int'],
-  ['keepGold', 'Хранить золото между играми', 'bool'], ['chatGold', 'Золото за сообщение', 'int'], ['bitsGold', 'Золото за бит', 'num'],
+  ['keepGold', 'Хранить золото между играми', 'bool'], ['keepTreasury', 'Хранить казну между играми', 'bool'], ['chatGold', 'Золото за сообщение', 'int'], ['bitsGold', 'Золото за бит', 'num'],
   ['subGold', 'Золото за подписку', 'int'], ['donationGoldPerRub', 'Золото за 1 ₽', 'num'], ['buildPhaseSec', 'Фаза стройки, с', 'num'],
   ['bossEvery', 'Босс каждые N волн', 'int'], ['sdfChance', 'Шанс ЭссДиЭфа на волне босса (0–1)', 'num'], ['sdfFromWave', 'ЭссДиЭф не раньше волны', 'int'],['baseHP', 'Базовое ХП врагов', 'num'], ['hpGrowth', 'Рост ХП за волну', 'num'],
   ['chatterHPCoef', 'ХП от числа чатерсов', 'num'], ['webcamFrom', 'Вебка: от клетки', 'text'], ['webcamTo', 'Вебка: до клетки', 'text'],
