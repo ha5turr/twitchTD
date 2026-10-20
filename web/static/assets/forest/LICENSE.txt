@@ -2,3 +2,4 @@
 https://superdark.itch.io/enchanted-forest-characters
 License: free for any use, the author confirms CC0; credit not required.
 druid.png: the four frames of The Elvenking with the robe recoloured green, used as the druid.
+rogue.png: the Forest bandit (stand, then run) with the clothes recoloured dark violet and the scarf near-black, used as the rogue.

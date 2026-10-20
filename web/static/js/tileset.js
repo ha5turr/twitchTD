@@ -70,6 +70,11 @@ const EXTRA = [
     defs: { druid_idle: row(0, 0, 24, 24, 4), druid_run: row(0, 0, 24, 24, 4) },
   },
   {
+    // Superdark's forest bandit in shadowy violet, the rogue: standing, then running.
+    file: 'assets/forest/rogue.png',
+    defs: { rogue_idle: row(0, 0, 26, 24, 4), rogue_run: row(104, 0, 26, 24, 4) },
+  },
+  {
     // Shepardskin's black cat, the druid's panther form: the run row, facing left.
     file: 'assets/cat/cat.png',
     defs: { panther_run: [[2, 34, 22, 16], [24, 34, 22, 16], [47, 34, 22, 16], [69, 34, 22, 16], [92, 34, 22, 16], [116, 34, 21, 16]] },

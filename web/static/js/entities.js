@@ -523,17 +523,15 @@ class PantherView {
 }
 
 // A mercenary out on a class skill: a Воитель charging down the path (the
-// pack's knight, running), or a rogue in a shadow-step (the lizard, dark
+// pack's knight, running), or a rogue in a shadow-step (the bandit, dark
 // and flickering).
 class RunView {
   constructor(r, layer) {
     this.kind = r.kind;
     this.root = new Container();
     const charge = r.kind === 'charge';
-    this.body = hasTileset() && sprite(charge ? 'knight_m_run' : 'lizard_m_idle', 2.6, 0.3);
-    if (this.body) {
-      if (!charge) this.body.tint = 0x8a6aff;
-    } else {
+    this.body = hasTileset() && sprite(charge ? 'knight_m_run' : 'rogue_idle', 2.6, 0.3);
+    if (!this.body) {
       this.body = new Graphics();
       drawFigure(this.body, charge ? 0x9aa0a8 : 0x4a2a6a, charge ? 'warrior' : 'rogue');
     }

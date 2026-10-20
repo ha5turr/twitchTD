@@ -233,7 +233,7 @@ export const ENEMY_ART = {
 // Mercenaries look like the pack's heroes, one per class.
 export const HERO_ART = {
   ranger: 'elf_m', mage: 'wizzard_m', pyro: 'wizzard_f', cleric: 'angel',
-  rogue: 'lizard_m', bard: 'elf_f', warrior: 'knight_m', druid: 'druid',
+  rogue: 'rogue', bard: 'elf_f', warrior: 'knight_m', druid: 'druid',
 };
 // Building art: each entry is a list of sprite layers drawn bottom to top,
 // tried in order of preference so a missing extra sheet falls back to the
