@@ -17,6 +17,10 @@ type Config struct {
 	WalletCap      int  `json:"walletCap"`
 	KeepGold       bool `json:"keepGold"` // keep gold between games instead of resetting
 	TowerLimit     int  `json:"towerLimit"`
+	// StreamerPlays makes the broadcaster's own chat lines play by the
+	// viewers' rules (gold, limits, a mercenary in the tavern). The panel
+	// keeps its free, instant building either way.
+	StreamerPlays bool `json:"streamerPlays"`
 	SellRefundPct  int  `json:"sellRefundPct"`
 	ActiveWindowMn int  `json:"activeWindowMin"`
 

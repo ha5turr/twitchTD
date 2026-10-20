@@ -12,7 +12,7 @@ type ChatMessage struct {
 	User        string // display name, may contain any script
 	Text        string
 	Mod         bool // moderator or broadcaster: may run !td* admin commands
-	Broadcaster bool // the streamer: builds instantly and without limits
+	Broadcaster bool // the streamer: builds instantly and without limits, unless StreamerPlays
 }
 
 var towerAliases = map[string]string{
@@ -39,7 +39,7 @@ func (g *Game) HandleChat(m ChatMessage) {
 	if key == "" || g.ignored(key) {
 		return
 	}
-	if m.Broadcaster {
+	if m.Broadcaster && !g.Cfg.StreamerPlays {
 		key = StreamerName
 	}
 	c := g.Touch(key, user)

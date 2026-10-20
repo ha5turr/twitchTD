@@ -113,3 +113,28 @@ func TestOnlyPlayersJoinTheTavern(t *testing.T) {
 		t.Fatal("!play joins with a welcome")
 	}
 }
+
+func TestStreamerPlaysOnEqualTerms(t *testing.T) {
+	g, _ := newTestGame(t)
+	p := freeCell(t, g)
+	g.HandleChat(ChatMessage{Login: "ha5turr", User: "Ha5turr", Mod: true, Broadcaster: true, Text: "!build " + p.Name()})
+	if tw := g.Towers[p]; tw == nil || tw.Owner != StreamerName || !tw.Built {
+		t.Fatal("by default the broadcaster builds for free and at once")
+	}
+	g.Cfg.StreamerPlays = true
+	q := freeCell(t, g)
+	g.HandleChat(ChatMessage{Login: "ha5turr", User: "Ha5turr", Mod: true, Broadcaster: true, Text: "!build " + q.Name()})
+	c := g.Chatters["ha5turr"]
+	if tw := g.Towers[q]; tw == nil || tw.Owner != "ha5turr" || tw.Built || c == nil || !c.Joined || c.Gold != g.Cfg.StartGold+g.Cfg.ChatGold-g.Cfg.Towers["arrow"].Cost {
+		t.Fatal("with streamerPlays the broadcaster pays, waits for a mercenary and sits in the tavern")
+	}
+	g.HandleChat(ChatMessage{User: StreamerName, Mod: true, Broadcaster: true, Text: "!build " + freeCell(t, g).Name()})
+	if g.towersOf(StreamerName) != 2 {
+		t.Fatal("the panel still builds for free")
+	}
+	gold := c.Gold
+	g.HandleChat(ChatMessage{Login: "ha5turr", User: "Ha5turr", Mod: true, Broadcaster: true, Text: "!tdgold ha5turr 50"})
+	if c.Gold != gold+50 {
+		t.Fatalf("admin commands still work from chat: gold %d", c.Gold)
+	}
+}

@@ -16,7 +16,7 @@ import (
 // editable lists the settings the streamer panel may change at runtime. The
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
-	"towerLimit", "wallRepairCdSec", "walletCap", "keepGold", "startGold", "chatGold", "bitsGold", "subGold",
+	"towerLimit", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "startGold", "chatGold", "bitsGold", "subGold",
 	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
