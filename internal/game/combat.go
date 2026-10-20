@@ -34,6 +34,7 @@ type Enemy struct {
 	bleedOwner string
 	healCut    float64         // seconds left of halved healing
 	netLeft    float64         // seconds left tangled in a ballista net
+	stunLeft   float64         // seconds left stunned by a pillar of light
 	helpers    map[string]bool // trap owners who hurt it: they share the kill
 
 	// ЭссДиЭф (sdf.go).
@@ -235,6 +236,7 @@ func (g *Game) tickEnemies(dt float64) {
 		}
 		e.healCut = max(0, e.healCut-dt)
 		e.netLeft = max(0, e.netLeft-dt)
+		e.stunLeft = max(0, e.stunLeft-dt)
 		// Every enemy slowly closes its wounds; trolls much faster.
 		g.heal(e, (g.Cfg.EnemyRegen+spec.Regen)*e.MaxHP*dt)
 		if spec.Heal > 0 {
@@ -254,7 +256,7 @@ func (g *Game) tickEnemies(dt float64) {
 			// Guards on the walls shoot back, so a leak costs hit points but
 			// is not the end by itself; a boss at the gate still is.
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
-		case e.netLeft > 0: // tangled in a ballista net: neither walks nor hacks
+		case e.netLeft > 0 || e.stunLeft > 0: // netted or stunned: neither walks nor hacks
 		case e.blocked != nil:
 			g.hackBarricade(e, spec, dt)
 		case e.pause > 0 || e.tavernLeft > 0: // ЭссДиЭф busy with a trick

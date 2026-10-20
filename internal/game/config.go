@@ -73,6 +73,17 @@ type Config struct {
 	RogueStepDmg      float64 `json:"rogueStepDmg"`
 	RogueFanDmg       float64 `json:"rogueFanDmg"`
 	RogueFanRadius    float64 `json:"rogueFanRadius"`
+	ClericEverySec    float64 `json:"clericEverySec"`
+	PillarDmg         float64 `json:"pillarDmg"`
+	PillarStunSec     float64 `json:"pillarStunSec"`
+	PillarRadius      float64 `json:"pillarRadius"` // one cell
+	PyroEverySec      float64 `json:"pyroEverySec"`
+	PathFireDmg       float64 `json:"pathFireDmg"`
+	PathFireBurn      float64 `json:"pathFireBurn"` // burn per second
+	PathFireBurnSec   float64 `json:"pathFireBurnSec"`
+	RangerEverySec    float64 `json:"rangerEverySec"`
+	ArrowRainDmg      float64 `json:"arrowRainDmg"`
+	ArrowRainRadius   float64 `json:"arrowRainRadius"`
 
 	// Traps (hotfix 2).
 	TrapBleed      float64 `json:"trapBleed"` // bleeding per second as a share of the snap's damage
@@ -264,9 +275,20 @@ func DefaultConfig() Config {
 		NoteRange:            4,
 		RogueStepEverySec:    60,
 		RogueStepSec:         0.8,
-		RogueStepDmg:         0.4,
+		RogueStepDmg:         0.8,
 		RogueFanDmg:          0.25,
 		RogueFanRadius:       2,
+		ClericEverySec:       60,
+		PillarDmg:            0.4,
+		PillarStunSec:        2,
+		PillarRadius:         0.7,
+		PyroEverySec:         75,
+		PathFireDmg:          0.15,
+		PathFireBurn:         0.04,
+		PathFireBurnSec:      4,
+		RangerEverySec:       35,
+		ArrowRainDmg:         0.3,
+		ArrowRainRadius:      2,
 		TrapBleed:            0.15,
 		TrapBleedSec:         4,
 		TrapHealCut:          0.5,
@@ -303,7 +325,7 @@ func DefaultConfig() Config {
 		TreasuryGoldPerSec: 40,
 		IgnoreUsers:        []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts", "hasturyan"},
 		BaseHP:             30,
-		HPGrowth:           1.14,
+		HPGrowth:           1.155,
 		ChatterHPCoef:      0.25,
 		BaseCount:          6,
 		CountPerWave:       2,

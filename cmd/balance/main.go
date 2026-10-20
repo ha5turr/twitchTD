@@ -108,7 +108,7 @@ func play(cfg game.Config, chatters int, seed uint64) result {
 	bots := make([]*bot, chatters)
 	for i := range bots {
 		bots[i] = &bot{name: fmt.Sprintf("bot%02d", i), nextChat: r.Float64() * 30, nextAct: 5 + r.Float64()*20}
-		g.HandleChat(game.ChatMessage{User: bots[i].name, Text: "привет"})
+		g.HandleChat(game.ChatMessage{User: bots[i].name, Text: "!play"})
 	}
 	const dt = 0.05
 	t := 0.0

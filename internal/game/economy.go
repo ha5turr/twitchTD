@@ -105,7 +105,7 @@ func (g *Game) Reward(login, display, title string) {
 		keys := slices.Sorted(maps.Keys(g.Chatters))
 		for _, key := range keys {
 			c := g.Chatters[key]
-			if key != StreamerName && c.LastSeen.After(cutoff) && g.Workers[key] == nil {
+			if key != StreamerName && c.Joined && c.LastSeen.After(cutoff) && g.Workers[key] == nil {
 				g.serve(key, c, drinkKinds[g.rng.IntN(len(drinkKinds))])
 			}
 		}
@@ -219,4 +219,31 @@ func (g *Game) cmdTreasury(args []string) {
 	g.Treasury -= n
 	name := strings.TrimPrefix(args[0], "@")
 	g.payTo(name, name, n) // what does not fit the wallet flows back to the treasury
+}
+
+// sweepAFK sends the gold of mercenaries who went quiet into the treasury:
+// a chatter who talked this session and then fell silent for the active
+// window (10 minutes) has left the game, and the gold keeps helping the
+// walls. Mercenaries out on a job or sitting at the dice wait until done.
+func (g *Game) sweepAFK(dt float64) {
+	g.afkCheck -= dt
+	if g.afkCheck > 0 {
+		return
+	}
+	g.afkCheck = 5
+	cut := g.Now().Add(-activeWindow(g.Cfg))
+	for _, key := range slices.Sorted(maps.Keys(g.Chatters)) {
+		c := g.Chatters[key]
+		if !c.wasActive || !c.Joined || key == StreamerName || c.LastSeen.After(cut) || g.Workers[key] != nil || g.atDice(key) != nil {
+			continue
+		}
+		c.wasActive, c.Joined = false, false // gone: back in with !play
+		if c.Gold <= 0 {
+			continue
+		}
+		gold := c.Gold
+		c.Gold = 0
+		g.toTreasury(gold)
+		g.emit(Event{Kind: "afk", User: c.Name, Amount: gold})
+	}
 }

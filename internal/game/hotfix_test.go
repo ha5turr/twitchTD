@@ -34,7 +34,7 @@ func pathNeighbours(t *testing.T, g *Game) (Pos, Pos, int) {
 
 func chatters(g *Game, names ...string) {
 	for _, n := range names {
-		g.HandleChat(ChatMessage{User: n, Text: "привет"})
+		g.HandleChat(ChatMessage{User: n, Text: "!play"})
 		g.Chatters[n].Gold = 0
 	}
 }

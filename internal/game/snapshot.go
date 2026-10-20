@@ -80,8 +80,9 @@ type EnemyView struct {
 	Slow   bool    `json:"slow,omitempty"`
 	Burn   bool    `json:"burn,omitempty"`
 	Shield bool    `json:"shield,omitempty"`
-	Act    int     `json:"act,omitempty"` // ЭссДиЭф: 1 burping, 2 farting
-	Net    bool    `json:"net,omitempty"` // tangled in a ballista net
+	Act    int     `json:"act,omitempty"`  // ЭссДиЭф: 1 burping, 2 farting
+	Net    bool    `json:"net,omitempty"`  // tangled in a ballista net
+	Stun   bool    `json:"stun,omitempty"` // stunned by a pillar of light
 }
 
 type TowerView struct {
@@ -143,7 +144,7 @@ func (g *Game) StateMessage() StateMsg {
 	for _, e := range g.Enemies {
 		s.Enemies = append(s.Enemies, EnemyView{
 			e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP),
-			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0,
+			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0, e.stunLeft > 0,
 		})
 	}
 	owners := map[string]int{}
@@ -164,7 +165,7 @@ func (g *Game) StateMessage() StateMsg {
 	}
 	activeCut := g.Now().Add(-activeWindow(g.Cfg))
 	for key, c := range g.Chatters {
-		active := c.LastSeen.After(activeCut)
+		active := c.Joined && c.LastSeen.After(activeCut)
 		// Wallets loaded from the database stay out of the snapshot until
 		// their owner shows up, so the tavern holds only people present.
 		if key == StreamerName || !active && owners[key] == 0 && g.Workers[key] == nil {

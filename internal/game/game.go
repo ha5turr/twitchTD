@@ -54,6 +54,8 @@ type Chatter struct {
 	passiveCD         float64 // rogue and druid: seconds to the next trick (rogues.go)
 	skillCD           float64 // class skill (heroes.go): seconds to the next use
 	musicLeft         float64 // bard: seconds of music left
+	wasActive         bool    // chatted since the last AFK sweep (economy.go)
+	Joined            bool    // took part this session: !play or any game command (commands.go)
 }
 
 // Event is a one-off happening the overlay animates (floating text, sounds).
@@ -120,6 +122,7 @@ type Game struct {
 	rushLeft   float64              // seconds of the frost demon's speed-up left
 	assist     []string             // drummers behind the shot being resolved
 	rewardMult float64              // grows after every boss wave: kills, assists and barricades pay more
+	afkCheck   float64              // seconds to the next AFK sweep
 	helpAt     map[string]time.Time // last !помощь answer per topic
 	nextMeme   int
 }
@@ -240,7 +243,7 @@ func (g *Game) ActiveChatters() int {
 	cutoff := g.Now().Add(-activeWindow(g.Cfg))
 	n := 0
 	for key, c := range g.Chatters {
-		if key != StreamerName && c.LastSeen.After(cutoff) {
+		if key != StreamerName && c.Joined && c.LastSeen.After(cutoff) {
 			n++
 		}
 	}
@@ -258,6 +261,7 @@ func (g *Game) Tick(dt float64) {
 	g.soberUp(dt)
 	g.tickDrinks(dt)
 	g.tickRogues(dt)
+	g.sweepAFK(dt)
 	g.tickTreasury(dt)
 	g.tickDice(dt)
 	switch g.Phase {
@@ -314,7 +318,6 @@ func (g *Game) chatter(key, display string) *Chatter {
 	if c == nil {
 		c = &Chatter{Name: display, Gold: g.Cfg.StartGold, Class: Classes[g.rng.IntN(len(Classes))].Key}
 		g.Chatters[key] = c
-		g.emit(Event{Kind: "join", User: display})
 	}
 	if display != "" && key != StreamerName {
 		c.Name = display // display names can change between streams
@@ -327,6 +330,7 @@ func (g *Game) Touch(key, display string) *Chatter {
 	c := g.chatter(key, display)
 	now := g.Now()
 	c.LastSeen = now
+	c.wasActive = true
 	if now.Sub(c.lastPaid) >= time.Duration(g.Cfg.ChatCooldownSec*float64(time.Second)) {
 		c.lastPaid = now
 		g.addGold(c, g.Cfg.ChatGold)
@@ -339,7 +343,7 @@ func (g *Game) Touch(key, display string) *Chatter {
 // so silent viewers never raise the difficulty.
 func (g *Game) Present(logins []string) {
 	for _, l := range logins {
-		if c := g.Chatters[strings.ToLower(l)]; c != nil {
+		if c := g.Chatters[strings.ToLower(l)]; c != nil && c.Joined {
 			g.addGold(c, g.Cfg.PresentGold)
 		}
 	}

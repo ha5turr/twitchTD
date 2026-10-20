@@ -48,7 +48,13 @@ func (g *Game) HandleChat(m ChatMessage) {
 		return
 	}
 	args := f[1:]
-	switch strings.ToLower(f[0]) {
+	cmd := strings.ToLower(f[0])
+	if gameCommands[cmd] && key != StreamerName {
+		g.join(c, cmd)
+	}
+	switch cmd {
+	case "!play", "!играть", "!join":
+		// join already welcomed them; a second !play just says so.
 	case "!build", "!b", "!строить", "!с":
 		g.cmdBuild(c, key, args)
 	case "!up", "!u", "!улучшить":
@@ -365,4 +371,39 @@ func (g *Game) ignored(key string) bool {
 		}
 	}
 	return false
+}
+
+// gameCommands are the chat commands that bring a chatter into the game.
+// Until then a chatter only earns gold for talking: no mercenary in the
+// tavern and no weight in the difficulty, so people who just say hi and
+// leave do not make the waves harder. !помощь only explains, so it does not
+// count.
+var gameCommands = map[string]bool{
+	"!play": true, "!играть": true, "!join": true,
+	"!build": true, "!b": true, "!строить": true, "!с": true,
+	"!up": true, "!u": true, "!улучшить": true,
+	"!sell": true, "!продать": true,
+	"!repair": true, "!чинить": true, "!починить": true,
+	"!me": true, "!я": true,
+	"!dice": true, "!кости": true,
+	"!class": true, "!класс": true,
+	"!drink": true, "!d": true, "!выпить": true, "!пить": true,
+	"!towers": true, "!башни": true,
+	"!души": true, "!souls": true, "!ачивки": true, "!achievements": true, "!ach": true,
+	"!мемы": true, "!memes": true, "!link": true, "!привязать": true,
+}
+
+// join seats a chatter in the tavern for this session.
+func (g *Game) join(c *Chatter, cmd string) {
+	if c.Joined {
+		if cmd == "!play" || cmd == "!играть" || cmd == "!join" {
+			g.reply(c.Name, "ты уже в таверне")
+		}
+		return
+	}
+	c.Joined = true
+	g.emit(Event{Kind: "join", User: c.Name})
+	if cmd == "!play" || cmd == "!играть" || cmd == "!join" {
+		g.reply(c.Name, "добро пожаловать в таверну! Строй: !b C4 arrow, все команды: !помощь")
+	}
 }
