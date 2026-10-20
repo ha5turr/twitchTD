@@ -29,6 +29,10 @@ type Config struct {
 	// ReplyPrefix starts every reply; "/me " makes the bot's lines stand out
 	// in chat. An empty string sends them plain.
 	ReplyPrefix string `json:"replyPrefix"`
+	// RefundAction is the Streamer.bot action that gives back the points of
+	// a redemption the game refused (a per-game cap). It gets "rewardId" and
+	// "redemptionId" arguments. Empty: refused points are not returned.
+	RefundAction string `json:"refundAction"`
 }
 
 func DefaultConfig() Config {
@@ -51,7 +55,7 @@ type Chat struct {
 type Handlers struct {
 	Chat    func(Chat)
 	Present func(logins []string)
-	Reward  func(u User, title string)
+	Reward  func(u User, r Redemption)
 	Bits    func(u User, bits int)
 	Sub     func(u User)
 	GiftSub func(from, to User)
@@ -116,6 +120,24 @@ func (c *Client) Send(message string) {
 	case c.out <- data:
 	default:
 		log.Printf("streamer.bot: outgoing queue full, dropped: %s", message)
+	}
+}
+
+// Refund runs RefundAction for a redemption the game refused.
+func (c *Client) Refund(r Redemption) {
+	if c.cfg.RefundAction == "" || r.RewardID == "" || r.ID == "" {
+		log.Printf("streamer.bot: points for %q not refunded (refundAction or ids missing)", r.Title)
+		return
+	}
+	data, _ := json.Marshal(map[string]any{
+		"request": "DoAction", "id": c.nextID(),
+		"action": map[string]any{"name": c.cfg.RefundAction},
+		"args":   map[string]any{"rewardId": r.RewardID, "redemptionId": r.ID, "rewardName": r.Title},
+	})
+	select {
+	case c.out <- data:
+	default:
+		log.Printf("streamer.bot: outgoing queue full, refund for %q dropped", r.Title)
 	}
 }
 
@@ -253,8 +275,8 @@ func (c *Client) dispatch(data []byte) {
 		u := p.user()
 		switch env.Event.Type {
 		case "RewardRedemption":
-			if t := p.rewardTitle(); t != "" && c.h.Reward != nil {
-				c.h.Reward(u, t)
+			if r := p.redemption(); r.Title != "" && c.h.Reward != nil {
+				c.h.Reward(u, r)
 			}
 		case "Cheer":
 			if b := p.bits(); b > 0 && c.h.Bits != nil {

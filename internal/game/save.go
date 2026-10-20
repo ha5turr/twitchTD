@@ -22,6 +22,8 @@ type Save struct {
 	Links     map[string]string `json:"links"`
 	LinkCodes map[string]string `json:"linkCodes"`
 	Memes     []*MemeRequest    `json:"memes"`
+
+	RewardUses map[string]int `json:"rewardUses,omitempty"`
 }
 
 // wantCell is the kind of cell a building stands on.
@@ -57,7 +59,7 @@ type SavedChatter struct {
 func (g *Game) Export() Save {
 	s := Save{
 		Seed: g.Map.Seed, Biome: g.Map.Biome, Wave: g.Wave, Walls: g.Walls, Over: g.Phase == PhaseGameOver,
-		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned, Memes: g.Memes,
+		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned, Memes: g.Memes, RewardUses: g.RewardUses,
 	}
 	for _, t := range g.Towers {
 		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost})
@@ -113,6 +115,7 @@ func (g *Game) Restore(s Save) {
 	g.Phase = PhaseBuild
 	g.Timer = g.Cfg.FirstBuildPhaseSec
 	g.Wave = max(s.Wave-1, 0) // an interrupted wave is played again
+	g.RewardUses = s.RewardUses
 	if g.Cfg.BossEvery > 0 {  // the rewards grown by the boss waves already held
 		g.rewardMult = math.Pow(1+g.Cfg.RewardGrowth, float64(g.Wave/g.Cfg.BossEvery))
 	}

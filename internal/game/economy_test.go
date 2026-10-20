@@ -70,7 +70,7 @@ func TestDonationMatchesNick(t *testing.T) {
 
 func TestRewards(t *testing.T) {
 	g, _ := newTestGame(t)
-	g.Reward("lurker", "Lurker", "мешок золота")
+	g.Reward("lurker", "Lurker", "htd: мешок золота")
 	if c := g.Chatters["lurker"]; c == nil || c.Gold != g.Cfg.StartGold+300 {
 		t.Fatal("gold reward creates the wallet and pays it")
 	}
@@ -102,5 +102,33 @@ func TestBitsAndSubs(t *testing.T) {
 	}
 	if g.Chatters["b"].Gold != g.Cfg.StartGold+g.Cfg.SubGold || g.Chatters["c"].Gold != g.Cfg.StartGold+g.Cfg.GiftRecipientGold {
 		t.Fatal("gift sub pays both sides")
+	}
+}
+
+func TestRewardPerUserCap(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.Cfg.Rewards = []RewardSpec{{Title: "HTD: Мешок золота", Action: "gold", Amount: 300, PerUser: 2}}
+	for i := 0; i < 2; i++ {
+		if g.Reward("vasya", "Vasya", "HTD: Мешок золота") {
+			t.Fatalf("redemption %d is within the cap", i+1)
+		}
+	}
+	gold := g.Chatters["vasya"].Gold
+	if !g.Reward("vasya", "Vasya", "HTD: Мешок золота") || g.Chatters["vasya"].Gold != gold {
+		t.Fatal("the third one in a game is refused and pays nothing")
+	}
+	if r := lastReply(g); !strings.Contains(r, "не больше 2") {
+		t.Fatalf("the viewer is told why: %q", r)
+	}
+	if g.Reward("petya", "Petya", "HTD: Мешок золота") {
+		t.Fatal("the cap is per viewer")
+	}
+	g.Restore(g.Export())
+	if !g.Reward("vasya", "Vasya", "HTD: Мешок золота") {
+		t.Fatal("the count survives a restart")
+	}
+	g.NewGame("")
+	if g.Reward("vasya", "Vasya", "HTD: Мешок золота") {
+		t.Fatal("a new game resets the cap")
 	}
 }

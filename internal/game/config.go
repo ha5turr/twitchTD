@@ -312,7 +312,7 @@ func DefaultConfig() Config {
 		SoulsPerMemecoin: 10,
 		MemeMax:          50,
 		Rewards: []RewardSpec{
-			{Title: "Мешок золота", Action: "gold", Amount: 300},
+			{Title: "HTD: Мешок золота", Action: "gold", Amount: 300},
 			{Title: "Починить стены", Action: "repair", Amount: 200},
 			{Title: "Дождь стрел", Action: "strike", Amount: 50},
 			{Title: "Выпивка за мой счёт", Action: "round"},

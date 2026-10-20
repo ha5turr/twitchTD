@@ -53,8 +53,12 @@ type eventPayload struct {
 	User      *userObj `json:"user"`
 	Recipient *userObj `json:"recipient"`
 	Reward    *struct {
+		ID    string `json:"id"`
 		Title string `json:"title"`
 	} `json:"reward"`
+	ID           string `json:"id"` // the redemption itself
+	RewardID     string `json:"rewardId"`
+	RedemptionID string `json:"redemptionId"`
 	Bits    int             `json:"bits"`
 	Message json.RawMessage `json:"message"`
 
@@ -105,6 +109,21 @@ func (p eventPayload) rewardTitle() string {
 		return p.RewardTitle
 	}
 	return p.Title
+}
+
+// Redemption is one channel point reward taken by a viewer. The IDs let a
+// refund action cancel it.
+type Redemption struct{ Title, RewardID, ID string }
+
+func (p eventPayload) redemption() Redemption {
+	r := Redemption{Title: p.rewardTitle(), RewardID: p.RewardID, ID: p.RedemptionID}
+	if p.Reward != nil && p.Reward.ID != "" {
+		r.RewardID = p.Reward.ID
+	}
+	if r.ID == "" {
+		r.ID = p.ID
+	}
+	return r
 }
 
 func (p eventPayload) bits() int {

@@ -86,10 +86,44 @@ go run ./cmd/twitchtd -config configs/dev-fakesb.json
 
 | Название по умолчанию | `action` | Что делает |
 | --- | --- | --- |
-| Мешок золота | `gold` | +300 золота |
+| HTD: Мешок золота | `gold` | +300 золота |
 | Починить стены | `repair` | +200 ХП стенам |
 | Дождь стрел | `strike` | 50% макс. ХП каждому врагу (боссам 10%) |
 | Выпивка за мой счёт | `round` | каждому в таверне случайный напиток с его эффектом |
+
+**Лимит на игру для одного зрителя:** поле `perUser` у награды (0 или нет поля — без лимита). Счётчик свой у каждого зрителя, переживает перезапуск сервера и обнуляется с новой игрой. Лишнюю покупку игра не выполняет, пишет зрителю в чат и просит Streamer.bot вернуть баллы. Ключ `rewards` в `config.json` заменяет весь список, поэтому перечисли в нём все награды:
+
+```json
+"rewards": [
+  { "title": "HTD: Мешок золота",   "action": "gold",   "amount": 300, "perUser": 3 },
+  { "title": "Починить стены",      "action": "repair", "amount": 200 },
+  { "title": "Дождь стрел",         "action": "strike", "amount": 50 },
+  { "title": "Выпивка за мой счёт", "action": "round" }
+]
+```
+
+Чтобы баллы возвращались:
+
+1. Twitch разрешает отменять покупку только той программе, которая создала награду. Поэтому награду с лимитом создай в Streamer.bot (**Platforms → Twitch → Channel Point Rewards**, правый клик → **Add**), а не в панели Twitch. **Skip Reward Requests Queue** оставь выключенным: автоматически выполненную покупку отменить нельзя.
+2. Создай действие, например `TD Refund`, с подзадачей **Core → C# → Execute C# Code**:
+
+   ```csharp
+   using System;
+
+   public class CPHInline
+   {
+       public bool Execute()
+       {
+           CPH.TryGetArg("rewardId", out string rewardId);
+           CPH.TryGetArg("redemptionId", out string redemptionId);
+           return CPH.TwitchRedemptionCancel(rewardId, redemptionId);
+       }
+   }
+   ```
+
+3. В `config.json`, в разделе `streamerbot`, добавь `"refundAction": "TD Refund"`.
+
+Без `refundAction` лимит всё равно работает, но баллы за лишнюю покупку не возвращаются (в логе будет строка `not refunded`).
 
 **Биты:** 8 золота за бит (`bitsGold`). **Подписка:** 400 (`subGold`). **Подарочная подписка:** 400 дарителю и 150 получателю (`giftRecipientGold`).
 
