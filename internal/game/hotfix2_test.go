@@ -165,6 +165,7 @@ func TestDruidTurnsIntoAPanther(t *testing.T) {
 		t.Fatal("the druid class exists")
 	}
 	g.Chatters["dina"].Class = "druid"
+	g.waveHP = 100
 	if g.classBonus("dina", "arrow") != 1 {
 		t.Fatal("druids have no building bonus")
 	}
@@ -178,7 +179,7 @@ func TestDruidTurnsIntoAPanther(t *testing.T) {
 	for i := 0; i < 200; i++ {
 		g.tickDruids(0.05)
 	}
-	bite := g.waveHP * g.Cfg.DruidMaul * (1 - g.Cfg.Enemies["skeleton"].Armor)
+	bite := g.skillHP() * g.Cfg.DruidMaul * (1 - g.Cfg.Enemies["skeleton"].Armor)
 	for _, e := range []*Enemy{e1, e2} {
 		if lost := 1e6 - e.HP; math.Abs(lost-bite) > 1 {
 			t.Fatalf("each enemy is mauled once: lost %.1f, bite %.1f", lost, bite)

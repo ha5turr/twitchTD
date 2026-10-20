@@ -64,6 +64,7 @@ type StateMsg struct {
 	Dice     []DiceView     `json:"dice"`
 	Memes    []*MemeRequest `json:"memes,omitempty"` // memecoin requests for the panel
 	Panthers []PantherView  `json:"panthers,omitempty"`
+	Runs     []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
 	Reward   float64        `json:"reward,omitempty"` // reward multiplier, above 1 after boss waves
 }
 
@@ -124,7 +125,8 @@ type ChatterView struct {
 	Active bool   `json:"active"`
 	Banned bool   `json:"banned,omitempty"`
 	Souls  int    `json:"souls,omitempty"`
-	Rank   int    `json:"rank,omitempty"` // index in Ranks
+	Rank   int    `json:"rank,omitempty"`  // index in Ranks
+	Music  bool   `json:"music,omitempty"` // a bard playing
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
@@ -169,7 +171,7 @@ func (g *Game) StateMessage() StateMsg {
 			continue
 		}
 		s.Chatters = append(s.Chatters, ChatterView{
-			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(),
+			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(), c.musicLeft > 0,
 		})
 	}
 	s.Dice = []DiceView{}
@@ -177,6 +179,9 @@ func (g *Game) StateMessage() StateMsg {
 		s.Dice = append(s.Dice, DiceView{d.ID, d.Table, d.HostName, d.Stake, d.GuestName, d.GuestStake, math.Ceil(d.wait)})
 	}
 	s.Memes = g.Memes
+	for _, r := range g.Runs {
+		s.Runs = append(s.Runs, RunView{r.Name, r.Kind, round2(r.Pos.X), round2(r.Pos.Y)})
+	}
 	for _, p := range g.Panthers {
 		s.Panthers = append(s.Panthers, PantherView{p.Name, round2(p.Pos.X), round2(p.Pos.Y)})
 	}
@@ -210,6 +215,14 @@ type DiceView struct {
 // PantherView is a druid on the hunt.
 type PantherView struct {
 	Name string  `json:"name"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+}
+
+// RunView is a mercenary out on a class skill: "charge" or "step".
+type RunView struct {
+	Name string  `json:"name"`
+	Kind string  `json:"kind"`
 	X    float64 `json:"x"`
 	Y    float64 `json:"y"`
 }

@@ -27,7 +27,7 @@ func (g *Game) tavernMates() []string {
 	cut := g.Now().Add(-activeWindow(g.Cfg))
 	var out []string
 	for key, c := range g.Chatters {
-		if key != StreamerName && c.LastSeen.After(cut) && g.Workers[key] == nil && g.panther(key) == nil {
+		if key != StreamerName && c.LastSeen.After(cut) && g.Workers[key] == nil && g.panther(key) == nil && g.runOf(key) == nil {
 			out = append(out, key)
 		}
 	}
@@ -117,7 +117,7 @@ func (g *Game) tickDruids(dt float64) {
 		}
 		if g.step2(&p.Pos, prey.Pos, g.Cfg.DruidPantherSpeed*dt) {
 			p.hit[prey.ID] = true
-			g.damage(prey, g.waveHP*g.Cfg.DruidMaul, p.Owner, false)
+			g.damage(prey, g.skillHP()*g.Cfg.DruidMaul, p.Owner, false)
 			g.emit(Event{Kind: "maul", User: p.Name, X: p.Pos.X, Y: p.Pos.Y})
 		}
 		alive = append(alive, p)

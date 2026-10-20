@@ -193,7 +193,7 @@ export class Tavern {
   update(st) {
     this.limits = { cap: st.walletCap, towers: st.towerLimit };
     // Mercenaries out building, and druids out hunting as panthers, leave the tavern.
-    const outside = new Set([...(st.workers ?? []).filter((w) => w.state !== 'rest'), ...(st.panthers ?? [])].map((w) => w.name));
+    const outside = new Set([...(st.workers ?? []).filter((w) => w.state !== 'rest'), ...(st.panthers ?? []), ...(st.runs ?? [])].map((w) => w.name));
     const active = st.chatters.filter((c) => c.active || c.towers > 0 || outside.has(c.name));
     const seen = new Set();
     let hidden = 0;
@@ -294,6 +294,7 @@ class Merc {
   }
 
   set(c, out) {
+    this.music = !!c.music;
     if ((c.rank ?? 0) !== this.rank) {
       // In the tavern the nick shows the rank colour; out on the field it
       // keeps the personal colour, so buildings stay easy to tell apart.
@@ -414,6 +415,32 @@ class Merc {
     this.bubble.position.set(r.x, r.y - this.height - 32);
     this.nameText.position.set(r.x, r.y - this.height - 14);
     this.goldText.position.set(r.x, r.y - this.height);
+    this.playNotes(dt, r);
+  }
+
+  // playNotes: while a bard plays, notes hop up from him and fade.
+  playNotes(dt, r) {
+    this.notes = this.notes ?? [];
+    this.noteIn = (this.noteIn ?? 0) - dt;
+    if (this.music && this.noteIn <= 0) {
+      this.noteIn = 0.3;
+      const t = new Text({ text: Math.random() < 0.5 ? '♪' : '♫', style: { fontSize: 20, fontWeight: '700', fill: 0xffd24a, stroke: { color: 0x2a1a0c, width: 4 } } });
+      t.anchor.set(0.5);
+      this.tavern.labels.addChild(t);
+      this.notes.push({ t, life: 1.4, dx: (Math.random() - 0.5) * 40 });
+    }
+    this.notes = this.notes.filter((n) => {
+      n.life -= dt;
+      if (n.life <= 0) {
+        n.t.destroy();
+        return false;
+      }
+      const k = 1 - n.life / 1.4;
+      // Up and a little aside, bouncing on the beat, fading at the top.
+      n.t.position.set(r.x + n.dx * k, r.y - this.height - 10 - 60 * k - Math.abs(Math.sin(k * 12)) * 8);
+      n.t.alpha = Math.min(1, n.life * 2);
+      return true;
+    });
   }
 
   destroy() {
@@ -421,6 +448,7 @@ class Merc {
     this.nameText.destroy();
     this.goldText.destroy();
     this.bubble.destroy();
+    for (const n of this.notes ?? []) n.t.destroy();
   }
 }
 

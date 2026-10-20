@@ -21,11 +21,12 @@ export class Entities {
     this.proj = new Map();
     this.workers = new Map();
     this.panthers = new Map(); // druids on the hunt
+    this.runs = new Map(); // charging warriors, shadow-stepping rogues
     this.t = 0;
   }
 
   clear() {
-    for (const m of [this.enemies, this.towers, this.proj, this.workers, this.panthers]) {
+    for (const m of [this.enemies, this.towers, this.proj, this.workers, this.panthers, this.runs]) {
       for (const v of m.values()) v.destroy();
       m.clear();
     }
@@ -41,6 +42,8 @@ export class Entities {
     sync(this.workers, workers, (w) => new WorkerView(w, this), (v, w) => v.set(w));
     const panthers = (state.panthers ?? []).map((p) => ({ ...p, id: p.name }));
     sync(this.panthers, panthers, (p) => new PantherView(p, this), (v, p) => v.set(p));
+    const runs = (state.runs ?? []).map((r) => ({ ...r, id: r.name }));
+    sync(this.runs, runs, (r) => new RunView(r, this), (v, r) => v.set(r));
   }
 
   // Names of mercenaries currently out of the tavern.
@@ -55,6 +58,7 @@ export class Entities {
     for (const v of this.proj.values()) v.frame(Math.min(1, dt * 30));
     for (const v of this.workers.values()) v.frame(k, dt);
     for (const v of this.panthers.values()) v.frame(k, this.t);
+    for (const v of this.runs.values()) v.frame(Math.min(1, dt * 20), this.t);
     for (const v of this.towers.values()) v.frame(this.t, this.enemies);
   }
 
@@ -450,6 +454,10 @@ class ProjView {
     this.kind = p.kind;
     if (p.kind === 'clown') {
       this.root = emoji('🤡', 30); // clowns throw clowns
+    } else if (p.kind === 'note') {
+      // A bard's drums throw notes while the music plays.
+      this.root = new Text({ text: Math.random() < 0.5 ? '♪' : '♫', style: { fontSize: 30, fontWeight: '700', fill: 0xffd24a, stroke: { color: 0x2a1a0c, width: 4 } } });
+      this.root.anchor.set(0.5);
     } else {
       this.root = new Graphics();
       drawProjectile(this.root, p.kind);
@@ -507,6 +515,50 @@ class PantherView {
     this.root.y += (this.target.y - this.root.y) * k;
     // The cat runs to the left in its sheet: mirror it when heading right.
     if (Math.abs(dx) > 0.5 && this.body.anchor) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? 1 : -1);
+  }
+
+  destroy() {
+    this.root.destroy({ children: true });
+  }
+}
+
+// A mercenary out on a class skill: a Воитель charging down the path (the
+// pack's knight, running), or a rogue in a shadow-step (the lizard, dark
+// and flickering).
+class RunView {
+  constructor(r, layer) {
+    this.kind = r.kind;
+    this.root = new Container();
+    const charge = r.kind === 'charge';
+    this.body = hasTileset() && sprite(charge ? 'knight_m_run' : 'lizard_m_idle', 2.6, 0.3);
+    if (this.body) {
+      if (!charge) this.body.tint = 0x8a6aff;
+    } else {
+      this.body = new Graphics();
+      drawFigure(this.body, charge ? 0x9aa0a8 : 0x4a2a6a, charge ? 'warrior' : 'rogue');
+    }
+    this.root.addChild(this.body);
+    this.name = new Text({ text: r.name, style: { fontFamily: FONT_UI, fontSize: 14, fontWeight: '700', fill: nickColor(r.name), stroke: { color: 0x000000, width: 4 } } });
+    this.name.anchor.set(0.5, 1);
+    this.name.y = -(this.body.height || 46) - 4;
+    this.root.addChild(this.name);
+    const px = toPx(r.x, r.y);
+    this.root.position.set(px.x, px.y + 20);
+    this.target = { x: this.root.x, y: this.root.y };
+    layer.world.addChild(this.root);
+  }
+
+  set(r) {
+    const px = toPx(r.x, r.y);
+    this.target = { x: px.x, y: px.y + 20 };
+  }
+
+  frame(k, t) {
+    const dx = this.target.x - this.root.x;
+    this.root.x += dx * k;
+    this.root.y += (this.target.y - this.root.y) * k;
+    if (Math.abs(dx) > 0.5 && this.body.anchor) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
+    if (this.kind === 'step') this.body.alpha = 0.55 + 0.35 * Math.sin(t * 30); // a shadow, not quite there
   }
 
   destroy() {

@@ -311,4 +311,5 @@ export const EVENT_SOUNDS = {
   diceOpen: 'coin', diceJoin: 'dice', diceRoll: 'dice',
   destroyed: 'blast', robbed: 'coin', loot: 'coin', achievement: 'fanfare', rank: 'fanfare',
   lightning: 'strike', maul: 'kill', pickpocket: 'coin', rewardUp: 'fanfare', panther: 'ability', net: 'trap',
+  charge: 'ability', meteor: 'blast', meteorShower: 'ability', music: 'drink', shadowstep: 'stun', bladefan: 'kill',
 };

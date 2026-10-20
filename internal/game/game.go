@@ -52,6 +52,8 @@ type Chatter struct {
 	buff, buffLeft    float64
 	nextBuff, nextSec float64
 	passiveCD         float64 // rogue and druid: seconds to the next trick (rogues.go)
+	skillCD           float64 // class skill (heroes.go): seconds to the next use
+	musicLeft         float64 // bard: seconds of music left
 }
 
 // Event is a one-off happening the overlay animates (floating text, sounds).
@@ -100,6 +102,8 @@ type Game struct {
 	Dice        []*DiceGame       // games of dice in the tavern
 	Memes       []*MemeRequest    // memecoin requests waiting for the streamer
 	Panthers    []*Panther        // druids on the hunt
+	Runs        []*Run            // charging warriors, rogues in a shadow-step
+	meteors     []*meteor         // a mage's meteor shower, still falling
 
 	// Admin reaches the overlay settings (sound) for mod chat commands.
 	Admin SettingsAdmin
@@ -164,7 +168,7 @@ func (g *Game) NewGame(biome Biome) {
 	g.queue = nil
 	g.summary = nil
 	g.rewardMult = 1
-	g.Panthers = nil
+	g.Panthers, g.Runs, g.meteors = nil, nil, nil
 	// Dice stakes go back before wallets reset, so a new game never eats them.
 	for _, d := range g.Dice {
 		g.refundDice(d)
@@ -276,6 +280,7 @@ func (g *Game) Tick(dt float64) {
 	}
 	g.tickEnemies(dt)
 	g.tickDruids(dt)
+	g.tickHeroes(dt)
 	g.tickWorkers(dt)
 	g.tickTowers(dt)
 	g.tickProjectiles(dt)

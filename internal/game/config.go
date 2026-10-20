@@ -53,6 +53,27 @@ type Config struct {
 	DruidPantherSpeed float64 `json:"druidPantherSpeed"` // cells per second
 	DruidMaul         float64 `json:"druidMaul"`         // damage per bite, in base enemy HP of the wave
 
+	// Class skills (heroes.go), all in seconds or in base enemy HP of the wave.
+	WarriorEverySec   float64 `json:"warriorEverySec"`
+	WarriorSpeed      float64 `json:"warriorSpeed"` // cells per second along the path
+	WarriorPush       float64 `json:"warriorPush"`  // cells each enemy is shoved back
+	MageEverySec      float64 `json:"mageEverySec"`
+	MeteorCount       int     `json:"meteorCount"`
+	MeteorDmg         float64 `json:"meteorDmg"`
+	MeteorRadius      float64 `json:"meteorRadius"`
+	MeteorBurn        float64 `json:"meteorBurn"` // burn per second
+	MeteorBurnSec     float64 `json:"meteorBurnSec"`
+	BardEverySec      float64 `json:"bardEverySec"`
+	BardMusicSec      float64 `json:"bardMusicSec"`
+	NoteDmg           float64 `json:"noteDmg"`
+	NoteRate          float64 `json:"noteRate"` // notes per second
+	NoteRange         float64 `json:"noteRange"`
+	RogueStepEverySec float64 `json:"rogueStepEverySec"`
+	RogueStepSec      float64 `json:"rogueStepSec"` // seconds the rogue stays out
+	RogueStepDmg      float64 `json:"rogueStepDmg"`
+	RogueFanDmg       float64 `json:"rogueFanDmg"`
+	RogueFanRadius    float64 `json:"rogueFanRadius"`
+
 	// Traps (hotfix 2).
 	TrapBleed      float64 `json:"trapBleed"` // bleeding per second as a share of the snap's damage
 	TrapBleedSec   float64 `json:"trapBleedSec"`
@@ -227,6 +248,25 @@ func DefaultConfig() Config {
 		DruidPantherSec:      10,
 		DruidPantherSpeed:    4,
 		DruidMaul:            0.8,
+		WarriorEverySec:      80,
+		WarriorSpeed:         6,
+		WarriorPush:          2,
+		MageEverySec:         90,
+		MeteorCount:          6,
+		MeteorDmg:            0.25,
+		MeteorRadius:         1,
+		MeteorBurn:           0.06,
+		MeteorBurnSec:        3,
+		BardEverySec:         75,
+		BardMusicSec:         10,
+		NoteDmg:              0.15,
+		NoteRate:             0.7,
+		NoteRange:            4,
+		RogueStepEverySec:    60,
+		RogueStepSec:         0.8,
+		RogueStepDmg:         0.4,
+		RogueFanDmg:          0.25,
+		RogueFanRadius:       2,
 		TrapBleed:            0.15,
 		TrapBleedSec:         4,
 		TrapHealCut:          0.5,
@@ -263,7 +303,7 @@ func DefaultConfig() Config {
 		TreasuryGoldPerSec: 40,
 		IgnoreUsers:        []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts", "hasturyan"},
 		BaseHP:             30,
-		HPGrowth:           1.13,
+		HPGrowth:           1.14,
 		ChatterHPCoef:      0.25,
 		BaseCount:          6,
 		CountPerWave:       2,
@@ -297,11 +337,11 @@ func DefaultConfig() Config {
 			"sdf": {Name: "ЭссДиЭф", HPMult: 15, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
 		},
 		Towers: map[string]TowerSpec{
-			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, NetEvery: 12, NetSec: 2, NetRadius: 0.7, UpgMult: 1.45, MaxLevel: 5},
+			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 9, Range: 2.6, Rate: 1.4, ProjSpd: 10, NetEvery: 20, NetSec: 2, NetRadius: 0.7, UpgMult: 1.45, MaxLevel: 5},
 			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, StrikeEvery: 8, StrikeDmg: 1.5, StrikeRadius: 1, UpgMult: 1.45, MaxLevel: 5},
 			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 90, Damage: 10, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 4, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
 			"shrine": {Name: "Святилище", Role: RoleAura, Cost: 100, AuraRange: 1.6, AuraDmg: 0.15, WallHeal: 1.5, UpgMult: 1.5, MaxLevel: 5},
-			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 45, Slow: 0.5, SlowSec: 2, Charges: 9, UpgMult: 1.45, MaxLevel: 5},
+			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 38, Slow: 0.5, SlowSec: 2, Charges: 9, UpgMult: 1.45, MaxLevel: 5},
 			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 3, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
 			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
 			// The only real answer to ЭссДиЭф: shoots him anywhere on the map.

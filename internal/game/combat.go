@@ -358,7 +358,7 @@ func (g *Game) auras(t *Tower) (dmg, rate float64) {
 	tc := center(t.Cell)
 	for _, a := range g.Towers {
 		spec := g.Cfg.Towers[a.Kind]
-		if a == t || spec.Role != RoleAura || !g.active(a) || center(a.Cell).sub(tc).len() > spec.AuraRange {
+		if a == t || spec.Role != RoleAura || !g.active(a) || center(a.Cell).sub(tc).len() > g.auraRange(a, spec) {
 			continue
 		}
 		m := auraMult(a) * g.classBonus(a.Owner, a.Kind)
@@ -381,6 +381,9 @@ func (g *Game) tickTowers(dt float64) {
 		if spec.WallHeal > 0 {
 			heal := spec.WallHeal * float64(t.Level) * g.classBonus(t.Owner, t.Kind) * dt
 			g.Walls = min(g.Walls+heal, g.Cfg.WallsHP)
+		}
+		if spec.AuraRate > 0 {
+			g.tickNotes(t, dt) // a bard's drums shoot notes while he plays
 		}
 		if spec.Role != RoleShooter {
 			continue
@@ -533,7 +536,7 @@ func (g *Game) drummers(t *Tower) []string {
 	tc := center(t.Cell)
 	for _, a := range g.Towers {
 		spec := g.Cfg.Towers[a.Kind]
-		if spec.AuraRate <= 0 || !g.active(a) || a.Owner == t.Owner || center(a.Cell).sub(tc).len() > spec.AuraRange {
+		if spec.AuraRate <= 0 || !g.active(a) || a.Owner == t.Owner || center(a.Cell).sub(tc).len() > g.auraRange(a, spec) {
 			continue
 		}
 		if !slices.Contains(out, a.Owner) {
@@ -569,7 +572,7 @@ func (g *Game) payAssists(killer string, e *Enemy) {
 
 // heal restores hit points, halved while a trap's cut is fresh.
 func (g *Game) heal(e *Enemy, hp float64) {
-	if e.healCut > 0 {
+	if e.healCut > 0 || e.burnLeft > 0 { // fresh cuts and every burn halve healing
 		hp *= 1 - g.Cfg.TrapHealCut
 	}
 	e.HP = min(e.MaxHP, e.HP+hp)

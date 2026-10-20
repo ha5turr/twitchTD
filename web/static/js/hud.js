@@ -74,6 +74,7 @@ export class Hud {
     this.blasts = new Graphics();
     this.rings = [];
     this.bolts = [];
+    this.fans = [];
     this.ui.addChild(this.blasts, this.floatLayer);
     this.banner = this.text('', ui(84, 0xf2e6c9, { stroke: { color: 0x000000, width: 10 } }), FIELD_CX, TOP + 380, 0.5);
     this.subBanner = this.text('', ui(36, 0xc9b98f), FIELD_CX, TOP + 470, 0.5);
@@ -234,6 +235,32 @@ export class Hud {
         this.bolts.push({ x: p.x, y: p.y, pts, life: 0.3 });
         break;
       }
+      case 'charge':
+        this.toasts.push({ text: `⚔ ${ev.user} несётся по тропе`, color: 0xd8dce8 });
+        break;
+      case 'shove':
+        this.floatAt(ev.x, ev.y - 0.5, 'отброшен!', 0xd8dce8, FONT_UI, 18);
+        break;
+      case 'meteorShower':
+        this.toasts.push({ text: `☄ ${ev.user} вызывает метеоритный дождь`, color: 0xff9a4a });
+        break;
+      case 'meteor': {
+        // A meteor streaks down at a slant and bursts.
+        const p = toPx(ev.x, ev.y);
+        this.bolts.push({ x: p.x, y: p.y, pts: [[p.x + 160, p.y - 240], [p.x, p.y]], life: 0.25, color: 0xffb36b, ring: 0xff6a1a });
+        this.rings.push({ ...p, life: 0.35 });
+        break;
+      }
+      case 'music':
+        this.toasts.push({ text: `♪ ${ev.user} играет: барабаны звучат на всю карту`, color: 0xffd24a });
+        break;
+      case 'shadowstep':
+        this.floatAt(ev.x, ev.y - 0.6, 'теневой прыжок', 0xb08aff, FONT_UI, 18);
+        break;
+      case 'bladefan':
+        this.floatAt(ev.x, ev.y - 0.9, 'веер клинков!', 0xb08aff, FONT_UI, 22);
+        this.fans.push({ ...toPx(ev.x, ev.y), life: 0.4 });
+        break;
       case 'net':
         this.floatAt(ev.x, ev.y - 0.6, 'сеть!', 0xd8c08a, FONT_UI, 20);
         break;
@@ -334,8 +361,16 @@ export class Hud {
       const a = Math.min(1, b.life / 0.15);
       this.blasts.moveTo(b.pts[0][0], b.pts[0][1]);
       for (const [x, y] of b.pts.slice(1)) this.blasts.lineTo(x, y);
-      this.blasts.stroke({ width: 4, color: 0xd8e8ff, alpha: a });
-      this.blasts.circle(b.x, b.y, 60 * (1.3 - a * 0.3)).stroke({ width: 3, color: 0x7ab8ff, alpha: a });
+      this.blasts.stroke({ width: 4, color: b.color ?? 0xd8e8ff, alpha: a });
+      this.blasts.circle(b.x, b.y, 60 * (1.3 - a * 0.3)).stroke({ width: 3, color: b.ring ?? 0x7ab8ff, alpha: a });
+      return true;
+    });
+    // A rogue's fan of blades: a violet ring out to two cells.
+    this.fans = this.fans.filter((f) => {
+      f.life -= dt;
+      if (f.life <= 0) return false;
+      const k = 1 - f.life / 0.4;
+      this.blasts.circle(f.x, f.y, 2 * CELL * k).stroke({ width: 5, color: 0xb08aff, alpha: 1 - k });
       return true;
     });
   }
