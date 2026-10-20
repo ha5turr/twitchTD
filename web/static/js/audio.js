@@ -312,5 +312,5 @@ export const EVENT_SOUNDS = {
   destroyed: 'blast', robbed: 'coin', loot: 'coin', achievement: 'fanfare', rank: 'fanfare',
   lightning: 'strike', maul: 'kill', pickpocket: 'coin', rewardUp: 'fanfare', panther: 'ability', net: 'trap',
   charge: 'ability', meteor: 'blast', meteorShower: 'ability', music: 'drink', shadowstep: 'stun', bladefan: 'kill',
-  pillar: 'build', pathFire: 'blast', arrowRain: 'strike', afk: 'coin',
+  pillar: 'build', pathFire: 'blast', arrowRain: 'strike', afk: 'coin', leave: 'coin',
 };
