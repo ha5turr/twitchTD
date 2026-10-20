@@ -92,8 +92,12 @@ func main() {
 			Present: func(logins []string) {
 				srv.Do(func(g *game.Game) { g.Present(logins) })
 			},
-			Reward: func(u streamerbot.User, title string) {
-				srv.Do(func(g *game.Game) { g.Reward(u.Login, u.Name, title) })
+			Reward: func(u streamerbot.User, r streamerbot.Redemption) {
+				srv.Do(func(g *game.Game) {
+					if g.Reward(u.Login, u.Name, r.Title) {
+						sb.Refund(r) // over the per-game cap
+					}
+				})
 			},
 			Bits: func(u streamerbot.User, bits int) {
 				srv.Do(func(g *game.Game) { g.Bits(u.Login, u.Name, bits) })

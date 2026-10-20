@@ -103,6 +103,7 @@ type Game struct {
 	Banned      map[string]bool   // chatters the streamer forbade to build
 	Dice        []*DiceGame       // games of dice in the tavern
 	Memes       []*MemeRequest    // memecoin requests waiting for the streamer
+	RewardUses  map[string]int    // channel point rewards taken this game, by "title|login"
 	Panthers    []*Panther        // druids on the hunt
 	Runs        []*Run            // charging warriors, rogues in a shadow-step
 	meteors     []*meteor         // a mage's meteor shower, still falling
@@ -171,6 +172,7 @@ func (g *Game) NewGame(biome Biome) {
 	g.queue = nil
 	g.summary = nil
 	g.rewardMult = 1
+	g.RewardUses = nil
 	g.Panthers, g.Runs, g.meteors = nil, nil, nil
 	// Dice stakes go back before wallets reset, so a new game never eats them.
 	for _, d := range g.Dice {

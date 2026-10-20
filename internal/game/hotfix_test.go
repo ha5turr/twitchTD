@@ -1,6 +1,9 @@
 package game
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // placeAs puts a finished building owned by a chatter at cell.
 func placeAs(g *Game, owner, kind string, p Pos) *Tower {
@@ -127,5 +130,29 @@ func TestTrapsSlowEveryone(t *testing.T) {
 	run(g, 1)
 	if e.slowMult != g.Cfg.Towers["trap"].Slow || e.HP > 1000-g.Cfg.Towers["trap"].Damage*0.5 {
 		t.Fatalf("traps slow even the frost-proof and hit hard: slow %.2f hp %.0f", e.slowMult, e.HP)
+	}
+}
+
+func TestRepairCooldown(t *testing.T) {
+	g, _ := newTestGame(t)
+	chatters(g, "anna")
+	g.Chatters["anna"].Gold = 500
+	wall := placeAs(g, "anna", "wall", g.Map.Path[3])
+	wall.HP = wall.MaxHP / 2
+	g.HandleChat(ChatMessage{User: "anna", Text: "!чинить " + wall.Cell.Name()})
+	for i := 0; i < 600 && wall.repairing; i++ {
+		run(g, 0.1)
+	}
+	wall.HP = wall.MaxHP / 2
+	gold := g.Chatters["anna"].Gold
+	g.HandleChat(ChatMessage{User: "anna", Text: "!чинить " + wall.Cell.Name()})
+	if r := lastReply(g); g.Chatters["anna"].Gold != gold || wall.repairing || !strings.Contains(r, "недавно чинили") {
+		t.Fatalf("a fresh repair puts the barricade on cooldown: %q", r)
+	}
+	run(g, g.Cfg.WallRepairCDSec)
+	wall.HP = wall.MaxHP / 2
+	g.HandleChat(ChatMessage{User: "anna", Text: "!чинить " + wall.Cell.Name()})
+	if !wall.repairing {
+		t.Fatalf("after the cooldown it can be mended again: %q", lastReply(g))
 	}
 }

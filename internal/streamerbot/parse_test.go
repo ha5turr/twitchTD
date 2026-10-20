@@ -47,6 +47,10 @@ func TestParseSupportEvents(t *testing.T) {
 	if u := reward.user(); u.Login != "vasya" || reward.rewardTitle() != "Мешок золота" {
 		t.Fatalf("reward %+v %q", u, reward.rewardTitle())
 	}
+	ids, _ := parseEvent([]byte(`{"id":"red-1","user":{"login":"vasya"},"reward":{"id":"rw-9","title":"Мешок золота"}}`))
+	if r := ids.redemption(); r != (Redemption{"Мешок золота", "rw-9", "red-1"}) {
+		t.Fatalf("redemption ids %+v", r)
+	}
 	legacyReward, _ := parseEvent([]byte(`{"userName":"petya","displayName":"Петя","title":"Дождь стрел","cost":100}`))
 	if u := legacyReward.user(); u.Login != "petya" || legacyReward.rewardTitle() != "Дождь стрел" {
 		t.Fatalf("legacy reward %+v %q", u, legacyReward.rewardTitle())

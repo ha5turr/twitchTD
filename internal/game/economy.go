@@ -14,6 +14,9 @@ type RewardSpec struct {
 	Title  string `json:"title"`
 	Action string `json:"action"` // gold | repair | strike | round
 	Amount int    `json:"amount"` // gold, wall HP, or % of max HP for a strike
+	// PerUser caps how many times one viewer can take the reward in a game;
+	// 0 means no cap.
+	PerUser int `json:"perUser,omitempty"`
 }
 
 // Donation is one donation from DonationAlerts.
@@ -66,8 +69,10 @@ func (g *Game) tickTreasury(dt float64) {
 	g.Walls = min(g.Cfg.WallsHP, g.Walls+float64(spend)*g.Cfg.OverflowWallsPerGold)
 }
 
-// Reward handles a channel point redemption.
-func (g *Game) Reward(login, display, title string) {
+// Reward handles a channel point redemption. It reports refused when the
+// viewer has used up the reward's PerUser cap for this game, so the caller
+// can give the points back.
+func (g *Game) Reward(login, display, title string) (refused bool) {
 	var r *RewardSpec
 	for i := range g.Cfg.Rewards {
 		if strings.EqualFold(strings.TrimSpace(g.Cfg.Rewards[i].Title), strings.TrimSpace(title)) {
@@ -75,7 +80,18 @@ func (g *Game) Reward(login, display, title string) {
 		}
 	}
 	if r == nil {
-		return // someone else's reward, not ours
+		return false // someone else's reward, not ours
+	}
+	if r.PerUser > 0 {
+		key := strings.ToLower(r.Title) + "|" + strings.ToLower(login)
+		if g.RewardUses[key] >= r.PerUser {
+			g.reply(display, fmt.Sprintf("«%s» — не больше %d за игру, баллы вернутся.", r.Title, r.PerUser))
+			return true
+		}
+		if g.RewardUses == nil {
+			g.RewardUses = map[string]int{}
+		}
+		g.RewardUses[key]++
 	}
 	ev := Event{Kind: "reward", User: display, Text: r.Title}
 	switch r.Action {
@@ -111,9 +127,10 @@ func (g *Game) Reward(login, display, title string) {
 		}
 		g.reply("", fmt.Sprintf("%s угощает таверну: каждому случайный напиток!", display))
 	default:
-		return
+		return false
 	}
 	g.emit(ev)
+	return false
 }
 
 // Bits pays for a cheer.

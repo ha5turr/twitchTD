@@ -153,6 +153,7 @@ func (g *Game) finish(t *Tower, w *Worker) {
 	if t.repairing {
 		t.repairing = false
 		t.HP = t.MaxHP
+		t.repairCD = g.Cfg.WallRepairCDSec
 		g.emit(Event{Kind: "mended", User: w.Name, X: cp.X, Y: cp.Y})
 		return
 	}

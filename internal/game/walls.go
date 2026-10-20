@@ -7,7 +7,7 @@ import (
 
 // Barricades: they pay their owner a little for every enemy they hold,
 // give part of their price back when broken, can be mended cheaply with
-// !чинить, and shrines mend all of them a bit after every wave.
+// !чинить (once in wallRepairCdSec), and shrines mend all of them a bit after every wave.
 
 // payHold credits the owner for each second an enemy spends hacking at t.
 func (g *Game) payHold(t *Tower, dt float64) {
@@ -84,6 +84,10 @@ func (g *Game) cmdRepair(c *Chatter, key string, args []string) {
 		return
 	}
 	streamer := g.isStreamer(key)
+	if !streamer && t.repairCD > 0 {
+		g.reply(c.Name, fmt.Sprintf("%s: баррикаду недавно чинили, снова можно через %d с", t.Cell.Name(), int(math.Ceil(t.repairCD))))
+		return
+	}
 	if !streamer && !g.canQueue(key) {
 		g.reply(c.Name, fmt.Sprintf("у наёмника уже %d приказа, подожди", g.Cfg.MaxOrders))
 		return

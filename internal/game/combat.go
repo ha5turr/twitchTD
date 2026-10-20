@@ -70,6 +70,7 @@ type Tower struct {
 	drink       float64 // mead: this building hits drink times as hard
 	drinkLeft   float64
 	repairing   bool    // a barricade waits for its mercenary to mend it
+	repairCD    float64 // seconds until the barricade can be mended again
 	holdGold    float64 // gold earned for holding enemies, not paid out yet
 }
 
@@ -372,6 +373,7 @@ func (g *Game) auras(t *Tower) (dmg, rate float64) {
 
 func (g *Game) tickTowers(dt float64) {
 	for _, t := range g.Towers {
+		t.repairCD = max(0, t.repairCD-dt)
 		if t.Disabled > 0 {
 			t.Disabled -= dt
 			continue
