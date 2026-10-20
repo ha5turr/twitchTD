@@ -99,7 +99,7 @@ func (g *Game) towersNear(p vec, r float64) []*Tower {
 func (g *Game) robTavern(e *Enemy) {
 	cut := g.Now().Add(-activeWindow(g.Cfg))
 	for key, c := range g.Chatters {
-		if key == StreamerName || !c.LastSeen.After(cut) || c.Gold <= 0 {
+		if key == StreamerName || !c.Joined || !c.LastSeen.After(cut) || c.Gold <= 0 {
 			continue
 		}
 		take := min(sdfSteal, c.Gold)

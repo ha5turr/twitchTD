@@ -10,7 +10,7 @@ func sdfGame(t *testing.T) (*Game, *Enemy) {
 	g, _ := newTestGame(t)
 	g.Phase = PhaseWave
 	for _, u := range []string{"anna", "boris", "vera"} {
-		g.HandleChat(ChatMessage{User: u, Text: "привет"})
+		g.HandleChat(ChatMessage{User: u, Text: "!play"})
 		g.Chatters[u].Gold = 200
 	}
 	e := g.spawnBoss(sdfKind, 10000)
@@ -22,7 +22,7 @@ func sdfGame(t *testing.T) (*Game, *Enemy) {
 
 func TestClownBuildRules(t *testing.T) {
 	g, _ := newTestGame(t)
-	g.HandleChat(ChatMessage{User: "anna", Text: "привет"})
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
 	g.Chatters["anna"].Gold = 1000
 	p := freeCell(t, g)
 	g.HandleChat(ChatMessage{User: "anna", Text: "!build " + p.Name() + " клоун"})

@@ -75,6 +75,9 @@ export class Hud {
     this.rings = [];
     this.bolts = [];
     this.fans = [];
+    this.pillars = []; // clerics' pillars of light
+    this.pathFires = []; // pyromancers setting the path alight
+    this.volleys = []; // rangers' rain of arrows
     this.ui.addChild(this.blasts, this.floatLayer);
     this.banner = this.text('', ui(84, 0xf2e6c9, { stroke: { color: 0x000000, width: 10 } }), FIELD_CX, TOP + 380, 0.5);
     this.subBanner = this.text('', ui(36, 0xc9b98f), FIELD_CX, TOP + 470, 0.5);
@@ -261,6 +264,28 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.9, 'веер клинков!', 0xb08aff, FONT_UI, 22);
         this.fans.push({ ...toPx(ev.x, ev.y), life: 0.4 });
         break;
+      case 'pillar':
+        // A soft column of light: it swells and fades, no flash.
+        this.pillars.push({ ...toPx(ev.x, ev.y), life: 1.8 });
+        this.toasts.push({ text: `✨ ${ev.user} призывает столп света`, color: 0xfff1c2 });
+        break;
+      case 'pathFire':
+        this.pathFires.push({ life: 1.8 });
+        this.toasts.push({ text: `🔥 ${ev.user} поджигает тропу`, color: 0xff9a4a });
+        break;
+      case 'arrowRain': {
+        const p = toPx(ev.x, ev.y);
+        const arrows = Array.from({ length: 16 }, () => {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.sqrt(Math.random()) * 2 * CELL;
+          return [Math.cos(a) * r, Math.sin(a) * r, Math.random() * 0.25];
+        });
+        this.volleys.push({ ...p, arrows, life: 0.7 });
+        break;
+      }
+      case 'afk':
+        this.toasts.push({ text: `💤 ${ev.user} ушёл: ${ev.amount} з в казну`, color: 0xc9b98f });
+        break;
       case 'net':
         this.floatAt(ev.x, ev.y - 0.6, 'сеть!', 0xd8c08a, FONT_UI, 20);
         break;
@@ -363,6 +388,51 @@ export class Hud {
       for (const [x, y] of b.pts.slice(1)) this.blasts.lineTo(x, y);
       this.blasts.stroke({ width: 4, color: b.color ?? 0xd8e8ff, alpha: a });
       this.blasts.circle(b.x, b.y, 60 * (1.3 - a * 0.3)).stroke({ width: 3, color: b.ring ?? 0x7ab8ff, alpha: a });
+      return true;
+    });
+    // Pillar of light: nested soft columns and a pool of light at the foot,
+    // swelling in and out over the life so it never flashes.
+    this.pillars = this.pillars.filter((p) => {
+      p.life -= dt;
+      if (p.life <= 0) return false;
+      const a = Math.sin(Math.PI * (1 - p.life / 1.8)); // 0 → 1 → 0
+      for (const [w, alpha] of [[70, 0.1], [46, 0.14], [24, 0.2]]) {
+        this.blasts.rect(p.x - w / 2, p.y - 320, w, 320).fill({ color: 0xfff1c2, alpha: alpha * a });
+      }
+      this.blasts.ellipse(p.x, p.y, 56, 20).fill({ color: 0xffe08a, alpha: 0.25 * a });
+      return true;
+    });
+    // The burning path: soft flames all along the route, flickering out.
+    this.pathFires = this.pathFires.filter((f) => {
+      f.life -= dt;
+      if (f.life <= 0 || !this.map) return false;
+      const a = Math.sin(Math.PI * (1 - f.life / 1.8));
+      const route = this.map.route;
+      for (let i = 1; i < route.length; i++) {
+        const [x0, y0] = route[i - 1];
+        const [x1, y1] = route[i];
+        const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) * 2));
+        for (let j = 0; j < n; j++) {
+          const p = toPx(x0 + ((x1 - x0) * j) / n, y0 + ((y1 - y0) * j) / n);
+          const fl = 0.75 + 0.25 * Math.sin(this.t * 18 + i * 3 + j);
+          this.blasts.circle(p.x, p.y, 26 * fl).fill({ color: 0xff6a1a, alpha: 0.22 * a });
+          this.blasts.circle(p.x, p.y - 6, 12 * fl).fill({ color: 0xffc36a, alpha: 0.3 * a });
+        }
+      }
+      return true;
+    });
+    // Rain of arrows: short shafts falling onto the area.
+    this.volleys = this.volleys.filter((v) => {
+      v.life -= dt;
+      if (v.life <= 0) return false;
+      const t = 0.7 - v.life;
+      for (const [dx, dy, delay] of v.arrows) {
+        const k = Math.min(1, Math.max(0, (t - delay) / 0.3));
+        if (k <= 0 || k >= 1) continue;
+        const y = v.y + dy - 200 * (1 - k);
+        this.blasts.moveTo(v.x + dx + 6, y - 22).lineTo(v.x + dx, y);
+      }
+      this.blasts.stroke({ width: 3, color: 0xe8d8b0 });
       return true;
     });
     // A rogue's fan of blades: a violet ring out to two cells.

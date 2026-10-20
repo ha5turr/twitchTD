@@ -4,7 +4,7 @@ import "testing"
 
 func TestClassChangeOncePerGame(t *testing.T) {
 	g, _ := newTestGame(t)
-	g.HandleChat(ChatMessage{User: "zoe", Text: "привет"})
+	g.HandleChat(ChatMessage{User: "zoe", Text: "!play"})
 	c := g.Chatters["zoe"]
 	if _, ok := classByKey(c.Class); !ok {
 		t.Fatalf("new chatter should get a class, got %q", c.Class)

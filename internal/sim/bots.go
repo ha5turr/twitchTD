@@ -34,7 +34,7 @@ func bot(ctx context.Context, name string, seed uint64, chat func(game.ChatMessa
 			chat(game.ChatMessage{User: name, Text: text})
 		}
 	}
-	send("привет")
+	send("!play")
 	for {
 		select {
 		case <-ctx.Done():

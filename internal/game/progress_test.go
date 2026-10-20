@@ -46,7 +46,7 @@ func TestHelpCooldown(t *testing.T) {
 func TestSoulsAtGameOver(t *testing.T) {
 	g, _ := newTestGame(t)
 	for _, u := range []string{"anna", "boris", "vera"} {
-		g.HandleChat(ChatMessage{User: u, Text: "привет"})
+		g.HandleChat(ChatMessage{User: u, Text: "!play"})
 	}
 	g.Chatters["anna"].Gold, g.Chatters["anna"].GameDamage, g.Chatters["anna"].GameKills = 400, 2000, 30
 	g.Chatters["boris"].Gold = 1000 // chatted a lot, never fought
@@ -69,7 +69,7 @@ func TestSoulsAtGameOver(t *testing.T) {
 func TestAchievementsPayOnce(t *testing.T) {
 	g, _ := newTestGame(t)
 	g.Phase = PhaseWave
-	g.HandleChat(ChatMessage{User: "anna", Text: "привет"})
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
 	e := enemyAt(g, "skeleton", 3, 10)
 	g.damage(e, 100, "anna", true)
 	c := g.Chatters["anna"]
@@ -90,7 +90,7 @@ func TestAchievementsPayOnce(t *testing.T) {
 
 func TestMemeRequests(t *testing.T) {
 	g, _ := newTestGame(t)
-	g.HandleChat(ChatMessage{User: "anna", Text: "привет"})
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
 	c := g.Chatters["anna"]
 	c.Souls = 100
 	g.HandleChat(ChatMessage{User: "anna", Text: "!мемы 20"})
@@ -119,7 +119,7 @@ func TestMemeRequests(t *testing.T) {
 
 func TestProgressSurvivesSave(t *testing.T) {
 	g, _ := newTestGame(t)
-	g.HandleChat(ChatMessage{User: "anna", Text: "привет"})
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
 	c := g.Chatters["anna"]
 	c.Souls = 42
 	g.unlock("anna", "drunkard")
@@ -138,7 +138,7 @@ func TestProgressSurvivesSave(t *testing.T) {
 
 func TestRanksFollowLifetimeSouls(t *testing.T) {
 	g, _ := newTestGame(t)
-	g.HandleChat(ChatMessage{User: "anna", Text: "привет"})
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
 	c := g.Chatters["anna"]
 	if c.rank() != 0 || Ranks[0].Name != "Неофит" {
 		t.Fatal("everyone starts as Неофит")

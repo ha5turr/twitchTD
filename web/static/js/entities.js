@@ -159,13 +159,17 @@ class EnemyView {
       this.bar.rect(-w / 2, 0, w, 6).fill({ color: 0x000000, alpha: 0.7 });
       this.bar.rect(-w / 2, 0, w * f, 6).fill(f > 0.5 ? 0x5fd35f : f > 0.25 ? 0xe0b03a : 0xe04a3a);
     }
-    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '');
+    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
       this.fx.clear();
       if (e.slow) this.fx.ellipse(0, r * 0.8, r * 1.1, r * 0.35).stroke({ width: 3, color: 0x8fd4ff });
       if (e.shield) this.fx.arc(0, 0, r + 8, -2.2, 2.2).stroke({ width: 5, color: 0xffe08a });
+      if (e.stun) {
+        // Dazed by holy light: a soft golden halo over the head.
+        this.fx.ellipse(0, -r - 8, r * 0.6, 6).stroke({ width: 3, color: 0xffe08a, alpha: 0.9 });
+      }
       if (e.net) {
         // A rope net thrown over the body: a diamond mesh inside a ring.
         const n = r + 6;

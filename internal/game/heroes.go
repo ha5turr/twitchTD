@@ -57,6 +57,7 @@ func (g *Game) tickHeroes(dt float64) {
 			every := map[string]float64{
 				"warrior": g.Cfg.WarriorEverySec, "mage": g.Cfg.MageEverySec,
 				"bard": g.Cfg.BardEverySec, "rogue": g.Cfg.RogueStepEverySec,
+				"cleric": g.Cfg.ClericEverySec, "pyro": g.Cfg.PyroEverySec, "ranger": g.Cfg.RangerEverySec,
 			}[c.Class]
 			if every <= 0 {
 				continue
@@ -80,6 +81,12 @@ func (g *Game) tickHeroes(dt float64) {
 				g.emit(Event{Kind: "music", User: c.Name})
 			case "rogue":
 				g.shadowStep(key, c)
+			case "cleric":
+				g.pillarOfLight(key, c)
+			case "pyro":
+				g.setPathAlight(key, c)
+			case "ranger":
+				g.arrowRain(key, c)
 			}
 		}
 	}
@@ -233,9 +240,11 @@ func (g *Game) tickNotes(t *Tower, dt float64) {
 	})
 }
 
-// auraRange is how far an aura reaches: the whole map while its bard plays.
+// auraRange is how far an aura reaches. A shrine's damage buff covers the
+// whole map, always (a design rule: do not shrink it in balance passes); a
+// bard's drums do too while he plays.
 func (g *Game) auraRange(a *Tower, spec TowerSpec) float64 {
-	if spec.AuraRate > 0 && g.playing(a.Owner) {
+	if spec.AuraDmg > 0 || spec.AuraRate > 0 && g.playing(a.Owner) {
 		return math.Inf(1)
 	}
 	return spec.AuraRange
@@ -246,4 +255,75 @@ func (g *Game) auraRange(a *Tower, spec TowerSpec) float64 {
 // number of mercenaries, so they must not also grow with the chat's size.
 func (g *Game) skillHP() float64 {
 	return g.Cfg.BaseHP * math.Pow(g.Cfg.HPGrowth, float64(max(g.Wave, 1)))
+}
+
+// Hotfix 5 skills: the cleric's pillar of light, the pyromancer's burning
+// path and the ranger's rain of arrows.
+
+// crowdSpot is the enemy with the most others within r of it: where an
+// area skill hits hardest. With a single enemy it is that one.
+func (g *Game) crowdSpot(r float64) (vec, bool) {
+	var at *Enemy
+	best := 0
+	for _, e := range g.Enemies {
+		if e.dead || e.tavernLeft > 0 {
+			continue
+		}
+		n := 0
+		for _, o := range g.Enemies {
+			if !o.dead && o.Pos.sub(e.Pos).len() <= r {
+				n++
+			}
+		}
+		if n > best || n == best && at != nil && e.Dist > at.Dist {
+			at, best = e, n
+		}
+	}
+	if at == nil {
+		return vec{}, false
+	}
+	return at.Pos, true
+}
+
+// pillarOfLight stuns every enemy in the crowdest cell and hurts them.
+func (g *Game) pillarOfLight(key string, c *Chatter) {
+	p, ok := g.crowdSpot(g.Cfg.PillarRadius)
+	if !ok {
+		return
+	}
+	for _, e := range g.Enemies {
+		if !e.dead && e.Pos.sub(p).len() <= g.Cfg.PillarRadius {
+			e.stunLeft = max(e.stunLeft, g.Cfg.PillarStunSec)
+			g.damage(e, g.skillHP()*g.Cfg.PillarDmg, key, true)
+		}
+	}
+	g.emit(Event{Kind: "pillar", User: c.Name, X: p.X, Y: p.Y})
+}
+
+// setPathAlight sets the whole path on fire: a hit and a burn for every
+// enemy on it (burning halves healing, see heal).
+func (g *Game) setPathAlight(key string, c *Chatter) {
+	for _, e := range g.Enemies {
+		if e.dead || e.tavernLeft > 0 || e.offAmt > 0.5 {
+			continue // only those on the path
+		}
+		e.burnLeft, e.burnDPS, e.burnOwner = g.Cfg.PathFireBurnSec, g.skillHP()*g.Cfg.PathFireBurn, key
+		g.damage(e, g.skillHP()*g.Cfg.PathFireDmg, key, true)
+	}
+	g.emit(Event{Kind: "pathFire", User: c.Name})
+}
+
+// arrowRain looses a volley over the thickest crowd: everyone within
+// ArrowRainRadius is hit.
+func (g *Game) arrowRain(key string, c *Chatter) {
+	p, ok := g.crowdSpot(g.Cfg.ArrowRainRadius)
+	if !ok {
+		return
+	}
+	for _, e := range g.Enemies {
+		if !e.dead && e.Pos.sub(p).len() <= g.Cfg.ArrowRainRadius {
+			g.damage(e, g.skillHP()*g.Cfg.ArrowRainDmg, key, false)
+		}
+	}
+	g.emit(Event{Kind: "arrowRain", User: c.Name, X: p.X, Y: p.Y})
 }
