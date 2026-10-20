@@ -63,6 +63,9 @@ type StateMsg struct {
 	Summary  *Summary       `json:"summary,omitempty"` // only on the game over screen
 	Dice     []DiceView     `json:"dice"`
 	Memes    []*MemeRequest `json:"memes,omitempty"` // memecoin requests for the panel
+	Panthers []PantherView  `json:"panthers,omitempty"`
+	Runs     []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
+	Reward   float64        `json:"reward,omitempty"` // reward multiplier, above 1 after boss waves
 }
 
 type EnemyView struct {
@@ -78,6 +81,7 @@ type EnemyView struct {
 	Burn   bool    `json:"burn,omitempty"`
 	Shield bool    `json:"shield,omitempty"`
 	Act    int     `json:"act,omitempty"` // ЭссДиЭф: 1 burping, 2 farting
+	Net    bool    `json:"net,omitempty"` // tangled in a ballista net
 }
 
 type TowerView struct {
@@ -121,7 +125,8 @@ type ChatterView struct {
 	Active bool   `json:"active"`
 	Banned bool   `json:"banned,omitempty"`
 	Souls  int    `json:"souls,omitempty"`
-	Rank   int    `json:"rank,omitempty"` // index in Ranks
+	Rank   int    `json:"rank,omitempty"`  // index in Ranks
+	Music  bool   `json:"music,omitempty"` // a bard playing
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
@@ -138,7 +143,7 @@ func (g *Game) StateMessage() StateMsg {
 	for _, e := range g.Enemies {
 		s.Enemies = append(s.Enemies, EnemyView{
 			e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP),
-			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act,
+			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0,
 		})
 	}
 	owners := map[string]int{}
@@ -166,7 +171,7 @@ func (g *Game) StateMessage() StateMsg {
 			continue
 		}
 		s.Chatters = append(s.Chatters, ChatterView{
-			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(),
+			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(), c.musicLeft > 0,
 		})
 	}
 	s.Dice = []DiceView{}
@@ -174,6 +179,13 @@ func (g *Game) StateMessage() StateMsg {
 		s.Dice = append(s.Dice, DiceView{d.ID, d.Table, d.HostName, d.Stake, d.GuestName, d.GuestStake, math.Ceil(d.wait)})
 	}
 	s.Memes = g.Memes
+	for _, r := range g.Runs {
+		s.Runs = append(s.Runs, RunView{r.Name, r.Kind, round2(r.Pos.X), round2(r.Pos.Y)})
+	}
+	for _, p := range g.Panthers {
+		s.Panthers = append(s.Panthers, PantherView{p.Name, round2(p.Pos.X), round2(p.Pos.Y)})
+	}
+	s.Reward = round2(g.rewardMult)
 	if g.Phase == PhaseGameOver {
 		s.Summary = g.summary
 	}
@@ -198,4 +210,19 @@ type DiceView struct {
 	Guest      string  `json:"guest,omitempty"`
 	GuestStake int     `json:"guestStake,omitempty"`
 	Wait       float64 `json:"wait"` // seconds left for an opponent
+}
+
+// PantherView is a druid on the hunt.
+type PantherView struct {
+	Name string  `json:"name"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+}
+
+// RunView is a mercenary out on a class skill: "charge" or "step".
+type RunView struct {
+	Name string  `json:"name"`
+	Kind string  `json:"kind"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
 }

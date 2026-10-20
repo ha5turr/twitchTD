@@ -26,10 +26,13 @@ type Config struct {
 	// ReplyAction, when set, sends replies by running this Streamer.bot action
 	// with a "message" argument instead of the built-in SendMessage request.
 	ReplyAction string `json:"replyAction"`
+	// ReplyPrefix starts every reply; "/me " makes the bot's lines stand out
+	// in chat. An empty string sends them plain.
+	ReplyPrefix string `json:"replyPrefix"`
 }
 
 func DefaultConfig() Config {
-	return Config{URL: "ws://127.0.0.1:8080/", SendAsBot: true}
+	return Config{URL: "ws://127.0.0.1:8080/", SendAsBot: true, ReplyPrefix: "/me "}
 }
 
 // Role values Streamer.bot uses for Twitch users.
@@ -94,6 +97,7 @@ func (c *Client) Run(ctx context.Context) {
 
 // Send queues a chat message. It is dropped while disconnected.
 func (c *Client) Send(message string) {
+	message = c.cfg.ReplyPrefix + message
 	var req map[string]any
 	if c.cfg.ReplyAction != "" {
 		req = map[string]any{

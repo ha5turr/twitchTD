@@ -1,6 +1,9 @@
 package game
 
-import "slices"
+import (
+	"math"
+	"slices"
+)
 
 // Save is what survives a server restart or a pause between stream breaks:
 // the map is regenerated from its seed, enemies in flight are dropped and the
@@ -110,6 +113,9 @@ func (g *Game) Restore(s Save) {
 	g.Phase = PhaseBuild
 	g.Timer = g.Cfg.FirstBuildPhaseSec
 	g.Wave = max(s.Wave-1, 0) // an interrupted wave is played again
+	if g.Cfg.BossEvery > 0 {  // the rewards grown by the boss waves already held
+		g.rewardMult = math.Pow(1+g.Cfg.RewardGrowth, float64(g.Wave/g.Cfg.BossEvery))
+	}
 	g.Walls = s.Walls
 	g.Enemies, g.Projectiles, g.queue = nil, nil, nil
 	g.Towers = map[Pos]*Tower{}

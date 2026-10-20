@@ -1,6 +1,7 @@
 package game
 
 import (
+	"maps"
 	"math"
 	"slices"
 )
@@ -26,6 +27,14 @@ type Enemy struct {
 	traps     map[int]bool // traps already sprung by this enemy
 	ability   float64      // boss ability cooldown
 	shieldUp  bool
+
+	// Traps (hotfix 2): bleeding, and healing cut while the cut is fresh.
+	bleedLeft  float64
+	bleedDPS   float64
+	bleedOwner string
+	healCut    float64         // seconds left of halved healing
+	netLeft    float64         // seconds left tangled in a ballista net
+	helpers    map[string]bool // trap owners who hurt it: they share the kill
 
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
@@ -55,6 +64,10 @@ type Tower struct {
 	Charges     int     // traps
 	Disabled    float64 // seconds left webbed, stunned or frozen by a boss
 	cooldown    float64
+	strikeCD    float64 // magic: seconds to the next lightning strike
+	netCD       float64 // ballista: seconds to the next net
+	drink       float64 // mead: this building hits drink times as hard
+	drinkLeft   float64
 	repairing   bool    // a barricade waits for its mercenary to mend it
 	holdGold    float64 // gold earned for holding enemies, not paid out yet
 }
@@ -92,7 +105,7 @@ func (g *Game) readyTower(t *Tower) {
 		t.MaxHP = spec.HP * g.levelMult(t) * bonus
 		t.HP = t.MaxHP
 	case RoleTrap:
-		t.Charges = spec.Charges + 2*(t.Level-1)
+		t.Charges = spec.Charges + spec.Charges/3*(t.Level-1) // a third more per level
 	}
 }
 
@@ -121,7 +134,7 @@ func (g *Game) StartWave() {
 	if g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0 {
 		pair := biomeBosses[g.Map.Biome]
 		boss = pair[(g.Wave/g.Cfg.BossEvery-1)%len(pair)]
-		if g.rng.Float64() < g.Cfg.SdfChance {
+		if g.Wave >= g.Cfg.SdfFromWave && g.rng.Float64() < g.Cfg.SdfChance {
 			boss = sdfKind // a guest from nowhere, in any biome
 		}
 		g.queue = append(g.queue, spawn{boss, g.waveHP * g.Cfg.BossHPMult * g.Cfg.Enemies[boss].HPMult})
@@ -135,7 +148,12 @@ func (g *Game) endWave() {
 	g.Timer = g.Cfg.BuildPhaseSec
 	g.packClowns()
 	g.shrinesMendWalls()
-	bonus := 10 + 2*g.Wave
+	bonus := int(math.Round(float64(10+2*g.Wave) * g.rewardMult))
+	if g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0 {
+		// A boss wave held: from now on every reward is worth more.
+		g.rewardMult *= 1 + g.Cfg.RewardGrowth
+		g.emit(Event{Kind: "rewardUp", Amount: int(math.Round((g.rewardMult - 1) * 100))})
+	}
 	owners := map[string]bool{}
 	for _, t := range g.Towers {
 		owners[t.Owner] = true
@@ -208,9 +226,17 @@ func (g *Game) tickEnemies(dt float64) {
 				continue
 			}
 		}
-		if spec.Regen > 0 {
-			e.HP = min(e.MaxHP, e.HP+spec.Regen*e.MaxHP*dt)
+		if e.bleedLeft > 0 {
+			e.bleedLeft -= dt
+			g.damage(e, e.bleedDPS*dt, e.bleedOwner, true)
+			if e.dead {
+				continue
+			}
 		}
+		e.healCut = max(0, e.healCut-dt)
+		e.netLeft = max(0, e.netLeft-dt)
+		// Every enemy slowly closes its wounds; trolls much faster.
+		g.heal(e, (g.Cfg.EnemyRegen+spec.Regen)*e.MaxHP*dt)
 		if spec.Heal > 0 {
 			g.healAround(e, spec.Heal*dt)
 		}
@@ -228,6 +254,7 @@ func (g *Game) tickEnemies(dt float64) {
 			// Guards on the walls shoot back, so a leak costs hit points but
 			// is not the end by itself; a boss at the gate still is.
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
+		case e.netLeft > 0: // tangled in a ballista net: neither walks nor hacks
 		case e.blocked != nil:
 			g.hackBarricade(e, spec, dt)
 		case e.pause > 0 || e.tavernLeft > 0: // ЭссДиЭф busy with a trick
@@ -282,7 +309,16 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 	// snap with its full damage.
 	e.slowMult = ts.Slow
 	e.slowLeft = ts.SlowSec
-	g.damage(e, ts.Damage*g.levelMult(t)*g.classBonus(t.Owner, t.Kind), t.Owner, false)
+	dmg := ts.Damage * g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * g.drinkMult(t)
+	// The cut keeps bleeding, harder from a better trap, and halves healing
+	// for a while; whoever set the trap shares the kill.
+	e.bleedLeft, e.bleedDPS, e.bleedOwner = g.Cfg.TrapBleedSec, dmg*g.Cfg.TrapBleed, t.Owner
+	e.healCut = g.Cfg.TrapHealCutSec
+	if e.helpers == nil {
+		e.helpers = map[string]bool{}
+	}
+	e.helpers[t.Owner] = true
+	g.damage(e, dmg, t.Owner, false)
 	cp := center(t.Cell)
 	g.emit(Event{Kind: "trap", X: cp.X, Y: cp.Y, Amount: t.Charges})
 }
@@ -310,7 +346,7 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, dt float64) {
 func (g *Game) healAround(healer *Enemy, share float64) {
 	for _, o := range g.Enemies {
 		if o != healer && !o.dead && o.Pos.sub(healer.Pos).len() <= 1.5 {
-			o.HP = min(o.MaxHP, o.HP+share*o.MaxHP)
+			g.heal(o, share*o.MaxHP)
 		}
 	}
 }
@@ -322,7 +358,7 @@ func (g *Game) auras(t *Tower) (dmg, rate float64) {
 	tc := center(t.Cell)
 	for _, a := range g.Towers {
 		spec := g.Cfg.Towers[a.Kind]
-		if a == t || spec.Role != RoleAura || !g.active(a) || center(a.Cell).sub(tc).len() > spec.AuraRange {
+		if a == t || spec.Role != RoleAura || !g.active(a) || center(a.Cell).sub(tc).len() > g.auraRange(a, spec) {
 			continue
 		}
 		m := auraMult(a) * g.classBonus(a.Owner, a.Kind)
@@ -346,8 +382,17 @@ func (g *Game) tickTowers(dt float64) {
 			heal := spec.WallHeal * float64(t.Level) * g.classBonus(t.Owner, t.Kind) * dt
 			g.Walls = min(g.Walls+heal, g.Cfg.WallsHP)
 		}
+		if spec.AuraRate > 0 {
+			g.tickNotes(t, dt) // a bard's drums shoot notes while he plays
+		}
 		if spec.Role != RoleShooter {
 			continue
+		}
+		if spec.NetEvery > 0 {
+			g.tickNet(t, spec, dt)
+		}
+		if spec.StrikeEvery > 0 {
+			g.tickStrike(t, spec, dt)
 		}
 		t.cooldown -= dt
 		if t.cooldown > 0 {
@@ -368,7 +413,7 @@ func (g *Game) tickTowers(dt float64) {
 		}
 		dmgAura, rateAura := g.auras(t)
 		t.cooldown = 1 / (spec.Rate * rateAura)
-		mult := g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * dmgAura
+		mult := g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * dmgAura * g.drinkMult(t)
 		damage := spec.Damage * mult
 		if spec.BossPct > 0 {
 			damage = spec.BossPct * target.MaxHP * mult
@@ -463,7 +508,7 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	if e.hurtBy != nil {
 		g.crownClown(e)
 	}
-	bounty := g.Cfg.Enemies[e.Kind].Bounty
+	bounty := int(math.Round(float64(g.Cfg.Enemies[e.Kind].Bounty) * g.rewardMult))
 	if e.summoned {
 		bounty = 1
 	}
@@ -491,7 +536,7 @@ func (g *Game) drummers(t *Tower) []string {
 	tc := center(t.Cell)
 	for _, a := range g.Towers {
 		spec := g.Cfg.Towers[a.Kind]
-		if spec.AuraRate <= 0 || !g.active(a) || a.Owner == t.Owner || center(a.Cell).sub(tc).len() > spec.AuraRange {
+		if spec.AuraRate <= 0 || !g.active(a) || a.Owner == t.Owner || center(a.Cell).sub(tc).len() > g.auraRange(a, spec) {
 			continue
 		}
 		if !slices.Contains(out, a.Owner) {
@@ -507,11 +552,97 @@ func (g *Game) payAssists(killer string, e *Enemy) {
 	if e.summoned {
 		return
 	}
-	share := int(math.Round(float64(g.Cfg.Enemies[e.Kind].Bounty) * g.Cfg.DrumAssistPct))
+	// Drummers behind the killing shot and trap owners who cut it share it.
+	pct := map[string]float64{}
 	for _, key := range g.assist {
+		pct[key] = g.Cfg.DrumAssistPct
+	}
+	for key := range e.helpers {
+		pct[key] = max(pct[key], g.Cfg.TrapAssistPct)
+	}
+	bounty := float64(g.Cfg.Enemies[e.Kind].Bounty) * g.rewardMult
+	for _, key := range slices.Sorted(maps.Keys(pct)) {
+		share := int(math.Round(bounty * pct[key]))
 		if c := g.Chatters[key]; c != nil && key != killer && key != StreamerName && share > 0 {
 			got := g.addGold(c, share)
 			g.emit(Event{Kind: "assist", User: c.Name, X: e.Pos.X, Y: e.Pos.Y, Amount: got})
 		}
 	}
+}
+
+// heal restores hit points, halved while a trap's cut is fresh.
+func (g *Game) heal(e *Enemy, hp float64) {
+	if e.healCut > 0 || e.burnLeft > 0 { // fresh cuts and every burn halve healing
+		hp *= 1 - g.Cfg.TrapHealCut
+	}
+	e.HP = min(e.MaxHP, e.HP+hp)
+}
+
+// tickStrike lets a magic tower call lightning on the thickest crowd in its
+// range. The bolt comes more often and hits harder with every level.
+func (g *Game) tickStrike(t *Tower, spec TowerSpec, dt float64) {
+	t.strikeCD -= dt
+	if t.strikeCD > 0 {
+		return
+	}
+	tc := center(t.Cell)
+	var at *Enemy
+	best := 0
+	for _, e := range g.Enemies {
+		if e.dead || e.Pos.sub(tc).len() > spec.Range {
+			continue
+		}
+		n := 0
+		for _, o := range g.Enemies {
+			if !o.dead && o.Pos.sub(e.Pos).len() <= spec.StrikeRadius {
+				n++
+			}
+		}
+		if n > best {
+			at, best = e, n
+		}
+	}
+	if at == nil {
+		return // waits charged until someone comes
+	}
+	t.strikeCD = spec.StrikeEvery / (1 + 0.25*float64(t.Level-1))
+	dmgAura, _ := g.auras(t)
+	dmg := spec.Damage * spec.StrikeDmg * g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * dmgAura * g.drinkMult(t)
+	p := at.Pos
+	g.assist = g.drummers(t)
+	for _, e := range g.Enemies {
+		if !e.dead && e.Pos.sub(p).len() <= spec.StrikeRadius {
+			g.damage(e, dmg, t.Owner, true)
+		}
+	}
+	g.assist = nil
+	g.emit(Event{Kind: "lightning", X: p.X, Y: p.Y, Text: t.Owner})
+}
+
+// tickNet lets a ballista throw a net at the enemy furthest along in range:
+// everyone within NetRadius of it stops for NetSec, unhurt. Better
+// ballistas throw more often.
+func (g *Game) tickNet(t *Tower, spec TowerSpec, dt float64) {
+	t.netCD -= dt
+	if t.netCD > 0 {
+		return
+	}
+	tc := center(t.Cell)
+	var at *Enemy
+	for _, e := range g.Enemies {
+		if !e.dead && e.netLeft <= 0 && e.Pos.sub(tc).len() <= spec.Range && (at == nil || e.Dist > at.Dist) {
+			at = e
+		}
+	}
+	if at == nil {
+		return // keeps the net ready until someone comes
+	}
+	t.netCD = spec.NetEvery / (1 + 0.25*float64(t.Level-1))
+	p := at.Pos
+	for _, e := range g.Enemies {
+		if !e.dead && e.Pos.sub(p).len() <= spec.NetRadius {
+			e.netLeft = spec.NetSec
+		}
+	}
+	g.emit(Event{Kind: "net", X: p.X, Y: p.Y, Text: t.Owner})
 }

@@ -7,6 +7,11 @@ import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
+// Drums of war: their aura reaches DRUM_RANGE cells (the drums' auraRange in
+// config.go), shown as a pulse every DRUM_EVERY seconds.
+const DRUM_RANGE = 3;
+const DRUM_EVERY = 5;
+
 export class Entities {
   constructor() {
     this.world = new Container(); // affected by lighting
@@ -15,11 +20,13 @@ export class Entities {
     this.towers = new Map();
     this.proj = new Map();
     this.workers = new Map();
+    this.panthers = new Map(); // druids on the hunt
+    this.runs = new Map(); // charging warriors, shadow-stepping rogues
     this.t = 0;
   }
 
   clear() {
-    for (const m of [this.enemies, this.towers, this.proj, this.workers]) {
+    for (const m of [this.enemies, this.towers, this.proj, this.workers, this.panthers, this.runs]) {
       for (const v of m.values()) v.destroy();
       m.clear();
     }
@@ -29,8 +36,14 @@ export class Entities {
     sync(this.enemies, state.enemies, (e) => new EnemyView(e, this), (v, e) => v.set(e));
     sync(this.towers, state.towers, (t) => new TowerView(t, this), (v, t) => v.set(t));
     sync(this.proj, state.proj, (p) => new ProjView(p, this), (v, p) => v.set(p));
-    const workers = (state.workers ?? []).map((w) => ({ ...w, id: w.name }));
+    // A mercenary resting after a scare is back inside: it sits in the tavern,
+    // not at the gate, even while enemies batter the gate till the wave ends.
+    const workers = (state.workers ?? []).filter((w) => w.state !== 'rest').map((w) => ({ ...w, id: w.name }));
     sync(this.workers, workers, (w) => new WorkerView(w, this), (v, w) => v.set(w));
+    const panthers = (state.panthers ?? []).map((p) => ({ ...p, id: p.name }));
+    sync(this.panthers, panthers, (p) => new PantherView(p, this), (v, p) => v.set(p));
+    const runs = (state.runs ?? []).map((r) => ({ ...r, id: r.name }));
+    sync(this.runs, runs, (r) => new RunView(r, this), (v, r) => v.set(r));
   }
 
   // Names of mercenaries currently out of the tavern.
@@ -44,6 +57,8 @@ export class Entities {
     for (const v of this.enemies.values()) v.frame(k, this.t);
     for (const v of this.proj.values()) v.frame(Math.min(1, dt * 30));
     for (const v of this.workers.values()) v.frame(k, dt);
+    for (const v of this.panthers.values()) v.frame(k, this.t);
+    for (const v of this.runs.values()) v.frame(Math.min(1, dt * 20), this.t);
     for (const v of this.towers.values()) v.frame(this.t, this.enemies);
   }
 
@@ -56,6 +71,7 @@ export class Entities {
     }
     // Each mercenary carries a lantern, so it is visible on dark ground.
     for (const w of this.workers.values()) out.push({ x: w.root.x, y: w.root.y - 10, r: 80, color: 0xffcf8a, a: 0.7 });
+    for (const p of this.panthers.values()) out.push({ x: p.root.x, y: p.root.y - 10, r: 70, color: 0xb0ff8a, a: 0.6 });
     for (const p of this.proj.values()) {
       if (p.kind === 'magic') out.push({ x: p.root.x, y: p.root.y, r: 70, color: 0xb58cff, a: 0.8 });
       if (p.kind === 'fire') out.push({ x: p.root.x, y: p.root.y, r: 90, color: 0xff7a2a, a: 0.9 });
@@ -143,13 +159,26 @@ class EnemyView {
       this.bar.rect(-w / 2, 0, w, 6).fill({ color: 0x000000, alpha: 0.7 });
       this.bar.rect(-w / 2, 0, w * f, 6).fill(f > 0.5 ? 0x5fd35f : f > 0.25 ? 0xe0b03a : 0xe04a3a);
     }
-    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '');
+    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
       this.fx.clear();
       if (e.slow) this.fx.ellipse(0, r * 0.8, r * 1.1, r * 0.35).stroke({ width: 3, color: 0x8fd4ff });
       if (e.shield) this.fx.arc(0, 0, r + 8, -2.2, 2.2).stroke({ width: 5, color: 0xffe08a });
+      if (e.net) {
+        // A rope net thrown over the body: a diamond mesh inside a ring.
+        const n = r + 6;
+        const s = Math.SQRT1_2;
+        for (let d = -n + 5; d < n; d += 10) {
+          const h = Math.sqrt(n * n - d * d); // half the chord at distance d
+          // Chords along both diagonals, so the mesh stays inside the ring.
+          this.fx.moveTo(d * s - h * s, d * -s - h * s).lineTo(d * s + h * s, d * -s + h * s);
+          this.fx.moveTo(d * s - h * s, d * s + h * s).lineTo(d * s + h * s, d * s - h * s);
+        }
+        this.fx.stroke({ width: 2, color: 0xd8c08a, alpha: 0.9 });
+        this.fx.circle(0, 0, n).stroke({ width: 3, color: 0x8a6a3a });
+      }
     }
   }
 
@@ -291,6 +320,21 @@ class TowerView {
     this.web.visible = this.disabled;
     this.web.rotation = Math.sin(t) * 0.05;
     if (this.art?.aimSprite && enemies) this.aim(enemies);
+    if (this.kind === 'drums') this.drumPulse(t);
+  }
+
+  // drumPulse shows the reach of the drums' aura now and then: a faint warm
+  // ring that rolls out to the edge of it every few seconds, like a beat.
+  drumPulse(t) {
+    if (!this.pulse) {
+      this.pulse = new Graphics();
+      this.root.addChildAt(this.pulse, 0);
+      this.phase = Math.random() * DRUM_EVERY;
+    }
+    const k = ((t + this.phase) % DRUM_EVERY) / 1.4; // the ring lives 1.4 s
+    this.pulse.clear();
+    if (k >= 1 || !this.built || this.disabled) return;
+    this.pulse.circle(0, 0, (0.25 + 0.75 * k) * DRUM_RANGE * CELL).stroke({ width: 3, color: 0xffb36b, alpha: 0.28 * (1 - k) });
   }
 
   // aim turns the ballista toward the nearest enemy in reach, one of four
@@ -410,6 +454,10 @@ class ProjView {
     this.kind = p.kind;
     if (p.kind === 'clown') {
       this.root = emoji('🤡', 30); // clowns throw clowns
+    } else if (p.kind === 'note') {
+      // A bard's drums throw notes while the music plays.
+      this.root = new Text({ text: Math.random() < 0.5 ? '♪' : '♫', style: { fontSize: 30, fontWeight: '700', fill: 0xffd24a, stroke: { color: 0x2a1a0c, width: 4 } } });
+      this.root.anchor.set(0.5);
     } else {
       this.root = new Graphics();
       drawProjectile(this.root, p.kind);
@@ -431,5 +479,87 @@ class ProjView {
 
   destroy() {
     this.root.destroy();
+  }
+}
+
+// A druid turned black panther, mauling enemies on the field: Shepardskin's
+// black cat, scaled up, running.
+class PantherView {
+  constructor(p, layer) {
+    this.root = new Container();
+    this.body = hasTileset() && sprite('panther_run', 3.4, 0.25);
+    if (!this.body) {
+      this.body = new Graphics();
+      this.body.ellipse(0, -10, 22, 11).fill(0x1a1a22).circle(18, -18, 8).fill(0x1a1a22).circle(21, -20, 2).fill(0xd8ff5a);
+    }
+    this.root.addChild(this.body);
+    this.name = new Text({ text: p.name, style: { fontFamily: FONT_UI, fontSize: 14, fontWeight: '700', fill: nickColor(p.name), stroke: { color: 0x000000, width: 4 } } });
+    this.name.anchor.set(0.5, 1);
+    this.name.y = -this.body.height - 4;
+    this.root.addChild(this.name);
+    const px = toPx(p.x, p.y);
+    this.root.position.set(px.x, px.y + 20);
+    this.target = { x: this.root.x, y: this.root.y };
+    this.t = Math.random() * 6;
+    layer.world.addChild(this.root);
+  }
+
+  set(p) {
+    const px = toPx(p.x, p.y);
+    this.target = { x: px.x, y: px.y + 20 };
+  }
+
+  frame(k, t) {
+    const dx = this.target.x - this.root.x;
+    this.root.x += dx * k;
+    this.root.y += (this.target.y - this.root.y) * k;
+    // The cat runs to the left in its sheet: mirror it when heading right.
+    if (Math.abs(dx) > 0.5 && this.body.anchor) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? 1 : -1);
+  }
+
+  destroy() {
+    this.root.destroy({ children: true });
+  }
+}
+
+// A mercenary out on a class skill: a Воитель charging down the path (the
+// pack's knight, running), or a rogue in a shadow-step (the bandit, dark
+// and flickering).
+class RunView {
+  constructor(r, layer) {
+    this.kind = r.kind;
+    this.root = new Container();
+    const charge = r.kind === 'charge';
+    this.body = hasTileset() && sprite(charge ? 'knight_m_run' : 'rogue_idle', 2.6, 0.3);
+    if (!this.body) {
+      this.body = new Graphics();
+      drawFigure(this.body, charge ? 0x9aa0a8 : 0x4a2a6a, charge ? 'warrior' : 'rogue');
+    }
+    this.root.addChild(this.body);
+    this.name = new Text({ text: r.name, style: { fontFamily: FONT_UI, fontSize: 14, fontWeight: '700', fill: nickColor(r.name), stroke: { color: 0x000000, width: 4 } } });
+    this.name.anchor.set(0.5, 1);
+    this.name.y = -(this.body.height || 46) - 4;
+    this.root.addChild(this.name);
+    const px = toPx(r.x, r.y);
+    this.root.position.set(px.x, px.y + 20);
+    this.target = { x: this.root.x, y: this.root.y };
+    layer.world.addChild(this.root);
+  }
+
+  set(r) {
+    const px = toPx(r.x, r.y);
+    this.target = { x: px.x, y: px.y + 20 };
+  }
+
+  frame(k, t) {
+    const dx = this.target.x - this.root.x;
+    this.root.x += dx * k;
+    this.root.y += (this.target.y - this.root.y) * k;
+    if (Math.abs(dx) > 0.5 && this.body.anchor) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
+    if (this.kind === 'step') this.body.alpha = 0.55 + 0.35 * Math.sin(t * 30); // a shadow, not quite there
+  }
+
+  destroy() {
+    this.root.destroy({ children: true });
   }
 }

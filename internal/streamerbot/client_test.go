@@ -56,7 +56,7 @@ func TestClientHandshakeAndChat(t *testing.T) {
 	defer srv.Close()
 
 	chats := make(chan Chat, 1)
-	c := New(Config{Enabled: true, URL: "ws" + strings.TrimPrefix(srv.URL, "http"), Password: "secret", SendAsBot: true},
+	c := New(Config{Enabled: true, URL: "ws" + strings.TrimPrefix(srv.URL, "http"), Password: "secret", SendAsBot: true, ReplyPrefix: "/me "},
 		Handlers{Chat: func(m Chat) { chats <- m }})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -93,7 +93,7 @@ func TestClientHandshakeAndChat(t *testing.T) {
 	c.Send("@Вася золото 120/1000")
 	select {
 	case m := <-got:
-		if m["request"] != "SendMessage" || m["message"] != "@Вася золото 120/1000" || m["bot"] != true {
+		if m["request"] != "SendMessage" || m["message"] != "/me @Вася золото 120/1000" || m["bot"] != true {
 			t.Fatalf("send %v", m)
 		}
 	case <-time.After(3 * time.Second):

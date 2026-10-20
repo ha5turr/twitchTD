@@ -10,6 +10,7 @@ export const CLASSES = {
   rogue: { name: 'Разбойник', mark: 0x2b2b33 },
   bard: { name: 'Бард', mark: 0xc8932f },
   warrior: { name: 'Воитель', mark: 0x9aa0a8 },
+  druid: { name: 'Друид', mark: 0x4f8a3a },
 };
 
 const INK = 0x000000;

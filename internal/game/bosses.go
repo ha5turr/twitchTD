@@ -62,7 +62,7 @@ func (g *Game) tickBoss(e *Enemy, dt float64) {
 			return // lowering the shield is not announced
 		}
 	case "cult_leader": // the ritual raises fallen cultists
-		e.ability = 8
+		e.ability = 14 // hotfix 4: fewer healers
 		g.summon(e, "cultist", 2)
 	case "spider_queen": // webs the nearest building and lays spiderlings
 		e.ability = 7

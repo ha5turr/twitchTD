@@ -84,7 +84,8 @@ func (g *Game) step(w *Worker, target vec, dt float64) bool {
 
 func (g *Game) tickWorkers(dt float64) {
 	for owner, w := range g.Workers {
-		if w.State != WorkerFlee && w.State != WorkerRest && g.enemyNear(w.Pos) {
+		// The Воитель is never stunned by enemies, whatever runs into him.
+		if w.State != WorkerFlee && w.State != WorkerRest && g.Chatters[owner].Class != "warrior" && g.enemyNear(w.Pos) {
 			w.State = WorkerFlee
 			g.emit(Event{Kind: "stun", User: w.Name, X: w.Pos.X, Y: w.Pos.Y})
 		}

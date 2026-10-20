@@ -77,6 +77,7 @@ func TestBarricadeHoldsForGoldAndRefundsWhenBroken(t *testing.T) {
 	g, _ := newTestGame(t)
 	g.Phase = PhaseWave
 	chatters(g, "anna", "vova")
+	g.Chatters["anna"].Class = "mage"
 	g.Chatters["vova"].Class = "warrior"
 	wall := placeAs(g, "anna", "wall", g.Map.Path[6])
 	wall.Invested = 100

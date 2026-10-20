@@ -13,6 +13,10 @@ type DrinkSpec struct {
 	Name  string `json:"name"`
 	Price int    `json:"price"`
 	Mugs  int    `json:"mugs"` // how much it adds to drunkenness
+	// Effect on the drinker's buildings, see drinks.go.
+	Boost float64 `json:"boost"`
+	After float64 `json:"after"`
+	Sec   float64 `json:"sec"`
 }
 
 var drinkAliases = map[string]string{
@@ -46,13 +50,20 @@ func (g *Game) cmdDrink(c *Chatter, key string, args []string) {
 	if key != StreamerName {
 		c.Gold -= d.Price
 	}
-	c.Drunk += float64(d.Mugs)
+	g.reply(c.Name, strings.ToLower(d.Name)+": "+g.serve(key, c, kind))
+}
+
+// serve pours a drink: drunkenness, the drinkers' board and its effect,
+// which it returns as words for the chat.
+func (g *Game) serve(key string, c *Chatter, kind string) string {
+	c.Drunk += float64(g.Cfg.Drinks[kind].Mugs)
 	c.Drinks++
 	c.GameDrinks++
 	if c.Drinks >= drinksNeeded {
 		g.unlock(key, "drunkard")
 	}
 	g.emit(Event{Kind: "drink", User: c.Name, Text: kind, Amount: int(math.Ceil(c.Drunk))})
+	return g.drinkEffect(key, c, kind)
 }
 
 func (g *Game) cmdClass(c *Chatter, args []string) {

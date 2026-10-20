@@ -2,8 +2,10 @@ package game
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -97,16 +99,17 @@ func (g *Game) Reward(login, display, title string) {
 		g.sweepDead()
 		g.emit(Event{Kind: "strike"})
 	case "round":
-		// The redeemer buys a round: everyone in the tavern drinks an ale.
+		// The redeemer buys a round: everyone in the tavern gets a random
+		// drink, effect and all.
 		cutoff := g.Now().Add(-activeWindow(g.Cfg))
-		for key, c := range g.Chatters {
+		keys := slices.Sorted(maps.Keys(g.Chatters))
+		for _, key := range keys {
+			c := g.Chatters[key]
 			if key != StreamerName && c.LastSeen.After(cutoff) && g.Workers[key] == nil {
-				c.Drunk++
-				c.Drinks++
-				c.GameDrinks++
-				g.emit(Event{Kind: "drink", User: c.Name, Text: "ale", Amount: int(math.Ceil(c.Drunk))})
+				g.serve(key, c, drinkKinds[g.rng.IntN(len(drinkKinds))])
 			}
 		}
+		g.reply("", fmt.Sprintf("%s угощает таверну: каждому случайный напиток!", display))
 	default:
 		return
 	}
