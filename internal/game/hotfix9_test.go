@@ -245,3 +245,30 @@ func TestShrinesShareInKills(t *testing.T) {
 		t.Fatal("the wave end tells what the shrines earned")
 	}
 }
+
+func TestRageAtTheTavernDoor(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.Phase = PhaseWave
+	g.Cfg.GateDPS = 0 // keep the guards from killing it
+	g.Cfg.EnemyRegen = 0.05
+	e := g.spawnEnemy("skeleton", 1000, g.total)
+	e.AtGate = true
+	walls := g.Walls
+	run(g, 1)
+	calm := walls - g.Walls
+	e.HP = 500
+	run(g, 1)
+	if e.rage || e.HP <= 500 {
+		t.Fatal("before the rage it heals at the door")
+	}
+	run(g, g.Cfg.SiegeRageSec)
+	if !e.rage {
+		t.Fatal("held at the door long enough, it rages")
+	}
+	e.HP = 500
+	before := g.Walls
+	run(g, 1)
+	if e.HP != 500 || before-g.Walls <= calm*1.05 {
+		t.Fatalf("a raging enemy at the door heals no more and hits harder: hp %.0f, hit %.1f vs %.1f", e.HP, before-g.Walls, calm)
+	}
+}
