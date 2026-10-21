@@ -129,6 +129,8 @@ func main() {
 	}
 
 	srv = server.New(g, files, opt)
+	up := newOps(cfg.Update, srv, stop)
+	g.Ops = up
 	set.apply = func(c appConfig, values map[string]any) {
 		srv.Do(func(g *game.Game) { g.SetConfig(c.Config) })
 		srv.SetSettings(values)
@@ -140,6 +142,7 @@ func main() {
 		srv.Run(ctx)
 		close(runDone)
 	}()
+	up.reportUpdate()
 	if sb != nil {
 		go sb.Run(ctx)
 	}
@@ -171,6 +174,13 @@ func main() {
 		log.Fatal(err)
 	}
 	<-runDone // the loop saves the game on its way out
+	if code := up.exitCode(); code != 0 {
+		// An update or a rollback: run.ps1 swaps the build and starts it.
+		if st != nil {
+			st.Close()
+		}
+		os.Exit(code)
+	}
 }
 
 // kvTokens keeps the DonationAlerts token in the game database.

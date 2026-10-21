@@ -63,7 +63,32 @@ func (g *Game) serve(key string, c *Chatter, kind string) string {
 		g.unlock(key, "drunkard")
 	}
 	g.emit(Event{Kind: "drink", User: c.Name, Text: kind, Amount: int(math.Ceil(c.Drunk))})
-	return g.drinkEffect(key, c, kind)
+	effect := g.drinkEffect(key, c, kind)
+	if g.Cfg.PassOutMugs > 0 && math.Ceil(c.Drunk) >= g.Cfg.PassOutMugs && c.out <= 0 && key != StreamerName {
+		g.passOut(key, c)
+	}
+	return effect
+}
+
+// passOut puts an overdrunk mercenary under the table: he hears no
+// commands until he sleeps it off.
+func (g *Game) passOut(key string, c *Chatter) {
+	c.out = g.Cfg.PassOutSec
+	g.emit(Event{Kind: "passOut", User: c.Name})
+	g.reply(c.Name, fmt.Sprintf("перебрал и храпит под столом: %d с не слышит команд", int(g.Cfg.PassOutSec)))
+	g.unlock(key, "zabuldyga")
+}
+
+// asleep tells a passed out chatter (now and then) why nothing happens.
+func (g *Game) asleep(c *Chatter) bool {
+	if c.out <= 0 {
+		return false
+	}
+	if c.snored <= 0 {
+		c.snored = 20
+		g.reply(c.Name, fmt.Sprintf("храпит под столом… ещё %d с", int(math.Ceil(c.out))))
+	}
+	return true
 }
 
 func (g *Game) cmdClass(c *Chatter, args []string) {
@@ -97,6 +122,12 @@ func (g *Game) soberUp(dt float64) {
 		if c.Drunk > 0 {
 			c.Drunk = max(0, c.Drunk-dt/g.Cfg.DrunkDecaySec)
 		}
+		if c.out > 0 {
+			if c.out -= dt; c.out <= 0 {
+				g.emit(Event{Kind: "wakeUp", User: c.Name})
+			}
+		}
+		c.snored = max(0, c.snored-dt)
 	}
 }
 

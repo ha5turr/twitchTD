@@ -56,6 +56,7 @@ const EXTRA = [
     defs: { ballista_up: [[0, 0, 16, 16]], ballista_down: [[0, 16, 16, 16]], ballista_right: [[0, 32, 16, 16]], ballista_left: [[0, 48, 16, 16]] },
   },
   { file: 'assets/miniworld/Tower2.png', defs: { stone_tower: [[0, 0, 16, 16]] } },
+  { file: 'assets/miniworld/Portal.png', defs: { portal_purple: [[48, 0, 16, 16]] } }, // cyan, lime, amber, violet
   { file: 'assets/miniworld/Chapels.png', defs: { chapel: [[16, 0, 16, 16]] } },
   { file: 'assets/miniworld/SpearWall.png', defs: { spear_wall: [[0, 0, 16, 16]] } },
   {
@@ -92,7 +93,14 @@ const EXTRA = [
   {
     // Tiny Creatures: 16 px tiles with a 1 px gap, like Kenney's sheets.
     file: 'assets/tiny-creatures/creatures.png',
-    defs: { tc_wraith: kt(9, 1), tc_ice_spirit: kt(9, 4), tc_rat: kt(4, 9) },
+    defs: {
+      tc_wraith: kt(9, 1), tc_ice_spirit: kt(9, 4), tc_rat: kt(4, 9),
+      // The swamp: a gelatinous cube and its young, a bat, a goblin, the
+      // hooded hag (witch), a green wyrm (hydra) and the frog a hex leaves.
+      tc_slime: kt(0, 8), tc_slimelet: kt(1, 8), tc_bat: kt(8, 13), tc_goblin: kt(9, 9),
+      tc_hag: kt(0, 10), tc_wyrm: kt(0, 11), tc_frog: kt(7, 14),
+      tc_collector: kt(9, 0), // the guest who comes for the treasury
+    },
   },
   { file: 'assets/miniworld/Mausoleum.png', defs: { mausoleum: [[0, 0, 32, 32]], mausoleum_pale: [[32, 0, 32, 32]] } },
   {

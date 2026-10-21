@@ -11,6 +11,7 @@ func diceGame(t *testing.T) (*Game, func(user, text string)) {
 	for _, u := range []string{"anna", "boris", "vera"} {
 		say(u, "привет")
 		g.Chatters[u].Gold = 500
+		g.Chatters[u].Class = "bard" // no skill that kills and pays while the test waits
 	}
 	return g, say
 }

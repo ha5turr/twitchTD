@@ -27,6 +27,7 @@ const AMBIENT = {
   dungeon: { base: 49, cutoff: 200, wind: 0.02 },
   crypt: { base: 46.25, cutoff: 180, wind: 0.03 },
   ice: { base: 61.7, cutoff: 420, wind: 0.07 },
+  swamp: { base: 51.9, cutoff: 230, wind: 0.04 },
 };
 
 export class Sound {
@@ -310,7 +311,7 @@ export const EVENT_SOUNDS = {
   gameOver: 'gameover', newGame: 'newgame', ability: 'ability', wallBroken: 'blast', disabled: 'ability',
   diceOpen: 'coin', diceJoin: 'dice', diceRoll: 'dice',
   destroyed: 'blast', robbed: 'coin', loot: 'coin', achievement: 'fanfare', rank: 'fanfare',
-  lightning: 'strike', maul: 'kill', pickpocket: 'coin', rewardUp: 'fanfare', panther: 'ability', net: 'trap',
+  lightning: 'strike', maul: 'kill', pickpocket: 'coin', rewardUp: 'fanfare', rage: 'ability', grant: 'coin', passOut: 'drink', zap: 'strike', guest: 'horn', taxed: 'coin', taxKilled: 'fanfare', goldRain: 'fanfare', split: 'kill', dispel: 'ability', hex: 'ability', headGrow: 'horn', cauterize: 'blast', curse: 'ability', drain: 'ability', quake: 'blast', boom: 'blast', shard: 'coin', panther: 'ability', net: 'trap',
   charge: 'ability', meteor: 'blast', meteorShower: 'ability', music: 'drink', shadowstep: 'stun', bladefan: 'kill',
   pillar: 'build', pathFire: 'blast', arrowRain: 'strike', afk: 'coin', leave: 'coin',
 };

@@ -13,10 +13,11 @@ type weighted struct {
 }
 
 var biomeEnemies = map[Biome][]weighted{
-	BiomeRuins:   {{"skeleton", 1, 6}, {"ghoul", 2, 3}, {"cultist", 4, 2}},
-	BiomeDungeon: {{"spider", 1, 4}, {"rat", 1, 3}, {"troll", 4, 2}},
-	BiomeCrypt:   {{"skeleton", 1, 3}, {"mummy", 1, 3}, {"ghost", 2, 3}, {"necromancer", 4, 2}},
-	BiomeIce:     {{"skeleton", 1, 2}, {"iceskel", 1, 5}, {"frostspirit", 2, 3}},
+	BiomeRuins:   {{"skeleton", 1, 6}, {"ghoul", 2, 3}, {"cultist", 4, 2}, {"bomber", 5, 2}, {"shieldbearer", 6, 2}},
+	BiomeDungeon: {{"spider", 1, 4}, {"rat", 1, 3}, {"troll", 4, 2}, {"bomber", 5, 3}},
+	BiomeCrypt:   {{"skeleton", 1, 3}, {"mummy", 1, 3}, {"ghost", 2, 3}, {"necromancer", 4, 2}, {"shieldbearer", 6, 2}},
+	BiomeSwamp:   {{"slime", 1, 4}, {"ghoul", 1, 2}, {"bat", 2, 4}, {"bomber", 4, 2}, {"goblin_shaman", 4, 3}},
+	BiomeIce:     {{"skeleton", 1, 2}, {"iceskel", 1, 5}, {"frostspirit", 2, 3}, {"shieldbearer", 6, 1}, {"bomber", 8, 1}},
 }
 
 // Each biome has two bosses that take turns every BossEvery waves.
@@ -25,6 +26,7 @@ var biomeBosses = map[Biome][]string{
 	BiomeDungeon: {"spider_queen", "cave_troll"},
 	BiomeCrypt:   {"lich", "ghost_king"},
 	BiomeIce:     {"ice_golem", "frost_demon"},
+	BiomeSwamp:   {"swamp_witch", "hydra"},
 }
 
 func pickEnemy(roll float64, pool []weighted, wave int) string {
@@ -86,6 +88,12 @@ func (g *Game) tickBoss(e *Enemy, dt float64) {
 	case "ice_golem": // freezes every building around it
 		e.ability = 7
 		g.disableTowers(e, 2, 3, 0)
+	case "swamp_witch": // turns the best building near her into a frog
+		e.ability = 8
+		g.hex(e)
+	case "hydra": // its heads grow with its wounds (tickHydra), nothing on a timer
+		e.ability = 1e9
+		return
 	case "frost_demon": // ices the path: everyone runs faster for a while
 		e.ability = 10
 		g.rushLeft = 5

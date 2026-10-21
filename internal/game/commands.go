@@ -23,6 +23,8 @@ var towerAliases = map[string]string{
 	"trap": "trap", "t": "trap", "капкан": "trap", "капканы": "trap", "ловушка": "trap", "шипы": "trap",
 	"drums": "drums", "d": "drums", "барабаны": "drums", "барабан": "drums",
 	"wall": "wall", "w": "wall", "баррикада": "wall", "стена": "wall",
+	"curse": "curse", "c": "curse", "проклятье": "curse", "проклятие": "curse", "проклятия": "curse",
+	"totem": "totem", "тотем": "totem", "гроза": "totem",
 	"clown": "clown", "клоун": "clown", "🤡": "clown",
 }
 
@@ -49,8 +51,11 @@ func (g *Game) HandleChat(m ChatMessage) {
 	}
 	args := f[1:]
 	cmd := strings.ToLower(f[0])
+	if (gameCommands[cmd] || cmd == "!leave" || cmd == "!выйти" || cmd == "!уйти") && g.asleep(c) {
+		return // passed out under the table
+	}
 	if gameCommands[cmd] && key != StreamerName {
-		g.join(c, cmd)
+		g.join(key, c, cmd)
 	}
 	switch cmd {
 	case "!play", "!играть", "!join":
@@ -67,8 +72,12 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdSell(c, key, args)
 	case "!me", "!я":
 		cl, _ := classByKey(c.Class)
-		g.reply(c.Name, fmt.Sprintf("%s, %s, золото %d/%d, построек %d/%d, убийств %d, душ %d",
-			Ranks[c.rank()].Name, strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, g.towersOf(key), g.Cfg.TowerLimit, c.Kills, c.Souls))
+		grant := ""
+		if c.Grant > 0 {
+			grant = fmt.Sprintf(" (+%d подъёмных)", c.Grant)
+		}
+		g.reply(c.Name, fmt.Sprintf("%s, %s, золото %d/%d%s, построек %d/%d, убийств %d, душ %d",
+			Ranks[c.rank()].Name, strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, grant, g.towersOf(key), g.TowerLimit(), c.Kills, c.Souls))
 		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
 	case "!link", "!привязать":
 		g.cmdLink(c, key)
@@ -171,8 +180,8 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	case kind == clownKind && g.clownsOf(key) > 0:
 		g.reply(c.Name, "у тебя уже есть клоун")
 		return
-	case kind != clownKind && !g.isStreamer(key) && g.towersOf(key)-g.clownsOf(key) >= g.Cfg.TowerLimit:
-		g.reply(c.Name, fmt.Sprintf("лимит построек %d", g.Cfg.TowerLimit))
+	case kind != clownKind && !g.isStreamer(key) && g.towersOf(key)-g.clownsOf(key) >= g.TowerLimit():
+		g.reply(c.Name, fmt.Sprintf("лимит построек %d", g.TowerLimit()))
 		return
 	}
 	cost := g.Cfg.TowerCost(kind, 1)
@@ -181,16 +190,17 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 		g.reply(c.Name, fmt.Sprintf("у наёмника уже %d приказа, подожди", g.Cfg.MaxOrders))
 		return
 	}
+	granted := 0
 	if !streamer {
-		if c.Gold < cost {
-			g.reply(c.Name, fmt.Sprintf("нужно %d золота, у тебя %d", cost, c.Gold))
+		var ok bool
+		if granted, ok = g.spend(c, cost); !ok {
+			g.reply(c.Name, fmt.Sprintf("нужно %d золота, у тебя %d", cost, c.Gold+c.Grant))
 			return
 		}
-		c.Gold -= cost
 	}
 	// The streamer's towers appear at once; a chatter's mercenary walks out
 	// and builds it, until then the tower is a construction site.
-	t := &Tower{ID: g.id(), Kind: kind, Cell: p, Owner: key, Level: 1, Invested: cost, Built: streamer}
+	t := &Tower{ID: g.id(), Kind: kind, Cell: p, Owner: key, Level: 1, Invested: cost, Granted: granted, Built: streamer}
 	g.Towers[p] = t
 	if streamer {
 		g.readyTower(t)
@@ -243,11 +253,12 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 	}
 	cost := g.Cfg.TowerCost(t.Kind, t.Level+1)
 	if !streamer {
-		if c.Gold < cost {
-			g.reply(c.Name, fmt.Sprintf("нужно %d золота, у тебя %d", cost, c.Gold))
+		granted, ok := g.spend(c, cost)
+		if !ok {
+			g.reply(c.Name, fmt.Sprintf("нужно %d золота, у тебя %d", cost, c.Gold+c.Grant))
 			return
 		}
-		c.Gold -= cost
+		t.Granted += granted
 	}
 	t.Invested += cost
 	if streamer {
@@ -280,9 +291,7 @@ func (g *Game) sellTower(t *Tower, by string) int {
 	} else {
 		refund += t.PendingCost
 	}
-	if owner := g.Chatters[t.Owner]; owner != nil && !g.isStreamer(t.Owner) {
-		refund = g.addGold(owner, refund)
-	}
+	refund = g.refund(t, refund)
 	cp := center(t.Cell)
 	g.emit(Event{Kind: "sell", User: by, X: cp.X, Y: cp.Y, Amount: refund})
 	return refund
@@ -308,7 +317,7 @@ func (g *Game) cmdLeave(c *Chatter, key string) {
 		}
 	}
 	gold := c.Gold
-	c.Gold = 0
+	c.Gold, c.Grant = 0, 0
 	g.toTreasury(gold)
 	c.Joined, c.wasActive = false, false
 	g.emit(Event{Kind: "leave", User: c.Name, Amount: gold})
@@ -320,6 +329,16 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 	switch cmd {
 	case "!tdmeme", "!tdмемы": // memecoin requests: list, done or reject
 		g.cmdMemeAdmin(c, args)
+	case "!tdversion", "!tdверсия":
+		g.reply(c.Name, "версия v"+Version)
+	case "!tdupdate", "!tdобновить", "!tdrollback", "!tdоткат":
+		if g.Ops == nil {
+			g.reply(c.Name, "обновления не настроены")
+		} else if cmd == "!tdupdate" || cmd == "!tdобновить" {
+			g.Ops.Update(c.Name)
+		} else {
+			g.Ops.Rollback(c.Name)
+		}
 	case "!tdwave":
 		g.StartWave()
 	case "!tdnew":
@@ -430,7 +449,7 @@ var gameCommands = map[string]bool{
 }
 
 // join seats a chatter in the tavern for this session.
-func (g *Game) join(c *Chatter, cmd string) {
+func (g *Game) join(key string, c *Chatter, cmd string) {
 	if c.Joined {
 		if cmd == "!play" || cmd == "!играть" || cmd == "!join" {
 			g.reply(c.Name, "ты уже в таверне")
@@ -442,4 +461,5 @@ func (g *Game) join(c *Chatter, cmd string) {
 	if cmd == "!play" || cmd == "!играть" || cmd == "!join" {
 		g.reply(c.Name, "добро пожаловать в таверну! Строй: !b C4 arrow, все команды: !помощь")
 	}
+	g.arrive(key, c)
 }

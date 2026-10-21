@@ -306,6 +306,7 @@ class Merc {
       this.goldText.text = `${c.gold} з`;
     }
     this.drunk = c.drunk;
+    this.out = !!c.out;
     this.kills = c.kills;
     this.towers = c.towers;
     this.classKey = c.class;
@@ -389,9 +390,11 @@ class Merc {
       if (this.drinkTime <= 0) this.mode = 'seat';
     }
 
-    // Drunk mercenaries sway, very drunk ones sing.
+    // Drunk mercenaries sway, very drunk ones sing, the overdrunk lie
+    // under the table snoring.
     const sway = Math.min(this.drunk, 6);
-    this.body.rotation = sway ? Math.sin(this.t * 2.5) * 0.05 * sway : 0;
+    if (this.out) this.body.rotation = -Math.PI / 2 + Math.sin(this.t * 1.2) * 0.04;
+    else this.body.rotation = sway ? Math.sin(this.t * 2.5) * 0.05 * sway : 0;
     if (this.idle) {
       const want = walking ? this.run : this.idle;
       if (this.body.textures !== want) {
@@ -408,6 +411,7 @@ class Merc {
     let bubble = '';
     this.shoutLeft = Math.max(0, (this.shoutLeft ?? 0) - dt);
     if (this.shoutLeft > 0) bubble = this.shoutText;
+    else if (this.out) bubble = ['z', 'zZ', 'zZz'][Math.floor(this.t * 1.5) % 3];
     else if (this.mode === 'drinking') bubble = `${this.drinkName}!`;
     else if (this.drunk >= 4) bubble = Math.floor(this.t * 2) % 2 ? '♪ ♫' : '♫ ♪';
     this.bubble.text = bubble;
@@ -482,9 +486,9 @@ const HELP = [
     title: 'Постройки',
     rows: [
       ['arrow', 'лучники'],
-      ['magic', 'обелиск'],
+      ['magic/curse', 'магия, порча'],
       ['fire/shrine', 'огонь, храм'],
-      ['drums', 'барабаны'],
+      ['drums/totem', 'ритм, гроза'],
       ['trap/wall', 'на дорогу'],
     ],
   },

@@ -11,6 +11,8 @@ export const CLASSES = {
   bard: { name: 'Бард', mark: 0xc8932f },
   warrior: { name: 'Воитель', mark: 0x9aa0a8 },
   druid: { name: 'Друид', mark: 0x4f8a3a },
+  warlock: { name: 'Чернокнижник', mark: 0x5a2a7a },
+  shaman: { name: 'Шаман', mark: 0x3a8ab0 },
 };
 
 const INK = 0x000000;

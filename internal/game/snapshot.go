@@ -16,13 +16,14 @@ type MapMsg struct {
 	Path    [][2]int     `json:"path"`
 	Route   [][2]float64 `json:"route"`
 	Torches [][2]int     `json:"torches"`
+	Version string       `json:"version"` // the release the server runs
 }
 
 // One character per cell keeps the message small and readable in devtools.
 var cellChars = map[CellKind]byte{CellBuild: '.', CellPath: '#', CellObstacle: 'o', CellWebcam: 'w'}
 
 func (g *Game) MapMessage() MapMsg {
-	m := MapMsg{T: "map", Seed: g.Map.Seed, Biome: g.Map.Biome, W: GridW, H: GridH}
+	m := MapMsg{T: "map", Seed: g.Map.Seed, Biome: g.Map.Biome, W: GridW, H: GridH, Version: Version}
 	for y := 0; y < GridH; y++ {
 		row := make([]byte, GridW)
 		for x := 0; x < GridW; x++ {
@@ -80,9 +81,11 @@ type EnemyView struct {
 	Slow   bool    `json:"slow,omitempty"`
 	Burn   bool    `json:"burn,omitempty"`
 	Shield bool    `json:"shield,omitempty"`
-	Act    int     `json:"act,omitempty"`  // ЭссДиЭф: 1 burping, 2 farting
-	Net    bool    `json:"net,omitempty"`  // tangled in a ballista net
-	Stun   bool    `json:"stun,omitempty"` // stunned by a pillar of light
+	Act    int     `json:"act,omitempty"`   // ЭссДиЭф: 1 burping, 2 farting
+	Net    bool    `json:"net,omitempty"`   // tangled in a ballista net
+	Stun   bool    `json:"stun,omitempty"`  // stunned by a pillar of light
+	Rage   bool    `json:"rage,omitempty"`  // held too long by a barricade
+	Curse  bool    `json:"curse,omitempty"` // cursed by a warlock's altar
 }
 
 type TowerView struct {
@@ -98,6 +101,7 @@ type TowerView struct {
 	MaxHP    float64 `json:"maxHp,omitempty"`
 	Charges  int     `json:"charges,omitempty"` // traps
 	Disabled bool    `json:"disabled,omitempty"`
+	Hex      bool    `json:"hex,omitempty"` // a frog for now (the swamp witch)
 }
 
 type WorkerView struct {
@@ -128,6 +132,7 @@ type ChatterView struct {
 	Souls  int    `json:"souls,omitempty"`
 	Rank   int    `json:"rank,omitempty"`  // index in Ranks
 	Music  bool   `json:"music,omitempty"` // a bard playing
+	Out    bool   `json:"out,omitempty"`   // passed out under the table
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
@@ -136,7 +141,7 @@ func round2(f float64) float64 { return math.Round(f*100) / 100 }
 func (g *Game) StateMessage() StateMsg {
 	s := StateMsg{
 		T: "state", Phase: g.Phase, Timer: round2(g.Timer), Wave: g.Wave,
-		Walls: math.Ceil(g.Walls), WallsMax: g.Cfg.WallsHP, Paused: g.Paused, Cap: g.Cfg.WalletCap, Limit: g.Cfg.TowerLimit, Treasury: g.Treasury,
+		Walls: math.Ceil(g.Walls), WallsMax: g.Cfg.WallsHP, Paused: g.Paused, Cap: g.Cfg.WalletCap, Limit: g.TowerLimit(), Treasury: g.Treasury,
 		Active: g.ActiveChatters(), Events: g.TakeEvents(),
 		Enemies: []EnemyView{}, Towers: []TowerView{}, Proj: []ProjView{}, Chatters: []ChatterView{},
 		Workers: []WorkerView{},
@@ -144,7 +149,7 @@ func (g *Game) StateMessage() StateMsg {
 	for _, e := range g.Enemies {
 		s.Enemies = append(s.Enemies, EnemyView{
 			e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP),
-			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0, e.stunLeft > 0,
+			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0, e.stunLeft > 0, e.rage, e.curseLeft > 0,
 		})
 	}
 	owners := map[string]int{}
@@ -156,7 +161,7 @@ func (g *Game) StateMessage() StateMsg {
 		}
 		s.Towers = append(s.Towers, TowerView{
 			t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress),
-			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0,
+			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0,
 		})
 	}
 	sort.Slice(s.Towers, func(i, j int) bool { return s.Towers[i].ID < s.Towers[j].ID })
@@ -172,7 +177,7 @@ func (g *Game) StateMessage() StateMsg {
 			continue
 		}
 		s.Chatters = append(s.Chatters, ChatterView{
-			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(), c.musicLeft > 0,
+			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(), c.musicLeft > 0, c.out > 0,
 		})
 	}
 	s.Dice = []DiceView{}

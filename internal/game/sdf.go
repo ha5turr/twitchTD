@@ -177,9 +177,7 @@ func (g *Game) packClowns() {
 			continue
 		}
 		g.removeTower(t)
-		if c := g.Chatters[t.Owner]; c != nil && t.Owner != StreamerName {
-			g.addGold(c, t.Invested)
-		}
+		g.refund(t, t.Invested)
 		cp := center(t.Cell)
 		g.emit(Event{Kind: "sell", User: t.Owner, X: cp.X, Y: cp.Y, Amount: t.Invested})
 	}

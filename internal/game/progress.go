@@ -32,6 +32,7 @@ var Achievements = []Achievement{
 	{"architect", "Архитектор", 3, false},
 	{"masterpiece", "Шедевр", 4, false},
 	{"drunkard", "Пропойца", 3, false},
+	{"zabuldyga", "Забулдыга", 2, false},
 	{"lucky", "Везунчик", 4, false},
 	{"high_roller", "Крупная ставка", 4, false},
 	// Hidden ones, mostly about the guest boss: chat finds them by itself.

@@ -1,0 +1,45 @@
+# A push to the release branch (master merged in) publishes the version in
+# internal/game/version.go: it tags the commit vX.Y.Z, builds twitchtd.exe
+# for Windows and puts it on a GitHub release with its SHA-256, which
+# !tdupdate on the streaming PC downloads and checks. If that tag already
+# exists, the version was not raised: the release stops and nothing is
+# overwritten.
+name: release
+on:
+  push:
+    branches: [release]
+permissions:
+  contents: write
+concurrency: release # one release at a time
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Read the version
+        id: version
+        run: |
+          v=$(sed -n 's/^const Version = "\(.*\)"/\1/p' internal/game/version.go)
+          if [ -z "$v" ]; then
+            echo "no Version in internal/game/version.go"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$v" >/dev/null; then
+            echo "v$v is already released: raise Version in internal/game/version.go"
+            exit 1
+          fi
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+      - run: go vet ./...
+      - run: go test ./...
+      - name: Build for Windows
+        run: GOOS=windows GOARCH=amd64 go build -trimpath -o dist/twitchtd.exe ./cmd/twitchtd
+      - name: Checksum
+        run: cd dist && sha256sum twitchtd.exe | cut -d' ' -f1 > twitchtd.exe.sha256
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh release create "$TAG" dist/twitchtd.exe dist/twitchtd.exe.sha256 --target "$GITHUB_SHA" --title "$TAG" --generate-notes

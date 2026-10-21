@@ -23,7 +23,9 @@ func main() {
 	games := flag.Int("games", 40, "games per chat size")
 	sizes := flag.String("chatters", "1,5,10,20", "comma-separated chat sizes")
 	cfgPath := flag.String("config", "", "balance overrides (same format as config.json)")
+	biomeFlag := flag.String("biome", "", "play every game in this biome (ruins, dungeon, crypt, ice, swamp)")
 	flag.Parse()
+	biome = game.Biome(*biomeFlag)
 
 	cfg := game.DefaultConfig()
 	if *cfgPath != "" {
@@ -74,7 +76,7 @@ func pct(v []float64, p float64) float64 {
 var kinds = []struct {
 	kind   string
 	weight float64
-}{{"arrow", 30}, {"magic", 18}, {"fire", 15}, {"trap", 10}, {"wall", 9}, {"shrine", 9}, {"drums", 9}}
+}{{"arrow", 27}, {"magic", 16}, {"fire", 14}, {"trap", 10}, {"wall", 9}, {"shrine", 9}, {"drums", 9}, {"curse", 8}, {"totem", 10}}
 
 func pickKind(r *rand.Rand) string {
 	total := 0.0
@@ -98,12 +100,18 @@ type bot struct {
 	cells    []game.Pos
 }
 
+// biome, when set, is the one every simulated game is played in.
+var biome game.Biome
+
 // play runs one game to the end and reports the waves survived.
 func play(cfg game.Config, chatters int, seed uint64) result {
 	r := rand.New(rand.NewPCG(seed, 99))
 	g := game.New(cfg, seed)
 	clock := time.Unix(1_700_000_000, 0)
 	g.Now = func() time.Time { return clock }
+	if biome != "" {
+		g.NewGame(biome)
+	}
 
 	bots := make([]*bot, chatters)
 	for i := range bots {
@@ -158,11 +166,16 @@ func (b *bot) act(g *game.Game, r *rand.Rand) {
 	for _, t := range g.Towers {
 		if t.Owner == b.name {
 			mine++
+			// A barricade under half its strength is mended first, as a
+			// careful player would; the game refuses while it cools down.
+			if t.Built && g.Cfg.Towers[t.Kind].Role == game.RoleWall && t.HP < t.MaxHP/2 && c.Gold >= 30 {
+				g.HandleChat(game.ChatMessage{User: b.name, Text: "!чинить " + t.Cell.Name()})
+			}
 		}
 	}
-	if mine < g.Cfg.TowerLimit {
+	if mine < g.TowerLimit() {
 		kind := pickKind(r)
-		if c.Gold < g.Cfg.TowerCost(kind, 1) {
+		if c.Gold+c.Grant < g.Cfg.TowerCost(kind, 1) {
 			return
 		}
 		if p, ok := spot(g, r, g.Cfg.Towers[kind].OnPath()); ok {
@@ -179,7 +192,7 @@ func (b *bot) act(g *game.Game, r *rand.Rand) {
 			}
 		}
 	}
-	if best != nil && c.Gold >= g.Cfg.TowerCost(best.Kind, best.Level+1) {
+	if best != nil && c.Gold+c.Grant >= g.Cfg.TowerCost(best.Kind, best.Level+1) {
 		g.HandleChat(game.ChatMessage{User: b.name, Text: "!up " + best.Cell.Name()})
 	}
 }

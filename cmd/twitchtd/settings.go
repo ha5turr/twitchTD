@@ -16,8 +16,8 @@ import (
 // editable lists the settings the streamer panel may change at runtime. The
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
-	"towerLimit", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
-	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "baseHP", "hpGrowth", "chatterHPCoef",
+	"towerLimit", "towerLimitMax", "smallTeamBonus", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
+	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
 
@@ -143,6 +143,16 @@ func validate(cfg appConfig) error {
 	switch {
 	case cfg.TowerLimit < 1, cfg.WalletCap < 1, cfg.BuildPhaseSec < 5, cfg.BossEvery < 1:
 		return fmt.Errorf("лимит построек, потолок кошелька, фаза стройки (от 5 с) и частота боссов должны быть положительными")
+	case cfg.TowerLimitMax < 0, cfg.SmallTeamBonus < 0, cfg.WallHoldMax < 0, cfg.SiegeRageSec < 0:
+		return fmt.Errorf("потолок лимита, бонус малой команды, золото за удержание и время до ярости не могут быть отрицательными")
+	case cfg.GrantPct < 0 || cfg.GrantPct > 2, cfg.GrantFromWave < 0:
+		return fmt.Errorf("доля подъёмных должна быть от 0 до 2, волна — не отрицательной")
+	case cfg.EventChance < 0 || cfg.EventChance > 1, cfg.EventFromWave < 0:
+		return fmt.Errorf("шанс гостя должен быть от 0 до 1, волна — не отрицательной")
+	case cfg.ShrineAssistPct < 0 || cfg.ShrineAssistPct > 1:
+		return fmt.Errorf("доля святилищ должна быть от 0 до 1")
+	case cfg.PassOutMugs < 0, cfg.PassOutSec < 0:
+		return fmt.Errorf("порог и длительность отключки не могут быть отрицательными")
 	case cfg.WallRepairCDSec < 0:
 		return fmt.Errorf("кд починки баррикады не может быть отрицательным")
 	case cfg.HPGrowth < 1 || cfg.HPGrowth > 2, cfg.BaseHP <= 0:
