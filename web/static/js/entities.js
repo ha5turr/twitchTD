@@ -150,6 +150,7 @@ class EnemyView {
       this.target.x = Math.max(this.target.x, LEFT + half * 0.8);
     }
     this.burn = !!e.burn;
+    this.rage = !!e.rage;
     this.act = e.act ?? 0;
     if (e.hp !== this.hp) {
       this.hp = e.hp;
@@ -204,8 +205,9 @@ class EnemyView {
     }
     if (this.motion === 'float') this.body.y = this.footY - 6 + Math.sin(t * 3 + this.phase) * 5;
     else if (this.motion === 'hop') this.body.y = this.footY - Math.abs(Math.sin(t * 12 + this.phase)) * 5;
-    // Burning enemies flicker orange.
-    this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
+    // Raging enemies throb red, burning ones flicker orange.
+    if (this.rage) this.body.tint = Math.sin(t * 8) > 0 ? 0xff4a3a : 0xff9a8a;
+    else this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
     this.bar.position.set(r.x, r.y - this.r - (this.boss ? 34 : 14));
   }
 

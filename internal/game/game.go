@@ -32,8 +32,15 @@ type Chatter struct {
 	Drinks   int // all time
 	Class    string
 	Drunk    float64 // mugs in the blood, wears off over time
+	out      float64 // seconds left passed out under the table
+	snored   float64 // seconds until the next "zzz" reply, so chat is not flooded
 	LastSeen time.Time
 	lastPaid time.Time
+
+	// Grant is gold for buildings and upgrades only, given once to a late
+	// newcomer; it sits outside the wallet and its cap.
+	Grant   int
+	arrived bool // joined this game at least once: no grant on a later return
 
 	// This game only; shown on the game over screen.
 	GameDamage  float64
@@ -187,6 +194,8 @@ func (g *Game) NewGame(biome Biome) {
 			c.Gold = g.Cfg.StartGold
 		}
 		c.GameDamage, c.GameKills, c.GameDrinks, c.classLocked = 0, 0, 0, false
+		c.Grant, c.arrived = 0, c.Joined // those still in the tavern start this game with it
+		c.out = 0
 	}
 	g.mapChanged = true
 	g.emit(Event{Kind: "newGame", Text: string(biome)})

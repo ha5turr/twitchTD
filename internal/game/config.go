@@ -18,6 +18,17 @@ type Config struct {
 	KeepGold     bool `json:"keepGold"`     // keep gold between games instead of resetting
 	KeepTreasury bool `json:"keepTreasury"` // keep the treasury between games instead of emptying it
 	TowerLimit   int  `json:"towerLimit"`
+	// The limit grows by one after every boss wave held, up to
+	// TowerLimitMax; a party of SmallTeamSize players or fewer builds
+	// SmallTeamBonus more on top.
+	TowerLimitMax int `json:"towerLimitMax"`
+	// A player who first joins a game from GrantFromWave on gets a one-off
+	// grant of GrantPct of the median the others have invested, spendable
+	// only on buildings and upgrades.
+	GrantFromWave  int     `json:"grantFromWave"`
+	GrantPct       float64 `json:"grantPct"`
+	SmallTeamSize  int     `json:"smallTeamSize"`
+	SmallTeamBonus int     `json:"smallTeamBonus"`
 	// StreamerPlays makes the broadcaster's own chat lines play by the
 	// viewers' rules (gold, limits, a mercenary in the tavern). The panel
 	// keeps its free, instant building either way.
@@ -42,11 +53,15 @@ type Config struct {
 	ClassBonus float64 `json:"classBonus"` // extra damage of a class's signature building
 
 	// Support buildings and barricades (hotfix "We Deeply sorry").
+	ShrineAssistPct  float64 `json:"shrineAssistPct"`  // a shrine takes this part of its share of the damage in every kill's bounty
 	DrumAssistPct    float64 `json:"drumAssistPct"`    // share of a kill's bounty for each drum that sped up the shot
 	ShrineWallRepair float64 `json:"shrineWallRepair"` // share of every barricade's HP a shrine mends after a wave, per level
 	WallHoldGold     float64 `json:"wallHoldGold"`     // gold per second for each enemy a barricade holds
 	WallRepairShare  float64 `json:"wallRepairShare"`  // price of a full repair as a share of the barricade's last price
 	WallRepairCDSec  float64 `json:"wallRepairCdSec"`  // a barricade can be mended again only this long after the last repair
+	WallHoldMax      float64 `json:"wallHoldMax"`      // gold one barricade may pay for holding per wave (grows with rewards); 0 = no cap
+	SiegeRageSec     float64 `json:"siegeRageSec"`     // an enemy held this long by a barricade flies into a rage: no healing, harder blows
+	SiegeRagePerSec  float64 `json:"siegeRagePerSec"`  // a raging enemy's blows on the barricade grow by this share per second
 	WallRefundPct    int     `json:"wallRefundPct"`    // refund when a barricade is broken
 	WallRefundClass  int     `json:"wallRefundClass"`  // the same for the Воитель
 
@@ -87,6 +102,7 @@ type Config struct {
 	PathFireDmg       float64 `json:"pathFireDmg"`
 	PathFireBurn      float64 `json:"pathFireBurn"` // burn per second
 	PathFireBurnSec   float64 `json:"pathFireBurnSec"`
+	BossNetImmuneSec  float64 `json:"bossNetImmuneSec"` // after a net a boss shakes off new ones this long
 	RangerEverySec    float64 `json:"rangerEverySec"`
 	ArrowRainDmg      float64 `json:"arrowRainDmg"`
 	ArrowRainRadius   float64 `json:"arrowRainRadius"`
@@ -102,6 +118,8 @@ type Config struct {
 	RewardGrowth  float64              `json:"rewardGrowth"`
 	Drinks        map[string]DrinkSpec `json:"drinks"`
 	DrunkDecaySec float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
+	PassOutMugs   float64              `json:"passOutMugs"`   // this drunk, a mercenary passes out under the table
+	PassOutSec    float64              `json:"passOutSec"`    // and ignores his owner's commands this long
 
 	DiceTables   int     `json:"diceTables"`   // games of dice that can run at once
 	DiceMinStake int     `json:"diceMinStake"` // smallest stake in gold
@@ -240,6 +258,11 @@ func DefaultConfig() Config {
 		WalletCap:            1000,
 		KeepTreasury:         true,
 		TowerLimit:           5,
+		TowerLimitMax:        10,
+		GrantFromWave:        5,
+		GrantPct:             0.5,
+		SmallTeamSize:        2,
+		SmallTeamBonus:       2,
 		SellRefundPct:        60,
 		ActiveWindowMn:       10,
 		ChatGold:             5,
@@ -253,11 +276,15 @@ func DefaultConfig() Config {
 		StunRadius:           0.45,
 		StunRestSec:          2,
 		ClassBonus:           0.2,
+		ShrineAssistPct:      0.5,
 		DrumAssistPct:        0.5,
 		ShrineWallRepair:     0.1,
 		WallHoldGold:         0.5,
 		WallRepairShare:      0.3,
 		WallRepairCDSec:      40,
+		WallHoldMax:          40,
+		SiegeRageSec:         15,
+		SiegeRagePerSec:      0.1,
 		WallRefundPct:        50,
 		WallRefundClass:      75,
 		RogueEverySec:        60,
@@ -294,8 +321,9 @@ func DefaultConfig() Config {
 		PathFireDmg:          0.15,
 		PathFireBurn:         0.04,
 		PathFireBurnSec:      4,
-		RangerEverySec:       35,
-		ArrowRainDmg:         0.3,
+		BossNetImmuneSec:     6,
+		RangerEverySec:       30,
+		ArrowRainDmg:         0.36,
 		ArrowRainRadius:      2,
 		TrapBleed:            0.15,
 		TrapBleedSec:         4,
@@ -309,6 +337,8 @@ func DefaultConfig() Config {
 			"potion": {Name: "Чёрное зелье", Price: 60, Mugs: 4, Boost: 1.5, Sec: 20},
 		},
 		DrunkDecaySec:    90,
+		PassOutMugs:      8,
+		PassOutSec:       90,
 		DiceTables:       2,
 		DiceMinStake:     10,
 		DiceWaitSec:      120,

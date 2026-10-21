@@ -298,6 +298,21 @@ export class Hud {
       case 'panther':
         this.toasts.push({ text: `🐆 ${ev.user} обращается в пантеру`, color: 0xb0ff8a });
         break;
+      case 'shrineGold':
+        this.toasts.push({ text: `⛪ святилища ${ev.user} собрали ${ev.amount} з подношений`, color: 0xffe08a });
+        break;
+      case 'passOut':
+        this.toasts.push({ text: `🍺💤 ${ev.user} перебрал и храпит под столом`, color: 0xe0b03a });
+        break;
+      case 'grant':
+        this.toasts.push({ text: `🎒 ${ev.user} получает ${ev.amount} з подъёмных`, color: 0xb0ff8a });
+        break;
+      case 'rage':
+        this.floatAt(ev.x, ev.y - 0.6, 'ярость!', 0xff5a4a, FONT_UI, 20);
+        break;
+      case 'limitUp':
+        this.toasts.push({ text: `🏗️ Лимит построек вырос до ${ev.amount}`, color: 0xffd24a });
+        break;
       case 'rewardUp':
         this.showBanner('Награды растут', `убийства, ассисты и баррикады платят +${ev.amount}%`, 4);
         break;

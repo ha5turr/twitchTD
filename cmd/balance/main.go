@@ -158,11 +158,16 @@ func (b *bot) act(g *game.Game, r *rand.Rand) {
 	for _, t := range g.Towers {
 		if t.Owner == b.name {
 			mine++
+			// A barricade under half its strength is mended first, as a
+			// careful player would; the game refuses while it cools down.
+			if t.Built && g.Cfg.Towers[t.Kind].Role == game.RoleWall && t.HP < t.MaxHP/2 && c.Gold >= 30 {
+				g.HandleChat(game.ChatMessage{User: b.name, Text: "!чинить " + t.Cell.Name()})
+			}
 		}
 	}
-	if mine < g.Cfg.TowerLimit {
+	if mine < g.TowerLimit() {
 		kind := pickKind(r)
-		if c.Gold < g.Cfg.TowerCost(kind, 1) {
+		if c.Gold+c.Grant < g.Cfg.TowerCost(kind, 1) {
 			return
 		}
 		if p, ok := spot(g, r, g.Cfg.Towers[kind].OnPath()); ok {
@@ -179,7 +184,7 @@ func (b *bot) act(g *game.Game, r *rand.Rand) {
 			}
 		}
 	}
-	if best != nil && c.Gold >= g.Cfg.TowerCost(best.Kind, best.Level+1) {
+	if best != nil && c.Gold+c.Grant >= g.Cfg.TowerCost(best.Kind, best.Level+1) {
 		g.HandleChat(game.ChatMessage{User: b.name, Text: "!up " + best.Cell.Name()})
 	}
 }

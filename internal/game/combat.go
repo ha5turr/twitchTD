@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"maps"
 	"math"
 	"slices"
@@ -19,6 +20,8 @@ type Enemy struct {
 	dead      bool
 	summoned  bool    // raised by a boss: worth almost no gold
 	blocked   *Tower  // barricade it is hacking at
+	siegeSec  float64 // seconds spent at barricades since it last walked
+	rage      bool    // held too long: heals no more and hits the barricade harder
 	slowLeft  float64 // seconds of slow left
 	slowMult  float64
 	burnLeft  float64
@@ -34,6 +37,7 @@ type Enemy struct {
 	bleedOwner string
 	healCut    float64         // seconds left of halved healing
 	netLeft    float64         // seconds left tangled in a ballista net
+	netImmune  float64         // a boss shakes off nets until this runs out
 	stunLeft   float64         // seconds left stunned by a pillar of light
 	helpers    map[string]bool // trap owners who hurt it: they share the kill
 
@@ -56,6 +60,7 @@ type Tower struct {
 	Owner    string
 	Level    int
 	Invested int
+	Granted  int // the part of Invested paid from a grant: refunds of it are not the owner's
 	// Built is false while the tower is a construction site. PendingCost is
 	// the paid price of an upgrade a mercenary has not finished yet.
 	Built       bool
@@ -72,6 +77,9 @@ type Tower struct {
 	repairing   bool    // a barricade waits for its mercenary to mend it
 	repairCD    float64 // seconds until the barricade can be mended again
 	holdGold    float64 // gold earned for holding enemies, not paid out yet
+	holdPaid    int     // gold paid for holding during this wave
+	shrineGold  float64 // a shrine's share of kills, not paid out yet
+	shrineWave  int     // gold a shrine paid its owner this wave, for the toast
 }
 
 type Projectile struct {
@@ -120,9 +128,11 @@ func (g *Game) StartWave() {
 	}
 	g.Wave++
 	g.Phase = PhaseWave
+	for _, t := range g.Towers {
+		t.holdPaid = 0
+	}
 	g.Timer = 0
-	n := max(g.ActiveChatters(), 1)
-	sq := math.Sqrt(float64(n))
+	sq := math.Sqrt(max(g.difficultyChatters(), 1))
 	g.waveHP = g.Cfg.BaseHP * math.Pow(g.Cfg.HPGrowth, float64(g.Wave)) * (1 + g.Cfg.ChatterHPCoef*sq)
 	count := g.Cfg.BaseCount + g.Cfg.CountPerWave*g.Wave + int(sq)
 
@@ -150,11 +160,16 @@ func (g *Game) endWave() {
 	g.Timer = g.Cfg.BuildPhaseSec
 	g.packClowns()
 	g.shrinesMendWalls()
+	g.shrineToasts()
 	bonus := int(math.Round(float64(10+2*g.Wave) * g.rewardMult))
 	if g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0 {
 		// A boss wave held: from now on every reward is worth more.
 		g.rewardMult *= 1 + g.Cfg.RewardGrowth
 		g.emit(Event{Kind: "rewardUp", Amount: int(math.Round((g.rewardMult - 1) * 100))})
+		if now := g.limitAfter(g.Wave); now > g.limitAfter(g.Wave-1) {
+			g.emit(Event{Kind: "limitUp", Amount: now})
+			g.reply("", fmt.Sprintf("босс повержен: лимит построек вырос до %d", now))
+		}
 	}
 	owners := map[string]bool{}
 	for _, t := range g.Towers {
@@ -237,6 +252,7 @@ func (g *Game) tickEnemies(dt float64) {
 		}
 		e.healCut = max(0, e.healCut-dt)
 		e.netLeft = max(0, e.netLeft-dt)
+		e.netImmune = max(0, e.netImmune-dt)
 		e.stunLeft = max(0, e.stunLeft-dt)
 		// Every enemy slowly closes its wounds; trolls much faster.
 		g.heal(e, (g.Cfg.EnemyRegen+spec.Regen)*e.MaxHP*dt)
@@ -272,6 +288,7 @@ func (g *Game) tickEnemies(dt float64) {
 
 // move advances an enemy, stopping at barricades and springing traps.
 func (g *Game) move(e *Enemy, spec EnemySpec, step float64) {
+	e.siegeSec, e.rage = 0, false // walking again cools it down
 	from, to := e.Dist, e.Dist+step
 	for i, p := range g.Map.Path {
 		t := g.Towers[p]
@@ -332,7 +349,18 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, dt float64) {
 		e.blocked = nil // sold or already broken
 		return
 	}
-	t.HP -= spec.WallDPS * dt
+	// Held too long, an enemy flies into a rage: it stops healing and hits
+	// harder every second, so barricades delay a wave but cannot stall it.
+	e.siegeSec += dt
+	mult := 1.0
+	if over := e.siegeSec - g.Cfg.SiegeRageSec; g.Cfg.SiegeRageSec > 0 && over >= 0 {
+		if !e.rage {
+			e.rage = true
+			g.emit(Event{Kind: "rage", X: e.Pos.X, Y: e.Pos.Y})
+		}
+		mult += g.Cfg.SiegeRagePerSec * over
+	}
+	t.HP -= spec.WallDPS * mult * dt
 	g.payHold(t, dt)
 	if t.HP <= 0 {
 		g.removeTower(t)
@@ -556,6 +584,7 @@ func (g *Game) payAssists(killer string, e *Enemy) {
 	if e.summoned {
 		return
 	}
+	g.payShrines(killer, e)
 	// Drummers behind the killing shot and trap owners who cut it share it.
 	pct := map[string]float64{}
 	for _, key := range g.assist {
@@ -574,8 +603,64 @@ func (g *Game) payAssists(killer string, e *Enemy) {
 	}
 }
 
+// payShrines gives every shrine a part of a kill's bounty in proportion to
+// how much of the killing damage its buff made: a +15% shrine under a total
+// multiplier of 1.3 made 15/130 of it. Shrines buff the whole map, so they
+// share in every kill but the ones their own owner makes. Fractions add up
+// and are paid out whole.
+func (g *Game) payShrines(killer string, e *Enemy) {
+	if g.Cfg.ShrineAssistPct <= 0 || g.Chatters[killer] == nil {
+		return
+	}
+	type buff struct {
+		t *Tower
+		v float64
+	}
+	var shrines []buff
+	total := 1.0
+	for _, t := range g.Towers {
+		spec := g.Cfg.Towers[t.Kind]
+		if spec.AuraDmg > 0 && g.active(t) {
+			v := spec.AuraDmg * auraMult(t) * g.classBonus(t.Owner, t.Kind)
+			shrines = append(shrines, buff{t, v})
+			total += v
+		}
+	}
+	bounty := float64(g.Cfg.Enemies[e.Kind].Bounty) * g.rewardMult
+	for _, s := range shrines {
+		c := g.Chatters[s.t.Owner]
+		if c == nil || s.t.Owner == killer || s.t.Owner == StreamerName {
+			continue
+		}
+		s.t.shrineGold += bounty * g.Cfg.ShrineAssistPct * s.v / total
+		if n := int(s.t.shrineGold); n > 0 {
+			s.t.shrineGold -= float64(n)
+			s.t.shrineWave += g.addGold(c, n)
+		}
+	}
+}
+
+// shrineToasts tells, after a wave, what each owner's shrines earned.
+func (g *Game) shrineToasts() {
+	earned := map[string]int{}
+	for _, t := range g.Towers {
+		if t.shrineWave > 0 {
+			earned[t.Owner] += t.shrineWave
+			t.shrineWave = 0
+		}
+	}
+	for _, key := range slices.Sorted(maps.Keys(earned)) {
+		if c := g.Chatters[key]; c != nil {
+			g.emit(Event{Kind: "shrineGold", User: c.Name, Amount: earned[key]})
+		}
+	}
+}
+
 // heal restores hit points, halved while a trap's cut is fresh.
 func (g *Game) heal(e *Enemy, hp float64) {
+	if e.rage {
+		return // too busy smashing a barricade to mend
+	}
 	if e.healCut > 0 || e.burnLeft > 0 { // fresh cuts and every burn halve healing
 		hp *= 1 - g.Cfg.TrapHealCut
 	}
@@ -634,7 +719,7 @@ func (g *Game) tickNet(t *Tower, spec TowerSpec, dt float64) {
 	tc := center(t.Cell)
 	var at *Enemy
 	for _, e := range g.Enemies {
-		if !e.dead && e.netLeft <= 0 && e.Pos.sub(tc).len() <= spec.Range && (at == nil || e.Dist > at.Dist) {
+		if !e.dead && e.netLeft <= 0 && e.netImmune <= 0 && e.Pos.sub(tc).len() <= spec.Range && (at == nil || e.Dist > at.Dist) {
 			at = e
 		}
 	}
@@ -644,9 +729,38 @@ func (g *Game) tickNet(t *Tower, spec TowerSpec, dt float64) {
 	t.netCD = spec.NetEvery / (1 + 0.25*float64(t.Level-1))
 	p := at.Pos
 	for _, e := range g.Enemies {
-		if !e.dead && e.Pos.sub(p).len() <= spec.NetRadius {
+		if !e.dead && e.netImmune <= 0 && e.Pos.sub(p).len() <= spec.NetRadius {
 			e.netLeft = spec.NetSec
+			// A boss tears free and stays wary for a while, so a row of
+			// ballistas cannot hold him for good.
+			if g.Cfg.Enemies[e.Kind].Boss {
+				e.netImmune = spec.NetSec + g.Cfg.BossNetImmuneSec
+			}
 		}
 	}
 	g.emit(Event{Kind: "net", X: p.X, Y: p.Y, Text: t.Owner})
+}
+
+// TowerLimit is how many buildings a player may own right now. Lowering it
+// never takes buildings away: it only stops new ones.
+func (g *Game) TowerLimit() int {
+	held := g.Wave
+	if g.Phase == PhaseWave {
+		held-- // the wave in progress is not held yet
+	}
+	n := g.limitAfter(held)
+	if a := g.ActiveChatters(); a > 0 && a <= g.Cfg.SmallTeamSize {
+		n += g.Cfg.SmallTeamBonus
+	}
+	return n
+}
+
+// limitAfter is the base limit once this many waves are held: one more
+// after every boss wave, up to TowerLimitMax.
+func (g *Game) limitAfter(held int) int {
+	n := g.Cfg.TowerLimit
+	if g.Cfg.BossEvery > 0 && held > 0 {
+		n += held / g.Cfg.BossEvery
+	}
+	return min(n, max(g.Cfg.TowerLimitMax, g.Cfg.TowerLimit))
 }

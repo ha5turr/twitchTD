@@ -43,6 +43,7 @@ type SavedTower struct {
 	Invested    int    `json:"invested"`
 	Built       bool   `json:"built"`
 	PendingCost int    `json:"pendingCost"`
+	Granted     int    `json:"granted,omitempty"`
 }
 
 type SavedChatter struct {
@@ -54,6 +55,10 @@ type SavedChatter struct {
 	Class  string
 
 	Progress Progress
+
+	// This game only: restored with the board, not by LoadChatters.
+	Grant   int  `json:"grant,omitempty"`
+	Arrived bool `json:"arrived,omitempty"`
 }
 
 func (g *Game) Export() Save {
@@ -62,11 +67,11 @@ func (g *Game) Export() Save {
 		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned, Memes: g.Memes, RewardUses: g.RewardUses,
 	}
 	for _, t := range g.Towers {
-		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost})
+		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost, t.Granted})
 	}
 	escrow := g.diceEscrow() // stakes on dice tables count as the players' gold
 	for key, c := range g.Chatters {
-		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class, c.progress()})
+		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class, c.progress(), c.Grant, c.arrived})
 	}
 	return s
 }
@@ -135,11 +140,17 @@ func (g *Game) Restore(s Save) {
 		default:
 			refund = st.PendingCost
 			t := &Tower{ID: g.id(), Kind: st.Kind, Cell: p, Owner: st.Owner, Level: st.Level, Invested: st.Invested - st.PendingCost, Built: true}
+			t.Granted = min(st.Granted, t.Invested)
 			g.Towers[p] = t
 			g.readyTower(t)
 		}
 		if c := g.Chatters[st.Owner]; c != nil && refund > 0 && st.Owner != StreamerName {
 			g.addGold(c, refund)
+		}
+	}
+	for _, sc := range s.Chatters {
+		if c := g.Chatters[sc.Login]; c != nil {
+			c.Grant, c.arrived = sc.Grant, sc.Arrived
 		}
 	}
 	g.mapChanged = true

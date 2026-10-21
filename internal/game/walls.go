@@ -15,9 +15,17 @@ func (g *Game) payHold(t *Tower, dt float64) {
 	if c == nil || t.Owner == StreamerName {
 		return
 	}
+	limit := math.MaxInt
+	if g.Cfg.WallHoldMax > 0 {
+		limit = int(math.Round(g.Cfg.WallHoldMax * g.rewardMult))
+	}
+	if t.holdPaid >= limit {
+		return // this barricade has earned all it may this wave
+	}
 	t.holdGold += g.Cfg.WallHoldGold * g.rewardMult * dt
-	if n := int(t.holdGold); n > 0 {
+	if n := min(int(t.holdGold), limit-t.holdPaid); n > 0 {
 		t.holdGold -= float64(n)
+		t.holdPaid += n
 		g.addGold(c, n)
 	}
 }
@@ -25,15 +33,11 @@ func (g *Game) payHold(t *Tower, dt float64) {
 // wallRefund pays back part of a broken barricade: more to the Воитель,
 // whose signature building it is. It returns the gold paid.
 func (g *Game) wallRefund(t *Tower) int {
-	c := g.Chatters[t.Owner]
-	if c == nil || t.Owner == StreamerName {
-		return 0
-	}
 	pct := g.Cfg.WallRefundPct
 	if g.classBonus(t.Owner, t.Kind) > 1 {
 		pct = g.Cfg.WallRefundClass
 	}
-	return g.addGold(c, t.Invested*pct/100)
+	return g.refund(t, t.Invested*pct/100)
 }
 
 // shrinesMendWalls runs after a wave: every shrine mends every barricade on

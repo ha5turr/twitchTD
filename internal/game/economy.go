@@ -254,7 +254,7 @@ func (g *Game) sweepAFK(dt float64) {
 		if !c.wasActive || !c.Joined || key == StreamerName || c.LastSeen.After(cut) || g.Workers[key] != nil || g.atDice(key) != nil {
 			continue
 		}
-		c.wasActive, c.Joined = false, false // gone: back in with !play
+		c.wasActive, c.Joined, c.Grant = false, false, 0 // gone: back in with !play
 		if c.Gold <= 0 {
 			continue
 		}
