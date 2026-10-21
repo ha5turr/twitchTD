@@ -292,13 +292,15 @@ func (g *Game) tickEnemies(dt float64) {
 			g.guestAtGate(e)
 			continue
 		case e.AtGate:
-			g.Walls -= spec.WallDPS * blows * dt
+			// The tavern door enrages too: a crowd at the gate cannot sit
+			// there healing forever.
+			g.Walls -= spec.WallDPS * blows * g.siege(e, dt) * dt
 			// Guards on the walls shoot back, so a leak costs hit points but
 			// is not the end by itself; a boss at the gate still is.
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
 		case e.netLeft > 0 || e.stunLeft > 0: // netted or stunned: neither walks nor hacks
 		case e.blocked != nil:
-			g.hackBarricade(e, spec, blows*dt)
+			g.hackBarricade(e, spec, blows, dt)
 		case e.pause > 0 || e.tavernLeft > 0: // ЭссДиЭф busy with a trick
 		case spec.Fly:
 			g.fly(e, spec.Speed*speed*g.speedMult()*e.slowMult*dt)
@@ -374,28 +376,34 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 	g.emit(Event{Kind: "trap", X: cp.X, Y: cp.Y, Amount: t.Charges})
 }
 
-func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, dt float64) {
+func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, blows, dt float64) {
 	t := e.blocked
 	if g.Towers[t.Cell] != t {
 		e.blocked = nil // sold or already broken
 		return
 	}
-	// Held too long, an enemy flies into a rage: it stops healing and hits
-	// harder every second, so barricades delay a wave but cannot stall it.
-	e.siegeSec += dt
-	mult := 1.0
-	if over := e.siegeSec - g.Cfg.SiegeRageSec; g.Cfg.SiegeRageSec > 0 && over >= 0 {
-		if !e.rage {
-			e.rage = true
-			g.emit(Event{Kind: "rage", X: e.Pos.X, Y: e.Pos.Y})
-		}
-		mult += g.Cfg.SiegeRagePerSec * over
-	}
-	t.HP -= spec.WallDPS * mult * dt
+	t.HP -= spec.WallDPS * blows * g.siege(e, dt) * dt
 	g.payHold(t, dt)
 	if t.HP <= 0 {
 		g.breakWall(t)
 	}
+}
+
+// siege counts the time an enemy spends hacking at a barricade or at the
+// tavern door and returns how much harder it hits. Held too long, it flies
+// into a rage: it stops healing (see heal) and hits harder every second, so
+// neither barricades nor the door can stall a wave for good.
+func (g *Game) siege(e *Enemy, dt float64) float64 {
+	e.siegeSec += dt
+	over := e.siegeSec - g.Cfg.SiegeRageSec
+	if g.Cfg.SiegeRageSec <= 0 || over < 0 {
+		return 1
+	}
+	if !e.rage {
+		e.rage = true
+		g.emit(Event{Kind: "rage", X: e.Pos.X, Y: e.Pos.Y})
+	}
+	return 1 + g.Cfg.SiegeRagePerSec*over
 }
 
 // breakWall takes down a barricade whose hit points ran out.
