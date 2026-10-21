@@ -16,6 +16,7 @@ type appConfig struct {
 	StreamerBot    streamerbot.Config    `json:"streamerbot"`
 	DonationAlerts donationalerts.Config `json:"donationalerts"`
 	DB             string                `json:"db"` // SQLite file; empty disables saving
+	Update         updateConfig          `json:"update"`
 
 	// Overlay sound. OBS can also mix the browser source like any other.
 	Volume        float64            `json:"volume"`
@@ -38,6 +39,7 @@ func loadConfig(path string) (appConfig, error) {
 		Config:        game.DefaultConfig(),
 		StreamerBot:   streamerbot.DefaultConfig(),
 		DB:            "twitchtd.db",
+		Update:        updateConfig{Repo: "ha5turr/twitchTD"},
 		Volume:        0.2,
 		Ambient:       false,
 		AmbientVolume: 0.7,

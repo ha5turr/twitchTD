@@ -329,6 +329,16 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 	switch cmd {
 	case "!tdmeme", "!tdмемы": // memecoin requests: list, done or reject
 		g.cmdMemeAdmin(c, args)
+	case "!tdversion", "!tdверсия":
+		g.reply(c.Name, "версия v"+Version)
+	case "!tdupdate", "!tdобновить", "!tdrollback", "!tdоткат":
+		if g.Ops == nil {
+			g.reply(c.Name, "обновления не настроены")
+		} else if cmd == "!tdupdate" || cmd == "!tdобновить" {
+			g.Ops.Update(c.Name)
+		} else {
+			g.Ops.Rollback(c.Name)
+		}
 	case "!tdwave":
 		g.StartWave()
 	case "!tdnew":

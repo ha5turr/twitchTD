@@ -119,6 +119,8 @@ type Game struct {
 
 	// Admin reaches the overlay settings (sound) for mod chat commands.
 	Admin SettingsAdmin
+	// Ops runs !tdupdate and !tdrollback; nil when the server has none.
+	Ops Operator
 
 	queue      []spawn
 	spawnTimer float64

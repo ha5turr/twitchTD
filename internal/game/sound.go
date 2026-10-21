@@ -36,6 +36,16 @@ func soundGroup(s string) (SoundGroup, bool) {
 	return SoundGroup{}, false
 }
 
+// Operator runs the release commands, which reach outside the game: the
+// server downloads a build and restarts on it, or goes back to the last one.
+type Operator interface {
+	Update(by string)
+	Rollback(by string)
+}
+
+// Announce says something to the whole chat.
+func (g *Game) Announce(text string) { g.reply("", text) }
+
 // SettingsAdmin lets chat commands read and change the overlay settings,
 // which live outside the game (config.json plus the panel's overrides).
 type SettingsAdmin interface {
