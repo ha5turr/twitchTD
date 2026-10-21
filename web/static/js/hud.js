@@ -118,7 +118,7 @@ export class Hud {
     if (st.phase === 'build' || st.phase === 'gameover') phase += `  ${fmtTime(st.timer)}`;
     if (st.paused) phase = 'Пауза';
     this.phaseText.text = phase;
-    this.infoText.text = `наёмников ${st.active}   seed ${this.map?.seed ?? ''}`;
+    this.infoText.text = `наёмников ${st.active}   seed ${this.map?.seed ?? ''}   v${this.map?.version ?? ''}`;
     if (this.lastWalls !== null && st.walls < this.lastWalls) this.hitFlash = 0.35;
     this.lastWalls = st.walls;
     this.treasury = st.treasury ?? 0;

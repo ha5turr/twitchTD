@@ -42,7 +42,11 @@ let hover = null;
 let values = {};
 
 const net = connect({
-  map(m) { map = m; draw(); },
+  map(m) {
+    map = m;
+    $('version').textContent = m.version ? `· v${m.version}` : '';
+    draw();
+  },
   state(s) { state = s; renderStatus(); renderChatters(); draw(); },
   settings(s) { values = s.values; renderSettings(); },
   settingsError(e) {
