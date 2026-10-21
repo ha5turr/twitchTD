@@ -7,6 +7,9 @@ import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
+// How long !me keeps the speaker's buildings lit.
+const HIGHLIGHT_SEC = 6;
+
 // A shieldbearer covers everyone within GUARD cells (enemy guard in config.go).
 const GUARD = 1.2;
 
@@ -47,6 +50,11 @@ export class Entities {
     sync(this.panthers, panthers, (p) => new PantherView(p, this), (v, p) => v.set(p));
     const runs = (state.runs ?? []).map((r) => ({ ...r, id: r.name }));
     sync(this.runs, runs, (r) => new RunView(r, this), (v, r) => v.set(r));
+    // !me lights up the speaker's buildings for a few seconds.
+    for (const ev of state.events ?? []) {
+      if (ev.kind !== 'card') continue;
+      for (const v of this.towers.values()) if (v.owner === ev.user) v.highlight(HIGHLIGHT_SEC);
+    }
   }
 
   // Names of mercenaries currently out of the tavern.
@@ -251,6 +259,7 @@ class EnemyView {
 class TowerView {
   constructor(t, layer) {
     this.kind = t.kind;
+    this.owner = t.owner;
     const p = toPx(t.x, t.y);
     this.cx = p.x + CELL / 2;
     this.cy = p.y + CELL / 2;
@@ -278,6 +287,12 @@ class TowerView {
     this.frog.position.set(this.cx, this.cy + (this.frog.anchor?.y === 1 ? 24 : 0));
     this.frog.visible = false;
     layer.world.addChild(this.frog);
+    // The ring !me lights around the speaker's buildings, in his nick colour.
+    this.glow = new Graphics();
+    this.glow.position.set(this.cx, this.cy);
+    this.glow.visible = false;
+    this.glowLeft = 0;
+    layer.labels.addChild(this.glow);
 
     this.name = new Text({
       text: t.owner,
@@ -335,7 +350,12 @@ class TowerView {
     drawTower(g, this.kind, RARITY[Math.min(t.lvl, 5) - 1], t.lvl, { pixel: hasTileset(), art: !!this.art });
   }
 
+  highlight(secs) {
+    this.glowLeft = secs;
+  }
+
   frame(t, enemies) {
+    this.drawGlow(t);
     // A disabled building turns grey, the colour the design keeps for that.
     this.root.tint = this.disabled ? 0x777777 : 0xffffff;
     this.root.alpha = !this.built ? 0.85 : this.empty ? 0.45 : 1;
@@ -345,6 +365,25 @@ class TowerView {
     if (this.hex) this.frog.scale.y = Math.abs(this.frog.scale.y) * (1 + 0.06 * Math.sin(t * 6)); // croaking
     if (this.art?.aimSprite && enemies) this.aim(enemies);
     if (this.kind === 'drums') this.drumPulse(t);
+  }
+
+  // drawGlow pulses a ring in the owner's colour round the cell while !me
+  // keeps the building lit, fading out over the last second.
+  drawGlow(t) {
+    const g = this.glow;
+    const dt = t - (this.lastT ?? t);
+    this.lastT = t;
+    if (this.glowLeft <= 0) {
+      g.visible = false;
+      return;
+    }
+    this.glowLeft -= dt;
+    const fade = Math.min(1, Math.max(0, this.glowLeft));
+    const pulse = 0.6 + 0.4 * Math.sin(t * 6);
+    const color = nickColor(this.owner);
+    g.clear();
+    g.roundRect(-44, -44, 88, 88, 12).fill({ color, alpha: 0.12 * fade }).stroke({ width: 5, color, alpha: pulse * fade });
+    g.visible = true;
   }
 
   // drumPulse shows the reach of the drums' aura now and then: a faint warm
@@ -386,6 +425,8 @@ class TowerView {
   destroy() {
     this.root.destroy({ children: true });
     this.web.destroy();
+    this.frog.destroy();
+    this.glow.destroy();
     this.name.destroy();
     this.bar.destroy();
     this.charges.destroy();
