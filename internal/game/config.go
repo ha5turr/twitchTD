@@ -339,7 +339,7 @@ func DefaultConfig() Config {
 		NoteRange:            4,
 		RogueStepEverySec:    60,
 		RogueStepSec:         0.8,
-		RogueStepDmg:         0.8,
+		RogueStepDmg:         1.0,
 		RogueFanDmg:          0.25,
 		RogueFanRadius:       2,
 		ClericEverySec:       60,
