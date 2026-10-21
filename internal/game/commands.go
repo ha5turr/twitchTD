@@ -55,6 +55,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 	switch cmd {
 	case "!play", "!играть", "!join":
 		// join already welcomed them; a second !play just says so.
+	case "!leave", "!выйти", "!уйти":
+		g.cmdLeave(c, key)
 	case "!build", "!b", "!строить", "!с":
 		g.cmdBuild(c, key, args)
 	case "!up", "!u", "!улучшить":
@@ -264,6 +266,12 @@ func (g *Game) cmdSell(c *Chatter, key string, args []string) {
 	if t == nil {
 		return
 	}
+	g.sellTower(t, c.Name)
+}
+
+// sellTower takes a building down and pays its owner the refund, which it
+// returns.
+func (g *Game) sellTower(t *Tower, by string) int {
 	g.removeTower(t)
 	// Unfinished work is refunded in full: nothing was built with that gold.
 	refund := (t.Invested - t.PendingCost) * g.Cfg.SellRefundPct / 100
@@ -276,7 +284,35 @@ func (g *Game) cmdSell(c *Chatter, key string, args []string) {
 		refund = g.addGold(owner, refund)
 	}
 	cp := center(t.Cell)
-	g.emit(Event{Kind: "sell", User: c.Name, X: cp.X, Y: cp.Y, Amount: refund})
+	g.emit(Event{Kind: "sell", User: by, X: cp.X, Y: cp.Y, Amount: refund})
+	return refund
+}
+
+// cmdLeave takes a player out of the game: every building is sold and the
+// whole wallet goes to the treasury. !play brings them back.
+func (g *Game) cmdLeave(c *Chatter, key string) {
+	switch {
+	case g.isStreamer(key):
+		return
+	case !c.Joined:
+		g.reply(c.Name, "ты и так не в игре; войти: !play")
+		return
+	case g.busyAtDice(c, key):
+		return
+	}
+	towers := 0
+	for _, t := range g.Towers {
+		if t.Owner == key {
+			g.sellTower(t, c.Name)
+			towers++
+		}
+	}
+	gold := c.Gold
+	c.Gold = 0
+	g.toTreasury(gold)
+	c.Joined, c.wasActive = false, false
+	g.emit(Event{Kind: "leave", User: c.Name, Amount: gold})
+	g.reply(c.Name, fmt.Sprintf("ты покинул таверну: продано построек %d, %d золота ушло в казну. Вернуться: !play", towers, gold))
 }
 
 // cmdAdmin handles !td* commands for the streamer and moderators.

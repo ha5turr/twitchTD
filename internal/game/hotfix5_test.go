@@ -1,6 +1,7 @@
 package game
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -136,5 +137,37 @@ func TestStreamerPlaysOnEqualTerms(t *testing.T) {
 	g.HandleChat(ChatMessage{Login: "ha5turr", User: "Ha5turr", Mod: true, Broadcaster: true, Text: "!tdgold ha5turr 50"})
 	if c.Gold != gold+50 {
 		t.Fatalf("admin commands still work from chat: gold %d", c.Gold)
+	}
+}
+
+func TestLeaveSellsAndEmptiesTheWallet(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	c := g.Chatters["anna"]
+	a := placeAs(g, "anna", "arrow", freeCell(t, g))
+	a.Invested = 100
+	placeAs(g, "anna", "magic", freeCell(t, g)).Invested = 200
+	other := placeAs(g, "boris", "arrow", freeCell(t, g))
+	c.Gold = 50
+	treasury := g.Treasury
+	active := g.ActiveChatters()
+	g.HandleChat(ChatMessage{User: "anna", Text: "!leave"})
+	want := 50 + (100+200)*g.Cfg.SellRefundPct/100
+	if g.towersOf("anna") != 0 || g.Towers[other.Cell] == nil {
+		t.Fatal("only the leaver's buildings are sold")
+	}
+	if c.Gold != 0 || g.Treasury != treasury+want {
+		t.Fatalf("wallet and refunds go to the treasury: gold %d, treasury +%d, want +%d", c.Gold, g.Treasury-treasury, want)
+	}
+	if c.Joined || g.ActiveChatters() != active-1 {
+		t.Fatal("the leaver is out of the tavern and the difficulty")
+	}
+	g.HandleChat(ChatMessage{User: "anna", Text: "!leave"})
+	if r := lastReply(g); !strings.Contains(r, "не в игре") {
+		t.Fatalf("a second !leave just says so: %q", r)
+	}
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	if !c.Joined {
+		t.Fatal("!play brings them back")
 	}
 }

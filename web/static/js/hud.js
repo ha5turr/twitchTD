@@ -283,6 +283,9 @@ export class Hud {
         this.volleys.push({ ...p, arrows, life: 0.7 });
         break;
       }
+      case 'leave':
+        this.toasts.push({ text: `🚪 ${ev.user} покинул таверну: ${ev.amount} з в казну`, color: 0xc9b98f });
+        break;
       case 'afk':
         this.toasts.push({ text: `💤 ${ev.user} ушёл: ${ev.amount} з в казну`, color: 0xc9b98f });
         break;
