@@ -19,6 +19,8 @@ var Classes = []ClassSpec{
 	{"rogue", "Разбойник", "trap", []string{"разбойник", "rogue", "вор"}},
 	{"bard", "Бард", "drums", []string{"бард", "bard"}},
 	{"warrior", "Воитель", "wall", []string{"воитель", "warrior", "воин", "fighter"}},
+	{"warlock", "Чернокнижник", "curse", []string{"чернокнижник", "warlock", "колдун"}},
+	{"shaman", "Шаман", "totem", []string{"шаман", "shaman"}},
 	// The druid has no signature building: it turns into a panther (rogues.go).
 	{"druid", "Друид", "", []string{"друид", "druid"}},
 }

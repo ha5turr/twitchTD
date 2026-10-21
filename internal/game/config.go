@@ -104,6 +104,13 @@ type Config struct {
 	PathFireBurnSec   float64 `json:"pathFireBurnSec"`
 	BossNetImmuneSec  float64 `json:"bossNetImmuneSec"` // after a net a boss shakes off new ones this long
 	RangerEverySec    float64 `json:"rangerEverySec"`
+	WarlockEverySec   float64 `json:"warlockEverySec"`
+	WarlockDrainPct   float64 `json:"warlockDrainPct"` // share of the strongest enemy's max HP the pact takes
+	WarlockHealMax    float64 `json:"warlockHealMax"`  // tavern walls mended by one pact, at most
+	ShamanEverySec    float64 `json:"shamanEverySec"`
+	QuakeStunSec      float64 `json:"quakeStunSec"`    // ground enemies stunned by the earthquake (bosses half)
+	CurseShardPct     float64 `json:"curseShardPct"`   // a cursed kill pays the altar's owner this share of the bounty
+	CurseSoulChance   float64 `json:"curseSoulChance"` // and gives him a soul with this chance
 	ArrowRainDmg      float64 `json:"arrowRainDmg"`
 	ArrowRainRadius   float64 `json:"arrowRainRadius"`
 
@@ -177,6 +184,12 @@ type EnemySpec struct {
 	Regen      float64 `json:"regen"`      // heals itself, share of max HP per second
 	Ghost      bool    `json:"ghost"`      // floats through barricades and over traps
 	SlowImmune bool    `json:"slowImmune"` // traps do not slow it
+	Bomb       float64 `json:"bomb"`       // blows up at the first barricade, taking this share of its max HP
+	Guard      float64 `json:"guard"`      // shields everyone within this radius: physical damage halved
+	Split      string  `json:"split"`      // dies into SplitN of these
+	SplitN     int     `json:"splitN"`
+	Fly        bool    `json:"fly"`    // flies straight to the tavern over barricades and traps
+	Dispel     float64 `json:"dispel"` // washes nets, burns, curses and slows off everyone within this radius
 	Boss       bool    `json:"boss"`
 }
 
@@ -188,6 +201,7 @@ const (
 	RoleAura    TowerRole = "aura"    // buffs neighbours (shrine, drums)
 	RoleTrap    TowerRole = "trap"    // on the path, hurts and slows passers-by
 	RoleWall    TowerRole = "wall"    // on the path, blocks until broken
+	RoleCurse   TowerRole = "curse"   // curses enemies so everything hurts them more
 )
 
 type TowerSpec struct {
@@ -233,6 +247,19 @@ type TowerSpec struct {
 	AuraRate  float64 `json:"auraRate"` // fire rate bonus
 	WallHeal  float64 `json:"wallHeal"` // tavern wall repair, HP per second per level
 
+	// Curse (warlock's altar): every CurseEvery seconds, more often with each
+	// level, the toughest enemy in Range takes CurseAmp more damage from
+	// everything and loses its armor for CurseSec; bosses take half the extra.
+	CurseEvery float64 `json:"curseEvery"`
+	CurseSec   float64 `json:"curseSec"`
+	CurseAmp   float64 `json:"curseAmp"`
+	// Chain lightning (shaman's totem): a hit jumps to Chain more enemies, one
+	// more every other level, each within ChainRange of the last and taking
+	// ChainFalloff of the hit before.
+	Chain        int     `json:"chain"`
+	ChainRange   float64 `json:"chainRange"`
+	ChainFalloff float64 `json:"chainFalloff"`
+
 	// Only: the building fires at this enemy kind alone, and only while it is
 	// on the field; BossPct is its damage as a share of the target's max HP.
 	Only    string  `json:"only"`
@@ -243,7 +270,7 @@ type TowerSpec struct {
 func (s TowerSpec) OnPath() bool { return s.Role == RoleTrap || s.Role == RoleWall }
 
 // TowerKinds lists buildings in the order chat sees them.
-var TowerKinds = []string{"arrow", "magic", "fire", "shrine", "trap", "drums", "wall", "clown"}
+var TowerKinds = []string{"arrow", "magic", "fire", "shrine", "trap", "drums", "wall", "curse", "totem", "clown"}
 
 func DefaultConfig() Config {
 	return Config{
@@ -323,6 +350,13 @@ func DefaultConfig() Config {
 		PathFireBurnSec:      4,
 		BossNetImmuneSec:     6,
 		RangerEverySec:       30,
+		WarlockEverySec:      70,
+		WarlockDrainPct:      0.05,
+		WarlockHealMax:       100,
+		ShamanEverySec:       70,
+		QuakeStunSec:         1.5,
+		CurseShardPct:        0.5,
+		CurseSoulChance:      0.05,
 		ArrowRainDmg:         0.36,
 		ArrowRainRadius:      2,
 		TrapBleed:            0.15,
@@ -373,17 +407,23 @@ func DefaultConfig() Config {
 		SdfChance:          0.2,
 		SdfFromWave:        10,
 		Enemies: map[string]EnemySpec{
-			"skeleton":    {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
-			"ghoul":       {Name: "Гуль", HPMult: 0.6, Speed: 1.9, WallDPS: 4, Bounty: 3},
-			"cultist":     {Name: "Культист", HPMult: 0.9, Speed: 1.0, WallDPS: 5, Bounty: 5, Heal: 0.04},
-			"spider":      {Name: "Паук", HPMult: 0.5, Speed: 2.1, WallDPS: 4, Bounty: 3},
-			"rat":         {Name: "Крыса", HPMult: 0.35, Speed: 2.4, WallDPS: 2, Bounty: 2},
-			"troll":       {Name: "Тролль", HPMult: 2.2, Speed: 0.7, Armor: 0.35, WallDPS: 12, Bounty: 9, Regen: 0.01},
-			"mummy":       {Name: "Мумия", HPMult: 1.5, Speed: 0.8, Armor: 0.5, WallDPS: 9, Bounty: 6},
-			"ghost":       {Name: "Призрак", HPMult: 0.8, Speed: 1.3, Armor: 0.3, WallDPS: 5, Bounty: 5, Ghost: true},
-			"necromancer": {Name: "Некромант", HPMult: 0.9, Speed: 1.0, WallDPS: 5, Bounty: 6, Heal: 0.05},
-			"iceskel":     {Name: "Ледяной скелет", HPMult: 1.3, Speed: 1.0, Armor: 0.45, WallDPS: 8, Bounty: 6, SlowImmune: true},
-			"frostspirit": {Name: "Инеистый дух", HPMult: 0.7, Speed: 1.6, WallDPS: 5, Bounty: 5, Ghost: true, SlowImmune: true},
+			"skeleton":      {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
+			"ghoul":         {Name: "Гуль", HPMult: 0.6, Speed: 1.9, WallDPS: 4, Bounty: 3},
+			"cultist":       {Name: "Культист", HPMult: 0.9, Speed: 1.0, WallDPS: 5, Bounty: 5, Heal: 0.04},
+			"spider":        {Name: "Паук", HPMult: 0.5, Speed: 2.1, WallDPS: 4, Bounty: 3},
+			"rat":           {Name: "Крыса", HPMult: 0.35, Speed: 2.4, WallDPS: 2, Bounty: 2},
+			"troll":         {Name: "Тролль", HPMult: 2.2, Speed: 0.7, Armor: 0.35, WallDPS: 12, Bounty: 9, Regen: 0.01},
+			"mummy":         {Name: "Мумия", HPMult: 1.5, Speed: 0.8, Armor: 0.5, WallDPS: 9, Bounty: 6},
+			"ghost":         {Name: "Призрак", HPMult: 0.8, Speed: 1.3, Armor: 0.3, WallDPS: 5, Bounty: 5, Ghost: true},
+			"necromancer":   {Name: "Некромант", HPMult: 0.9, Speed: 1.0, WallDPS: 5, Bounty: 6, Heal: 0.05},
+			"iceskel":       {Name: "Ледяной скелет", HPMult: 1.3, Speed: 1.0, Armor: 0.45, WallDPS: 8, Bounty: 6, SlowImmune: true},
+			"bomber":        {Name: "Гоблин-подрывник", HPMult: 0.6, Speed: 1.7, WallDPS: 4, Bounty: 4, Bomb: 0.5},
+			"shieldbearer":  {Name: "Щитоносец", HPMult: 1.4, Speed: 0.8, Armor: 0.2, WallDPS: 8, Bounty: 6, Guard: 1.2},
+			"slime":         {Name: "Слизень", HPMult: 1.4, Speed: 0.8, WallDPS: 6, Bounty: 4, Split: "slimelet", SplitN: 2},
+			"slimelet":      {Name: "Слизнёнок", HPMult: 0.4, Speed: 1.1, WallDPS: 3, Bounty: 1},
+			"bat":           {Name: "Летучая мышь", HPMult: 0.5, Speed: 1.5, WallDPS: 3, Bounty: 3, Fly: true},
+			"goblin_shaman": {Name: "Гоблин-шаман", HPMult: 0.8, Speed: 1.0, WallDPS: 4, Bounty: 6, Dispel: 1.6},
+			"frostspirit":   {Name: "Инеистый дух", HPMult: 0.7, Speed: 1.6, WallDPS: 5, Bounty: 5, Ghost: true, SlowImmune: true},
 
 			"bone_knight":  {Name: "Костяной Рыцарь", HPMult: 1, Speed: 0.6, Armor: 0.3, WallDPS: 60, Bounty: 80, Boss: true},
 			"cult_leader":  {Name: "Вожак Культа", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Boss: true},
@@ -392,6 +432,8 @@ func DefaultConfig() Config {
 			"lich":         {Name: "Лич", HPMult: 1, Speed: 0.55, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
 			"ghost_king":   {Name: "Призрачный Король", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Ghost: true, Boss: true},
 			"ice_golem":    {Name: "Ледяной Голем", HPMult: 1, Speed: 0.5, Armor: 0.5, WallDPS: 80, Bounty: 80, SlowImmune: true, Boss: true},
+			"swamp_witch":  {Name: "Болотная Ведьма", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Boss: true},
+			"hydra":        {Name: "Гидра", HPMult: 1.1, Speed: 0.5, Armor: 0.25, WallDPS: 70, Bounty: 90, Boss: true},
 			"frost_demon":  {Name: "Демон Стужи", HPMult: 1, Speed: 0.65, Armor: 0.25, WallDPS: 70, Bounty: 80, SlowImmune: true, Boss: true},
 			// A guest boss of any biome, deliberately unfair: see sdf.go.
 			"sdf": {Name: "ЭссДиЭф", HPMult: 15, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
@@ -405,6 +447,8 @@ func DefaultConfig() Config {
 			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 3, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
 			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
 			// The only real answer to ЭссДиЭф: shoots him anywhere on the map.
+			"curse": {Name: "Алтарь проклятий", Role: RoleCurse, Cost: 90, Range: 2.6, CurseEvery: 4, CurseSec: 6, CurseAmp: 0.25, UpgMult: 1.25, MaxLevel: 5},
+			"totem": {Name: "Тотем грозы", Role: RoleShooter, Cost: 85, Damage: 9, Range: 2.4, Rate: 0.8, Magic: true, Chain: 3, ChainRange: 1.6, ChainFalloff: 0.75, UpgMult: 1.45, MaxLevel: 5},
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
 		WebcamFrom: "N1",

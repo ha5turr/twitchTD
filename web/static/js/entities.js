@@ -7,6 +7,9 @@ import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
+// A shieldbearer covers everyone within GUARD cells (enemy guard in config.go).
+const GUARD = 1.2;
+
 // Drums of war: their aura reaches DRUM_RANGE cells (the drums' auraRange in
 // config.go), shown as a pulse every DRUM_EVERY seconds.
 const DRUM_RANGE = 3;
@@ -151,6 +154,7 @@ class EnemyView {
     }
     this.burn = !!e.burn;
     this.rage = !!e.rage;
+    this.cursed = !!e.curse;
     this.act = e.act ?? 0;
     if (e.hp !== this.hp) {
       this.hp = e.hp;
@@ -160,12 +164,16 @@ class EnemyView {
       this.bar.rect(-w / 2, 0, w, 6).fill({ color: 0x000000, alpha: 0.7 });
       this.bar.rect(-w / 2, 0, w * f, 6).fill(f > 0.5 ? 0x5fd35f : f > 0.25 ? 0xe0b03a : 0xe04a3a);
     }
-    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '');
+    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
       this.fx.clear();
       if (e.slow) this.fx.ellipse(0, r * 0.8, r * 1.1, r * 0.35).stroke({ width: 3, color: 0x8fd4ff });
+      if (e.kind === 'shieldbearer') {
+        // The cover he gives: a faint dome over everyone within GUARD cells.
+        this.fx.circle(0, 0, GUARD * CELL).fill({ color: 0x9ac8ff, alpha: 0.08 }).stroke({ width: 2, color: 0x9ac8ff, alpha: 0.35 });
+      }
       if (e.shield) this.fx.arc(0, 0, r + 8, -2.2, 2.2).stroke({ width: 5, color: 0xffe08a });
       if (e.stun) {
         // Dazed by holy light: a soft golden halo over the head.
@@ -207,6 +215,7 @@ class EnemyView {
     else if (this.motion === 'hop') this.body.y = this.footY - Math.abs(Math.sin(t * 12 + this.phase)) * 5;
     // Raging enemies throb red, burning ones flicker orange.
     if (this.rage) this.body.tint = Math.sin(t * 8) > 0 ? 0xff4a3a : 0xff9a8a;
+    else if (this.cursed) this.body.tint = Math.sin(t * 5) > 0 ? 0xc07aff : 0xe0c0ff;
     else this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
     this.bar.position.set(r.x, r.y - this.r - (this.boss ? 34 : 14));
   }
@@ -263,6 +272,11 @@ class TowerView {
     this.web.circle(0, 0, 16).circle(0, 0, 30);
     this.web.stroke({ width: 2, color: 0xe8f4ff, alpha: 0.85 });
     layer.world.addChild(this.root, this.web);
+    // The frog a swamp witch turns the building into for a while.
+    this.frog = sprite('tc_frog', 4) ?? emoji('🐸', 40);
+    this.frog.position.set(this.cx, this.cy + (this.frog.anchor?.y === 1 ? 24 : 0));
+    this.frog.visible = false;
+    layer.world.addChild(this.frog);
 
     this.name = new Text({
       text: t.owner,
@@ -284,6 +298,7 @@ class TowerView {
 
   set(t) {
     this.disabled = !!t.disabled;
+    this.hex = !!t.hex;
     // One bar above the cell: construction progress, or a barricade's health.
     const key = `${t.progress ?? 0}|${t.hp ?? 0}`;
     if (key !== this.barKey) {
@@ -323,8 +338,10 @@ class TowerView {
     // A disabled building turns grey, the colour the design keeps for that.
     this.root.tint = this.disabled ? 0x777777 : 0xffffff;
     this.root.alpha = !this.built ? 0.85 : this.empty ? 0.45 : 1;
-    this.web.visible = this.disabled;
+    this.web.visible = this.disabled && !this.hex;
     this.web.rotation = Math.sin(t) * 0.05;
+    this.frog.visible = this.hex;
+    if (this.hex) this.frog.scale.y = Math.abs(this.frog.scale.y) * (1 + 0.06 * Math.sin(t * 6)); // croaking
     if (this.art?.aimSprite && enemies) this.aim(enemies);
     if (this.kind === 'drums') this.drumPulse(t);
   }

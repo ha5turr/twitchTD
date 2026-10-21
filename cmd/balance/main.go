@@ -23,7 +23,9 @@ func main() {
 	games := flag.Int("games", 40, "games per chat size")
 	sizes := flag.String("chatters", "1,5,10,20", "comma-separated chat sizes")
 	cfgPath := flag.String("config", "", "balance overrides (same format as config.json)")
+	biomeFlag := flag.String("biome", "", "play every game in this biome (ruins, dungeon, crypt, ice, swamp)")
 	flag.Parse()
+	biome = game.Biome(*biomeFlag)
 
 	cfg := game.DefaultConfig()
 	if *cfgPath != "" {
@@ -74,7 +76,7 @@ func pct(v []float64, p float64) float64 {
 var kinds = []struct {
 	kind   string
 	weight float64
-}{{"arrow", 30}, {"magic", 18}, {"fire", 15}, {"trap", 10}, {"wall", 9}, {"shrine", 9}, {"drums", 9}}
+}{{"arrow", 27}, {"magic", 16}, {"fire", 14}, {"trap", 10}, {"wall", 9}, {"shrine", 9}, {"drums", 9}, {"curse", 8}, {"totem", 10}}
 
 func pickKind(r *rand.Rand) string {
 	total := 0.0
@@ -98,12 +100,18 @@ type bot struct {
 	cells    []game.Pos
 }
 
+// biome, when set, is the one every simulated game is played in.
+var biome game.Biome
+
 // play runs one game to the end and reports the waves survived.
 func play(cfg game.Config, chatters int, seed uint64) result {
 	r := rand.New(rand.NewPCG(seed, 99))
 	g := game.New(cfg, seed)
 	clock := time.Unix(1_700_000_000, 0)
 	g.Now = func() time.Time { return clock }
+	if biome != "" {
+		g.NewGame(biome)
+	}
 
 	bots := make([]*bot, chatters)
 	for i := range bots {

@@ -121,7 +121,7 @@ func (g *Game) Restore(s Save) {
 	g.Timer = g.Cfg.FirstBuildPhaseSec
 	g.Wave = max(s.Wave-1, 0) // an interrupted wave is played again
 	g.RewardUses = s.RewardUses
-	if g.Cfg.BossEvery > 0 {  // the rewards grown by the boss waves already held
+	if g.Cfg.BossEvery > 0 { // the rewards grown by the boss waves already held
 		g.rewardMult = math.Pow(1+g.Cfg.RewardGrowth, float64(g.Wave/g.Cfg.BossEvery))
 	}
 	g.Walls = s.Walls

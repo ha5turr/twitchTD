@@ -35,9 +35,14 @@ type Enemy struct {
 	bleedLeft  float64
 	bleedDPS   float64
 	bleedOwner string
-	healCut    float64         // seconds left of halved healing
-	netLeft    float64         // seconds left tangled in a ballista net
-	netImmune  float64         // a boss shakes off nets until this runs out
+	healCut    float64 // seconds left of halved healing
+	netLeft    float64 // seconds left tangled in a ballista net
+	netImmune  float64 // a boss shakes off nets until this runs out
+	curseLeft  float64 // seconds left cursed by a warlock's altar
+	curseAmp   float64 // extra damage taken while cursed
+	curseOwner string
+	heads      int             // a hydra's heads
+	nextCut    float64         // the share of health at which the hydra grows the next one
 	stunLeft   float64         // seconds left stunned by a pillar of light
 	helpers    map[string]bool // trap owners who hurt it: they share the kill
 
@@ -79,6 +84,8 @@ type Tower struct {
 	holdGold    float64 // gold earned for holding enemies, not paid out yet
 	holdPaid    int     // gold paid for holding during this wave
 	shrineGold  float64 // a shrine's share of kills, not paid out yet
+	curseCD     float64 // seconds until the altar curses again
+	hexLeft     float64 // seconds left as a frog (the swamp witch)
 	shrineWave  int     // gold a shrine paid its owner this wave, for the toast
 }
 
@@ -253,6 +260,7 @@ func (g *Game) tickEnemies(dt float64) {
 		e.healCut = max(0, e.healCut-dt)
 		e.netLeft = max(0, e.netLeft-dt)
 		e.netImmune = max(0, e.netImmune-dt)
+		e.curseLeft = max(0, e.curseLeft-dt)
 		e.stunLeft = max(0, e.stunLeft-dt)
 		// Every enemy slowly closes its wounds; trolls much faster.
 		g.heal(e, (g.Cfg.EnemyRegen+spec.Regen)*e.MaxHP*dt)
@@ -262,23 +270,35 @@ func (g *Game) tickEnemies(dt float64) {
 		if spec.Boss {
 			g.tickBoss(e, dt)
 		}
+		if spec.Dispel > 0 {
+			g.tickDispel(e, spec, dt)
+		}
+		if e.Kind == "hydra" {
+			g.tickHydra(e)
+		}
 		if e.slowLeft > 0 {
 			e.slowLeft -= dt
 		} else {
 			e.slowMult = 1
 		}
+		speed, blows := e.fury()
 		switch {
 		case e.AtGate:
-			g.Walls -= spec.WallDPS * dt
+			g.Walls -= spec.WallDPS * blows * dt
 			// Guards on the walls shoot back, so a leak costs hit points but
 			// is not the end by itself; a boss at the gate still is.
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
 		case e.netLeft > 0 || e.stunLeft > 0: // netted or stunned: neither walks nor hacks
 		case e.blocked != nil:
-			g.hackBarricade(e, spec, dt)
+			g.hackBarricade(e, spec, blows*dt)
 		case e.pause > 0 || e.tavernLeft > 0: // ЭссДиЭф busy with a trick
+		case spec.Fly:
+			g.fly(e, spec.Speed*speed*g.speedMult()*e.slowMult*dt)
 		default:
-			g.move(e, spec, spec.Speed*g.speedMult()*e.slowMult*dt)
+			g.move(e, spec, spec.Speed*speed*g.speedMult()*e.slowMult*dt)
+		}
+		if spec.Fly {
+			e.Pos = g.flyPos(e) // a shove or a step back moves it along its line
 		}
 		if e.Kind == sdfKind {
 			g.tickSdf(e, dt)
@@ -314,6 +334,9 @@ func (g *Game) move(e *Enemy, spec EnemySpec, step float64) {
 	e.Dist = min(to, g.total)
 	if e.Dist >= g.total {
 		e.AtGate = true
+	}
+	if e.blocked != nil && spec.Bomb > 0 {
+		g.blowUp(e, spec)
 	}
 	e.Pos = g.routePos(e.Dist)
 }
@@ -363,13 +386,18 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, dt float64) {
 	t.HP -= spec.WallDPS * mult * dt
 	g.payHold(t, dt)
 	if t.HP <= 0 {
-		g.removeTower(t)
-		cp := center(t.Cell)
-		g.emit(Event{Kind: "wallBroken", X: cp.X, Y: cp.Y, Amount: g.wallRefund(t)})
-		for _, o := range g.Enemies {
-			if o.blocked == t {
-				o.blocked = nil
-			}
+		g.breakWall(t)
+	}
+}
+
+// breakWall takes down a barricade whose hit points ran out.
+func (g *Game) breakWall(t *Tower) {
+	g.removeTower(t)
+	cp := center(t.Cell)
+	g.emit(Event{Kind: "wallBroken", X: cp.X, Y: cp.Y, Amount: g.wallRefund(t)})
+	for _, o := range g.Enemies {
+		if o.blocked == t {
+			o.blocked = nil
 		}
 	}
 }
@@ -402,6 +430,7 @@ func (g *Game) auras(t *Tower) (dmg, rate float64) {
 func (g *Game) tickTowers(dt float64) {
 	for _, t := range g.Towers {
 		t.repairCD = max(0, t.repairCD-dt)
+		t.hexLeft = max(0, t.hexLeft-dt)
 		if t.Disabled > 0 {
 			t.Disabled -= dt
 			continue
@@ -416,6 +445,10 @@ func (g *Game) tickTowers(dt float64) {
 		}
 		if spec.AuraRate > 0 {
 			g.tickNotes(t, dt) // a bard's drums shoot notes while he plays
+		}
+		if spec.Role == RoleCurse {
+			g.tickCurse(t, spec, dt)
+			continue
 		}
 		if spec.Role != RoleShooter {
 			continue
@@ -449,6 +482,10 @@ func (g *Game) tickTowers(dt float64) {
 		damage := spec.Damage * mult
 		if spec.BossPct > 0 {
 			damage = spec.BossPct * target.MaxHP * mult
+		}
+		if spec.Chain > 0 {
+			g.chainZap(t, spec, target, damage) // lightning needs no flight time
+			continue
 		}
 		g.Projectiles = append(g.Projectiles, &Projectile{
 			ID: g.id(), Kind: t.Kind, Pos: tc, Target: target.ID, Aim: target.Pos,
@@ -513,8 +550,14 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	if e.dead || dmg <= 0 {
 		return
 	}
-	if !ignoreArmor {
-		dmg *= 1 - g.Cfg.Enemies[e.Kind].Armor
+	physical := !ignoreArmor
+	if e.curseLeft > 0 {
+		dmg *= 1 + e.curseAmp // a cursed enemy takes more from everything
+	} else if physical {
+		dmg *= 1 - g.Cfg.Enemies[e.Kind].Armor // and has no armor left
+	}
+	if physical && g.guarded(e) {
+		dmg *= 1 - guardCut
 	}
 	if e.shieldUp {
 		dmg *= 0.2
@@ -534,6 +577,9 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 		return
 	}
 	e.dead = true
+	if s := g.Cfg.Enemies[e.Kind]; s.Split != "" && s.SplitN > 0 {
+		g.split(e, s)
+	}
 	if e.loot != nil {
 		g.returnLoot(e)
 	}
@@ -554,6 +600,7 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 		bounty = g.addGold(c, bounty)
 	}
 	g.payAssists(owner, e)
+	g.payCurse(e)
 	g.emit(Event{Kind: "kill", User: owner, X: e.Pos.X, Y: e.Pos.Y, Amount: bounty, Text: e.Kind})
 }
 

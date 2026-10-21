@@ -23,6 +23,8 @@ var towerAliases = map[string]string{
 	"trap": "trap", "t": "trap", "капкан": "trap", "капканы": "trap", "ловушка": "trap", "шипы": "trap",
 	"drums": "drums", "d": "drums", "барабаны": "drums", "барабан": "drums",
 	"wall": "wall", "w": "wall", "баррикада": "wall", "стена": "wall",
+	"curse": "curse", "c": "curse", "проклятье": "curse", "проклятие": "curse", "проклятия": "curse",
+	"totem": "totem", "тотем": "totem", "гроза": "totem",
 	"clown": "clown", "клоун": "clown", "🤡": "clown",
 }
 

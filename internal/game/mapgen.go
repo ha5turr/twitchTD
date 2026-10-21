@@ -11,9 +11,10 @@ const (
 	BiomeDungeon Biome = "dungeon"
 	BiomeCrypt   Biome = "crypt"
 	BiomeIce     Biome = "ice"
+	BiomeSwamp   Biome = "swamp"
 )
 
-var AllBiomes = []Biome{BiomeRuins, BiomeDungeon, BiomeCrypt, BiomeIce}
+var AllBiomes = []Biome{BiomeRuins, BiomeDungeon, BiomeCrypt, BiomeIce, BiomeSwamp}
 
 // biomeProfile drives the generator: path shape and obstacle style.
 type biomeProfile struct {
@@ -28,6 +29,7 @@ var profiles = map[Biome]biomeProfile{
 	BiomeDungeon: {minLen: 28, maxLen: 42, minTurns: 6, straight: 1.6, obstacles: wallObstacles(0.20)},
 	BiomeCrypt:   {minLen: 26, maxLen: 38, minTurns: 4, straight: 3.0, obstacles: rowObstacles(0.15)},
 	BiomeIce:     {minLen: 22, maxLen: 32, minTurns: 4, straight: 1.4, obstacles: blobObstacles(0.18)},
+	BiomeSwamp:   {minLen: 26, maxLen: 38, minTurns: 6, straight: 1.0, obstacles: blobObstacles(0.2)},
 }
 
 type MapData struct {

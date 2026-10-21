@@ -80,10 +80,11 @@ type EnemyView struct {
 	Slow   bool    `json:"slow,omitempty"`
 	Burn   bool    `json:"burn,omitempty"`
 	Shield bool    `json:"shield,omitempty"`
-	Act    int     `json:"act,omitempty"`  // ЭссДиЭф: 1 burping, 2 farting
-	Net    bool    `json:"net,omitempty"`  // tangled in a ballista net
-	Stun   bool    `json:"stun,omitempty"` // stunned by a pillar of light
-	Rage   bool    `json:"rage,omitempty"` // held too long by a barricade
+	Act    int     `json:"act,omitempty"`   // ЭссДиЭф: 1 burping, 2 farting
+	Net    bool    `json:"net,omitempty"`   // tangled in a ballista net
+	Stun   bool    `json:"stun,omitempty"`  // stunned by a pillar of light
+	Rage   bool    `json:"rage,omitempty"`  // held too long by a barricade
+	Curse  bool    `json:"curse,omitempty"` // cursed by a warlock's altar
 }
 
 type TowerView struct {
@@ -99,6 +100,7 @@ type TowerView struct {
 	MaxHP    float64 `json:"maxHp,omitempty"`
 	Charges  int     `json:"charges,omitempty"` // traps
 	Disabled bool    `json:"disabled,omitempty"`
+	Hex      bool    `json:"hex,omitempty"` // a frog for now (the swamp witch)
 }
 
 type WorkerView struct {
@@ -146,7 +148,7 @@ func (g *Game) StateMessage() StateMsg {
 	for _, e := range g.Enemies {
 		s.Enemies = append(s.Enemies, EnemyView{
 			e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP),
-			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0, e.stunLeft > 0, e.rage,
+			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0, e.stunLeft > 0, e.rage, e.curseLeft > 0,
 		})
 	}
 	owners := map[string]int{}
@@ -158,7 +160,7 @@ func (g *Game) StateMessage() StateMsg {
 		}
 		s.Towers = append(s.Towers, TowerView{
 			t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress),
-			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0,
+			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0,
 		})
 	}
 	sort.Slice(s.Towers, func(i, j int) bool { return s.Towers[i].ID < s.Towers[j].ID })

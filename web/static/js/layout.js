@@ -38,6 +38,11 @@ export const BIOMES = {
     obstacle: 0x9fc4dc, ambient: 0x7890aa, light: 0x8fd4ff,
     pathTint: 0x5e7894, groundTint: 0xe8f4ff, cliffTint: 0x9cc4e4,
   },
+  swamp: {
+    name: 'Болото', ground: 0x1f2a1c, groundAlt: 0x1c2619, path: 0x3a4228, pathEdge: 0x4e5634,
+    obstacle: 0x2a3a2a, ambient: 0x6a8060, light: 0xb8ff8a,
+    pathTint: 0x6a7448, groundTint: 0xb8d0a0, cliffTint: 0x7a8a5a, // peat and moss; the path is a muddy track
+  },
 };
 
 // Loot rarity colours by tower level 1..5.

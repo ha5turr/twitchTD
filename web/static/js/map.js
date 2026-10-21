@@ -102,7 +102,8 @@ function drawObstacles(layer, map, pal) {
       }
       const cells = new Set(group.map(([gx, gy]) => `${gx},${gy}`));
       const block = group.some(([gx, gy]) => cells.has(`${gx + 1},${gy}`) && cells.has(`${gx},${gy + 1}`) && cells.has(`${gx + 1},${gy + 1}`));
-      if (map.biome === 'crypt' || (group.length >= 4 && block)) graveyard(layer, group, cells, map.biome);
+      if (map.biome === 'swamp') for (const [gx, gy] of group) bog(layer, cells, gx, gy);
+      else if (map.biome === 'crypt' || (group.length >= 4 && block)) graveyard(layer, group, cells, map.biome);
       else for (const [gx, gy] of group) ruin(layer, map.biome, pal, gx, gy);
     }
   }
@@ -155,6 +156,39 @@ function ruin(layer, biome, pal, x, y) {
     if (h % 2) rock(9, cx - 22, bottom + 2, 2);
     if (h < 400) put('skull', cx + 4, bottom + 2, 2);
   }
+}
+
+// bog fills a swamp cell with dark water: pools that run into their
+// neighbours, reeds at the edge, now and then a dead tree or a skull.
+function bog(layer, cells, x, y) {
+  const put = putter(layer);
+  const p = toPx(x, y);
+  const cx = p.x + CELL / 2;
+  const cy = p.y + CELL / 2;
+  const h = cellHash(x, y);
+  const water = new Graphics();
+  water.zIndex = -1;
+  water.ellipse(cx, cy + 6, 42, 32).fill({ color: 0x4a6a3a, alpha: 0.9 }); // a mossy rim
+  water.ellipse(cx, cy + 6, 38, 28).fill({ color: 0x2a5a4a, alpha: 0.95 });
+  // Water reaches into watery neighbours, so a group reads as one pond.
+  if (cells.has(`${x + 1},${y}`)) water.rect(cx, cy - 18, CELL / 2, 46).fill({ color: 0x2a5a4a, alpha: 0.95 });
+  if (cells.has(`${x - 1},${y}`)) water.rect(p.x, cy - 18, CELL / 2, 46).fill({ color: 0x2a5a4a, alpha: 0.95 });
+  if (cells.has(`${x},${y + 1}`)) water.rect(cx - 34, cy, 68, CELL / 2).fill({ color: 0x2a5a4a, alpha: 0.95 });
+  if (cells.has(`${x},${y - 1}`)) water.rect(cx - 34, p.y, 68, CELL / 2).fill({ color: 0x2a5a4a, alpha: 0.95 });
+  water.ellipse(cx - 10, cy, 16, 4).fill({ color: 0xa8d8b8, alpha: 0.35 }); // a glint
+  if (h % 3 === 0) water.circle(cx + 14, cy + 12, 6).fill(0x3a6a2a).circle(cx + 14, cy + 12, 2).fill(0xe8d0f0); // a lily
+  layer.addChild(water);
+  const reeds = new Graphics();
+  reeds.zIndex = p.y + CELL;
+  for (let i = 0; i < 4; i++) {
+    const rx = p.x + 10 + ((h >> (i * 2)) % 76);
+    const ry = p.y + CELL - 10 - (i % 2) * 6;
+    reeds.moveTo(rx, ry).lineTo(rx + (i - 1.5) * 2, ry - 22 - (i % 3) * 6);
+  }
+  reeds.stroke({ width: 3, color: 0x5a7a3a });
+  layer.addChild(reeds);
+  if (h < 260) put('dead_tree', cx + 18, p.y + CELL - 12, 3.4, 0xa0b090);
+  else if (h > 900) put('skull', cx - 22, p.y + CELL - 10, 2, 0xc8d0b0);
 }
 
 // graveyard fences a group of cells with iron railings and fills it with
@@ -294,6 +328,10 @@ function drawObstacle(g, biome, pal, x, y) {
     case 'crypt': // sarcophagus
       g.roundRect(cx - 22, cy - 38, 44, 76, 10).fill(pal.obstacle);
       g.roundRect(cx - 14, cy - 28, 28, 56, 6).stroke({ width: 2, color: 0x2a2f2c });
+      break;
+    case 'swamp': // a dark pool
+      g.ellipse(cx, cy, 40, 30).fill({ color: pal.obstacle, alpha: 0.9 });
+      g.ellipse(cx - 10, cy - 6, 14, 4).fill({ color: 0x6a8a6a, alpha: 0.3 });
       break;
     case 'ice': // crystal
       g.poly([cx, cy - 38, cx + 22, cy, cx, cy + 38, cx - 22, cy]).fill({ color: pal.obstacle, alpha: 0.9 });

@@ -73,6 +73,8 @@ type Event struct {
 	X      float64 `json:"x,omitempty"`
 	Y      float64 `json:"y,omitempty"`
 	Amount int     `json:"amount,omitempty"`
+	X2     float64 `json:"x2,omitempty"` // the far end of a beam (zap, curse, drain)
+	Y2     float64 `json:"y2,omitempty"`
 }
 
 type spawn struct {

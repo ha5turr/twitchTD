@@ -36,7 +36,7 @@ func (g *Game) cmdHelp(c *Chatter, args []string) {
 func (g *Game) helpText(topic string) string {
 	switch topic {
 	case "build":
-		return fmt.Sprintf("стройка: !b клетка тип — наёмник идёт строить. Рядом с дорогой: arrow, magic, fire, shrine, drums; на дорогу: trap, wall. "+
+		return fmt.Sprintf("стройка: !b клетка тип — наёмник идёт строить. Рядом с дорогой: arrow, magic, fire, shrine, drums, curse, totem; на дорогу: trap, wall. "+
 			"!up клетка — улучшить до 5 ур., !sell клетка — продать за %d%%. Лимит построек сейчас %d (+1 за каждого босса, до %d), класс (!class) усиливает свою постройку на %d%%.",
 			g.Cfg.SellRefundPct, g.TowerLimit(), max(g.Cfg.TowerLimitMax, g.Cfg.TowerLimit), int(g.Cfg.ClassBonus*100))
 	case "tavern":

@@ -15,15 +15,18 @@ const TOOLS = [
   ['trap', 'Капканы', '#9aa0a8'],
   ['drums', 'Барабаны', '#8a3a2a'],
   ['wall', 'Баррикада', '#7a5230'],
+  ['curse', 'Алтарь', '#8a3aff'],
+  ['totem', 'Тотем', '#7ae0ff'],
   ['clown', 'Клоун 🤡', '#e04aa8'],
   ['remove', 'Снести', '#d0574a'],
 ];
 const BOSSES = [
   ['bone_knight', 'Костяной Рыцарь'], ['cult_leader', 'Вожак Культа'], ['spider_queen', 'Королева Пауков'],
   ['cave_troll', 'Пещерный Тролль'], ['lich', 'Лич'], ['ghost_king', 'Призрачный Король'],
-  ['ice_golem', 'Ледяной Голем'], ['frost_demon', 'Демон Стужи'], ['sdf', 'ЭссДиЭф'],
+  ['ice_golem', 'Ледяной Голем'], ['frost_demon', 'Демон Стужи'],
+  ['swamp_witch', 'Болотная Ведьма'], ['hydra', 'Гидра'], ['sdf', 'ЭссДиЭф'],
 ];
-const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель', druid: 'Друид' };
+const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель', druid: 'Друид', warlock: 'Чернокнижник', shaman: 'Шаман' };
 const SETTINGS = [
   ['towerLimit', 'Лимит построек (старт)', 'int'], ['towerLimitMax', 'Лимит построек: потолок (+1 за босса)', 'int'], ['smallTeamBonus', 'Лимит: бонус команде из 1–2 игроков', 'int'], ['grantFromWave', 'Подъёмные новичкам с волны', 'int'], ['grantPct', 'Подъёмные: доля медианы вложенного (0–1)', 'num'], ['passOutMugs', 'Отключка: кружек в крови', 'num'], ['shrineAssistPct', 'Святилища: доля от вклада в урон (0–1)', 'num'], ['passOutSec', 'Отключка: длительность, с', 'num'], ['wallHoldMax', 'Золото баррикады за удержание, макс. за волну', 'num'], ['siegeRageSec', 'Ярость у баррикады через, с', 'num'], ['streamerPlays', 'Стример играет из чата на равных', 'bool'], ['wallRepairCdSec', 'Кд починки баррикады, с', 'num'], ['walletCap', 'Потолок кошелька', 'int'], ['startGold', 'Стартовое золото', 'int'],
   ['keepGold', 'Хранить золото между играми', 'bool'], ['keepTreasury', 'Хранить казну между играми', 'bool'], ['chatGold', 'Золото за сообщение', 'int'], ['bitsGold', 'Золото за бит', 'num'],

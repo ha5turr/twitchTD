@@ -17,6 +17,12 @@ export const ENEMIES = {
   necromancer: { name: 'Некромант', color: 0x4a2a6a, r: 0.21 },
   iceskel: { name: 'Ледяной скелет', color: 0xa8d8f0, r: 0.24 },
   frostspirit: { name: 'Инеистый дух', color: 0x9fe8ff, r: 0.2 },
+  bomber: { name: 'Гоблин-подрывник', color: 0x6a9a3a, r: 0.18 },
+  shieldbearer: { name: 'Щитоносец', color: 0x5a7a4a, r: 0.26 },
+  slime: { name: 'Слизень', color: 0x4ac06a, r: 0.26 },
+  slimelet: { name: 'Слизнёнок', color: 0x6ad08a, r: 0.16 },
+  bat: { name: 'Летучая мышь', color: 0x5a4a5a, r: 0.18 },
+  goblin_shaman: { name: 'Гоблин-шаман', color: 0x6aa04a, r: 0.2 },
 
   bone_knight: { name: 'Костяной Рыцарь', color: 0xd8d2c0, r: 0.42, boss: true },
   cult_leader: { name: 'Вожак Культа', color: 0xa8202a, r: 0.42, boss: true },
@@ -26,6 +32,8 @@ export const ENEMIES = {
   ghost_king: { name: 'Призрачный Король', color: 0xdff0ff, r: 0.44, boss: true },
   ice_golem: { name: 'Ледяной Голем', color: 0x8fc8e8, r: 0.48, boss: true },
   frost_demon: { name: 'Демон Стужи', color: 0x5ab0e0, r: 0.44, boss: true },
+  swamp_witch: { name: 'Болотная Ведьма', color: 0x5a7a4a, r: 0.42, boss: true },
+  hydra: { name: 'Гидра', color: 0x3a8a4a, r: 0.48, boss: true },
   sdf: { name: 'ЭссДиЭф', color: 0x8a9a3a, r: 0.5, boss: true },
 };
 
@@ -37,6 +45,8 @@ export const TOWERS = {
   trap: { name: 'Капканы' },
   drums: { name: 'Барабаны войны' },
   wall: { name: 'Баррикада' },
+  curse: { name: 'Алтарь проклятий', light: 0xb05aff },
+  totem: { name: 'Тотем грозы', light: 0x7ae0ff },
   clown: { name: 'Клоун', light: 0xff5ab0 },
 };
 
@@ -170,6 +180,14 @@ export function drawTower(g, kind, rarity, level, { pixel = false, art = false }
       g.rect(-4, -24, 8, 28).fill(0xffe08a);
       g.rect(-12, -16, 24, 7).fill(0xffe08a);
       break;
+    case 'curse':
+      g.rect(-20, 6, 40, 14).fill(0x3a2a4a);
+      g.circle(0, -8, 14).fill(0x8a3aff).circle(0, -8, 6).fill(0xe0b0ff);
+      break;
+    case 'totem':
+      g.rect(-8, -24, 16, 44).fill(0x6a5a3a).stroke({ width: 2, color: 0x2a1b0f });
+      g.poly([-14, -24, 0, -36, 14, -24]).fill(0x7ae0ff);
+      break;
     case 'clown':
       g.circle(0, -4, 22).fill(0xfff0f6).stroke({ width: 3, color: 0x2a1b0f });
       g.circle(0, 0, 6).fill(0xe02a2a);
@@ -216,6 +234,14 @@ export const ENEMY_ART = {
   ghost: { name: 'soul', scale: 3, float: true, alpha: 0.85 },
   frostspirit: { name: 'tc_ice_spirit', scale: 2.6, float: true, alpha: 0.9 },
   ghost_king: { name: 'tc_wraith', scale: 5, float: true },
+  bomber: { name: 'goblin_run', scale: 3 },
+  shieldbearer: { name: 'orc_warrior_run', scale: 3.2 },
+  slime: { name: 'tc_slime', scale: 3.2, hop: true },
+  slimelet: { name: 'tc_slimelet', scale: 2.4, hop: true },
+  bat: { name: 'tc_bat', scale: 2.6, float: true },
+  goblin_shaman: { name: 'tc_goblin', scale: 2.8, hop: true },
+  swamp_witch: { name: 'tc_hag', scale: 5, float: true },
+  hydra: { name: 'tc_wyrm', scale: 6, hop: true },
   rat: { name: 'tc_rat', scale: 2.2, hop: true },
   spider: { name: 'spider_dark', scale: 3.6 },
   spider_queen: { name: 'spider_purple', scale: 5.5 },
@@ -234,6 +260,7 @@ export const ENEMY_ART = {
 export const HERO_ART = {
   ranger: 'elf_m', mage: 'wizzard_m', pyro: 'wizzard_f', cleric: 'angel',
   rogue: 'rogue', bard: 'elf_f', warrior: 'knight_m', druid: 'druid',
+  warlock: 'doc', shaman: 'lizard_f',
 };
 // Building art: each entry is a list of sprite layers drawn bottom to top,
 // tried in order of preference so a missing extra sheet falls back to the
@@ -255,6 +282,10 @@ export const TOWER_ART = {
     [{ name: 'stone_tower', scale: 3, y: 26, tint: 0xffb8e0 }, { text: '🤡', size: 40, y: -30 }],
     [{ text: '🤡', size: 56, y: 0 }],
   ],
+  // The warlock's altar is MiniWorld's portal with the violet glow.
+  curse: [[{ name: 'portal_purple', scale: 3, y: 28 }]],
+  // The shaman's totem: a stone column crowned with a skull.
+  totem: [[{ name: 'column', scale: 1.2, y: 32, tint: 0xb8c8a0 }, { name: 'skull', scale: 1.8, y: -22, tint: 0xc8f0ff }]],
   // The bard is the pack's elf heroine; drawTower adds her drum.
   drums: [[{ name: 'elf_f_idle', scale: 2.6, x: -8, y: 32, speed: 0.1 }]],
 };

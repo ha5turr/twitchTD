@@ -74,6 +74,7 @@ export class Hud {
     this.blasts = new Graphics();
     this.rings = [];
     this.bolts = [];
+    this.quakes = []; // shamans' earthquakes
     this.fans = [];
     this.pillars = []; // clerics' pillars of light
     this.pathFires = []; // pyromancers setting the path alight
@@ -301,6 +302,54 @@ export class Hud {
       case 'shrineGold':
         this.toasts.push({ text: `⛪ святилища ${ev.user} собрали ${ev.amount} з подношений`, color: 0xffe08a });
         break;
+      case 'zap': {
+        // Chain lightning: a short jagged cyan arc from link to link.
+        const a = toPx(ev.x, ev.y);
+        const b = toPx(ev.x2 ?? ev.x, ev.y2 ?? ev.y);
+        this.bolts.push({ x: b.x, y: b.y, pts: jagged(a, b, 5, 14), life: 0.22, color: 0x9ef0ff, width: 3, noRing: true });
+        break;
+      }
+      case 'curse': {
+        const a = toPx(ev.x, ev.y);
+        const b = toPx(ev.x2 ?? ev.x, ev.y2 ?? ev.y);
+        this.bolts.push({ x: b.x, y: b.y, pts: jagged(a, b, 4, 6), life: 0.4, color: 0xb05aff, width: 2, ring: 0x8a3aff });
+        break;
+      }
+      case 'drain': {
+        const a = toPx(ev.x, ev.y);
+        const b = toPx(ev.x2 ?? ev.x, ev.y2 ?? ev.y);
+        this.bolts.push({ x: b.x, y: b.y, pts: jagged(b, a, 8, 10), life: 0.8, color: 0xd02a4a, width: 5, ring: 0x7a1a3a });
+        this.toasts.push({ text: `🩸 ${ev.user} заключает сделку с бездной: стены +${ev.amount ?? 0}`, color: 0xe08aa0 });
+        break;
+      }
+      case 'quake':
+        this.quakes.push({ life: 1 });
+        this.toasts.push({ text: `🌋 ${ev.user} сотрясает землю`, color: 0xc8a070 });
+        break;
+      case 'boom':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
+        this.floatAt(ev.x, ev.y - 0.6, 'БУМ!', 0xff8a3a, FONT_UI, 24);
+        break;
+      case 'shard':
+        if (ev.amount) this.floatAt(ev.x, ev.y - 0.5, `+${ev.amount} осколок`, 0xc07aff, FONT_UI, 16);
+        break;
+      case 'split':
+        this.floatAt(ev.x, ev.y - 0.4, 'плюх!', 0x8aff9a, FONT_UI, 18);
+        break;
+      case 'dispel':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
+        this.floatAt(ev.x, ev.y - 0.6, 'очищено!', 0xb0ff8a, FONT_UI, 18);
+        break;
+      case 'hex':
+        this.floatAt(ev.x, ev.y - 0.6, 'ква!', 0x8aff6a, FONT_UI, 22);
+        break;
+      case 'headGrow':
+        this.floatAt(ev.x, ev.y - 0.8, `+голова! (${ev.amount})`, 0xff6a5a, FONT_UI, 22);
+        this.toasts.push({ text: `🐍 У гидры отросла голова: их уже ${ev.amount}! Поджигайте раны`, color: 0xff8a7a });
+        break;
+      case 'cauterize':
+        this.floatAt(ev.x, ev.y - 0.8, 'прижжено!', 0xffb36b, FONT_UI, 22);
+        break;
       case 'passOut':
         this.toasts.push({ text: `🍺💤 ${ev.user} перебрал и храпит под столом`, color: 0xe0b03a });
         break;
@@ -404,8 +453,21 @@ export class Hud {
       const a = Math.min(1, b.life / 0.15);
       this.blasts.moveTo(b.pts[0][0], b.pts[0][1]);
       for (const [x, y] of b.pts.slice(1)) this.blasts.lineTo(x, y);
-      this.blasts.stroke({ width: 4, color: b.color ?? 0xd8e8ff, alpha: a });
-      this.blasts.circle(b.x, b.y, 60 * (1.3 - a * 0.3)).stroke({ width: 3, color: b.ring ?? 0x7ab8ff, alpha: a });
+      this.blasts.stroke({ width: b.width ?? 4, color: b.color ?? 0xd8e8ff, alpha: a });
+      if (!b.noRing) this.blasts.circle(b.x, b.y, 60 * (1.3 - a * 0.3)).stroke({ width: 3, color: b.ring ?? 0x7ab8ff, alpha: a });
+      return true;
+    });
+    // Earthquake: dust rings shiver all along the path.
+    this.quakes = this.quakes.filter((q) => {
+      q.life -= dt;
+      if (q.life <= 0 || !this.map) return false;
+      const a = q.life;
+      const route = this.map.route;
+      for (let i = 1; i < route.length; i += 2) {
+        const p = toPx(route[i][0], route[i][1]);
+        const dx = Math.sin(this.t * 60 + i) * 6 * a;
+        this.blasts.ellipse(p.x + dx, p.y + 18, 40 * (1.4 - a * 0.4), 12).stroke({ width: 4, color: 0x8a6a3a, alpha: 0.6 * a });
+      }
       return true;
     });
     // Pillar of light: nested soft columns and a pool of light at the foot,
@@ -549,4 +611,19 @@ function plural(n, one, few, many) {
 function fmtTime(s) {
   s = Math.max(0, Math.ceil(s));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+// jagged makes a zigzag line from a to b: n segments, sideways jitter up to amp.
+function jagged(a, b, n, amp) {
+  const pts = [[a.x, a.y]];
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  for (let i = 1; i < n; i++) {
+    const k = i / n;
+    const off = (Math.random() - 0.5) * 2 * amp;
+    pts.push([a.x + dx * k - (dy / len) * off, a.y + dy * k + (dx / len) * off]);
+  }
+  pts.push([b.x, b.y]);
+  return pts;
 }

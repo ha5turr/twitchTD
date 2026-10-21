@@ -58,6 +58,7 @@ func (g *Game) tickHeroes(dt float64) {
 				"warrior": g.Cfg.WarriorEverySec, "mage": g.Cfg.MageEverySec,
 				"bard": g.Cfg.BardEverySec, "rogue": g.Cfg.RogueStepEverySec,
 				"cleric": g.Cfg.ClericEverySec, "pyro": g.Cfg.PyroEverySec, "ranger": g.Cfg.RangerEverySec,
+				"warlock": g.Cfg.WarlockEverySec, "shaman": g.Cfg.ShamanEverySec,
 			}[c.Class]
 			if every <= 0 {
 				continue
@@ -87,6 +88,10 @@ func (g *Game) tickHeroes(dt float64) {
 				g.setPathAlight(key, c)
 			case "ranger":
 				g.arrowRain(key, c)
+			case "warlock":
+				g.abyssPact(key, c)
+			case "shaman":
+				g.earthquake(c)
 			}
 		}
 	}
