@@ -61,8 +61,8 @@ func TestRangerArrowRain(t *testing.T) {
 }
 
 func TestRogueHitsHarder(t *testing.T) {
-	if DefaultConfig().RogueStepDmg != 0.8 {
-		t.Fatal("the shadow-step stab was doubled")
+	if DefaultConfig().RogueStepDmg != 1.0 {
+		t.Fatal("the shadow-step stab was doubled, then raised again in 0.12.1")
 	}
 }
 
