@@ -24,14 +24,15 @@ const BOSSES = [
   ['bone_knight', 'Костяной Рыцарь'], ['cult_leader', 'Вожак Культа'], ['spider_queen', 'Королева Пауков'],
   ['cave_troll', 'Пещерный Тролль'], ['lich', 'Лич'], ['ghost_king', 'Призрачный Король'],
   ['ice_golem', 'Ледяной Голем'], ['frost_demon', 'Демон Стужи'],
-  ['swamp_witch', 'Болотная Ведьма'], ['hydra', 'Гидра'], ['sdf', 'ЭссДиЭф'],
+  ['swamp_witch', 'Болотная Ведьма'], ['hydra', 'Гидра'],
+  ['tax_collector', 'Сборщик податей'], ['golden_golem', 'Золотой голем'], ['sdf', 'ЭссДиЭф'],
 ];
 const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель', druid: 'Друид', warlock: 'Чернокнижник', shaman: 'Шаман' };
 const SETTINGS = [
   ['towerLimit', 'Лимит построек (старт)', 'int'], ['towerLimitMax', 'Лимит построек: потолок (+1 за босса)', 'int'], ['smallTeamBonus', 'Лимит: бонус команде из 1–2 игроков', 'int'], ['grantFromWave', 'Подъёмные новичкам с волны', 'int'], ['grantPct', 'Подъёмные: доля медианы вложенного (0–1)', 'num'], ['passOutMugs', 'Отключка: кружек в крови', 'num'], ['shrineAssistPct', 'Святилища: доля от вклада в урон (0–1)', 'num'], ['passOutSec', 'Отключка: длительность, с', 'num'], ['wallHoldMax', 'Золото баррикады за удержание, макс. за волну', 'num'], ['siegeRageSec', 'Ярость у баррикады через, с', 'num'], ['streamerPlays', 'Стример играет из чата на равных', 'bool'], ['wallRepairCdSec', 'Кд починки баррикады, с', 'num'], ['walletCap', 'Потолок кошелька', 'int'], ['startGold', 'Стартовое золото', 'int'],
   ['keepGold', 'Хранить золото между играми', 'bool'], ['keepTreasury', 'Хранить казну между играми', 'bool'], ['chatGold', 'Золото за сообщение', 'int'], ['bitsGold', 'Золото за бит', 'num'],
   ['subGold', 'Золото за подписку', 'int'], ['donationGoldPerRub', 'Золото за 1 ₽', 'num'], ['buildPhaseSec', 'Фаза стройки, с', 'num'],
-  ['bossEvery', 'Босс каждые N волн', 'int'], ['sdfChance', 'Шанс ЭссДиЭфа на волне босса (0–1)', 'num'], ['sdfFromWave', 'ЭссДиЭф не раньше волны', 'int'],['baseHP', 'Базовое ХП врагов', 'num'], ['hpGrowth', 'Рост ХП за волну', 'num'],
+  ['bossEvery', 'Босс каждые N волн', 'int'], ['sdfChance', 'Шанс ЭссДиЭфа на волне босса (0–1)', 'num'], ['sdfFromWave', 'ЭссДиЭф не раньше волны', 'int'], ['eventChance', 'Шанс гостя на обычной волне (0–1)', 'num'], ['eventFromWave', 'Гости не раньше волны', 'int'],['baseHP', 'Базовое ХП врагов', 'num'], ['hpGrowth', 'Рост ХП за волну', 'num'],
   ['chatterHPCoef', 'ХП от числа чатерсов', 'num'], ['webcamFrom', 'Вебка: от клетки', 'text'], ['webcamTo', 'Вебка: до клетки', 'text'],
 ];
 

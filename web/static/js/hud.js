@@ -75,6 +75,7 @@ export class Hud {
     this.rings = [];
     this.bolts = [];
     this.quakes = []; // shamans' earthquakes
+    this.coins = []; // a golden golem's gold rain
     this.fans = [];
     this.pillars = []; // clerics' pillars of light
     this.pathFires = []; // pyromancers setting the path alight
@@ -350,6 +351,30 @@ export class Hud {
       case 'cauterize':
         this.floatAt(ev.x, ev.y - 0.8, 'прижжено!', 0xffb36b, FONT_UI, 22);
         break;
+      case 'guest':
+        if (ev.text === 'tax_collector') this.showBanner('Сборщик податей', 'идёт за казной: не дайте ему дойти до таверны!', 5);
+        else this.showBanner('Золотой голем', 'бейте все: золото достанется каждому, кто попал', 5);
+        break;
+      case 'taxed':
+        this.toasts.push({ text: `💸 Сборщик податей унёс из казны ${ev.amount ?? 0} з`, color: 0xff8a7a });
+        break;
+      case 'taxKilled':
+        this.floatAt(ev.x, ev.y - 0.8, `+${ev.amount} в казну`, 0xffd24a, FONT_UI, 24);
+        this.toasts.push({ text: `🏦 Сборщик податей повержен: казна +${ev.amount}`, color: 0xffd24a });
+        break;
+      case 'goldRain': {
+        const p = toPx(ev.x, ev.y);
+        for (let i = 0; i < 40; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const v = 120 + Math.random() * 260;
+          this.coins.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 260, life: 1.2 + Math.random() * 0.5 });
+        }
+        this.toasts.push({ text: `💰 Золотой голем рассыпался: ${ev.text ?? 0} игроков поделили ${ev.amount ?? 0} з`, color: 0xffd24a });
+        break;
+      }
+      case 'golemGone':
+        this.toasts.push({ text: '🏃 Золотой голем убежал вместе со своим золотом', color: 0xc9b98f });
+        break;
       case 'passOut':
         this.toasts.push({ text: `🍺💤 ${ev.user} перебрал и храпит под столом`, color: 0xe0b03a });
         break;
@@ -455,6 +480,17 @@ export class Hud {
       for (const [x, y] of b.pts.slice(1)) this.blasts.lineTo(x, y);
       this.blasts.stroke({ width: b.width ?? 4, color: b.color ?? 0xd8e8ff, alpha: a });
       if (!b.noRing) this.blasts.circle(b.x, b.y, 60 * (1.3 - a * 0.3)).stroke({ width: 3, color: b.ring ?? 0x7ab8ff, alpha: a });
+      return true;
+    });
+    // Gold rain: coins burst out of a fallen golden golem and fall.
+    this.coins = this.coins.filter((c) => {
+      c.life -= dt;
+      if (c.life <= 0) return false;
+      c.vy += 700 * dt;
+      c.x += c.vx * dt;
+      c.y += c.vy * dt;
+      const w = 7 * Math.abs(Math.cos(this.t * 12 + c.x)); // spinning
+      this.blasts.ellipse(c.x, c.y, Math.max(1.5, w), 7).fill({ color: 0xffd24a, alpha: Math.min(1, c.life * 2) }).stroke({ width: 1.5, color: 0x8a5a10, alpha: Math.min(1, c.life * 2) });
       return true;
     });
     // Earthquake: dust rings shiver all along the path.

@@ -80,7 +80,8 @@ export class Entities {
       if (p.kind === 'fire') out.push({ x: p.root.x, y: p.root.y, r: 90, color: 0xff7a2a, a: 0.9 });
     }
     for (const e of this.enemies.values()) {
-      if (e.boss) out.push({ x: e.root.x, y: e.root.y, r: 160, color: 0xff3b3b, a: 0.6 });
+      if (e.kind === 'golden_golem') out.push({ x: e.root.x, y: e.root.y, r: 170, color: 0xffd24a, a: 0.8 }); // it glitters
+      else if (e.boss) out.push({ x: e.root.x, y: e.root.y, r: 160, color: 0xff3b3b, a: 0.6 });
       else if (e.burn) out.push({ x: e.root.x, y: e.root.y, r: 60, color: 0xff7a2a, a: 0.7 });
     }
     return out;

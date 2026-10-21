@@ -486,9 +486,9 @@ const HELP = [
     title: 'Постройки',
     rows: [
       ['arrow', 'лучники'],
-      ['magic/curse', 'обелиск, алтарь'],
+      ['magic/curse', 'магия, порча'],
       ['fire/shrine', 'огонь, храм'],
-      ['drums/totem', 'барабаны, тотем'],
+      ['drums/totem', 'ритм, гроза'],
       ['trap/wall', 'на дорогу'],
     ],
   },

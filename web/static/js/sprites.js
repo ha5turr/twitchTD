@@ -33,6 +33,8 @@ export const ENEMIES = {
   ice_golem: { name: 'Ледяной Голем', color: 0x8fc8e8, r: 0.48, boss: true },
   frost_demon: { name: 'Демон Стужи', color: 0x5ab0e0, r: 0.44, boss: true },
   swamp_witch: { name: 'Болотная Ведьма', color: 0x5a7a4a, r: 0.42, boss: true },
+  tax_collector: { name: 'Сборщик податей', color: 0x4a7a3a, r: 0.32, boss: true },
+  golden_golem: { name: 'Золотой голем', color: 0xffd24a, r: 0.4, boss: true },
   hydra: { name: 'Гидра', color: 0x3a8a4a, r: 0.48, boss: true },
   sdf: { name: 'ЭссДиЭф', color: 0x8a9a3a, r: 0.5, boss: true },
 };
@@ -241,6 +243,8 @@ export const ENEMY_ART = {
   bat: { name: 'tc_bat', scale: 2.6, float: true },
   goblin_shaman: { name: 'tc_goblin', scale: 2.8, hop: true },
   swamp_witch: { name: 'tc_hag', scale: 5, float: true },
+  tax_collector: { name: 'tc_collector', scale: 3.6, hop: true },
+  golden_golem: { name: 'ogre_run', scale: 3.4, tint: 0xffd24a },
   hydra: { name: 'tc_wyrm', scale: 6, hop: true },
   rat: { name: 'tc_rat', scale: 2.2, hop: true },
   spider: { name: 'spider_dark', scale: 3.6 },

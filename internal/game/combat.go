@@ -150,7 +150,9 @@ func (g *Game) StartWave() {
 		g.queue = append(g.queue, spawn{kind, g.waveHP * g.Cfg.Enemies[kind].HPMult})
 	}
 	boss := ""
-	if g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0 {
+	bossWave := g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0
+	guest := g.rollGuest(bossWave)
+	if bossWave {
 		pair := biomeBosses[g.Map.Biome]
 		boss = pair[(g.Wave/g.Cfg.BossEvery-1)%len(pair)]
 		if g.Wave >= g.Cfg.SdfFromWave && g.rng.Float64() < g.Cfg.SdfChance {
@@ -159,7 +161,7 @@ func (g *Game) StartWave() {
 		g.queue = append(g.queue, spawn{boss, g.waveHP * g.Cfg.BossHPMult * g.Cfg.Enemies[boss].HPMult})
 	}
 	g.spawnTimer = 0
-	g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: boss})
+	g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: boss, User: guest})
 }
 
 func (g *Game) endWave() {
@@ -205,7 +207,10 @@ func (g *Game) tickSpawns(dt float64) {
 	g.queue = g.queue[1:]
 	g.spawnTimer = g.Cfg.SpawnIntervalSec
 	if g.Cfg.Enemies[s.kind].Boss {
-		g.spawnBoss(s.kind, s.hp)
+		e := g.spawnBoss(s.kind, s.hp)
+		if isGuest(s.kind) {
+			g.emit(Event{Kind: "guest", Text: s.kind, X: e.Pos.X, Y: e.Pos.Y})
+		}
 	} else {
 		g.spawnEnemy(s.kind, s.hp, 0)
 	}
@@ -283,6 +288,9 @@ func (g *Game) tickEnemies(dt float64) {
 		}
 		speed, blows := e.fury()
 		switch {
+		case e.AtGate && isGuest(e.Kind):
+			g.guestAtGate(e)
+			continue
 		case e.AtGate:
 			g.Walls -= spec.WallDPS * blows * dt
 			// Guards on the walls shoot back, so a leak costs hit points but
@@ -565,7 +573,7 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	c := g.Chatters[owner]
 	if c != nil {
 		c.GameDamage += min(dmg, e.HP) // overkill does not count
-		if e.Kind == sdfKind {
+		if tracksDamage(e.Kind) {
 			if e.hurtBy == nil {
 				e.hurtBy = map[string]float64{}
 			}
@@ -583,8 +591,11 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	if e.loot != nil {
 		g.returnLoot(e)
 	}
-	if e.hurtBy != nil {
+	if e.hurtBy != nil && e.Kind == sdfKind {
 		g.crownClown(e)
+	}
+	if isGuest(e.Kind) {
+		g.guestKilled(e)
 	}
 	bounty := int(math.Round(float64(g.Cfg.Enemies[e.Kind].Bounty) * g.rewardMult))
 	if e.summoned {

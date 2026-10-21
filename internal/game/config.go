@@ -163,7 +163,9 @@ type Config struct {
 	// Chance that a boss wave brings ЭссДиЭф instead of the biome's boss.
 	SdfChance float64 `json:"sdfChance"`
 	// ЭссДиЭф never comes before this wave (`!tdspawn sdf` still works any time).
-	SdfFromWave int `json:"sdfFromWave"`
+	EventChance   float64 `json:"eventChance"`   // chance an ordinary wave brings a guest (tax collector or golden golem)
+	EventFromWave int     `json:"eventFromWave"` // not before this wave
+	SdfFromWave   int     `json:"sdfFromWave"`
 
 	Enemies map[string]EnemySpec `json:"enemies"`
 	Towers  map[string]TowerSpec `json:"towers"`
@@ -406,6 +408,8 @@ func DefaultConfig() Config {
 		EnemyRegen:         0.002,
 		SdfChance:          0.2,
 		SdfFromWave:        10,
+		EventChance:        0.15,
+		EventFromWave:      3,
 		Enemies: map[string]EnemySpec{
 			"skeleton":      {Name: "Скелет", HPMult: 1, Speed: 1.1, WallDPS: 6, Bounty: 4},
 			"ghoul":         {Name: "Гуль", HPMult: 0.6, Speed: 1.9, WallDPS: 4, Bounty: 3},
@@ -425,16 +429,18 @@ func DefaultConfig() Config {
 			"goblin_shaman": {Name: "Гоблин-шаман", HPMult: 0.8, Speed: 1.0, WallDPS: 4, Bounty: 6, Dispel: 1.6},
 			"frostspirit":   {Name: "Инеистый дух", HPMult: 0.7, Speed: 1.6, WallDPS: 5, Bounty: 5, Ghost: true, SlowImmune: true},
 
-			"bone_knight":  {Name: "Костяной Рыцарь", HPMult: 1, Speed: 0.6, Armor: 0.3, WallDPS: 60, Bounty: 80, Boss: true},
-			"cult_leader":  {Name: "Вожак Культа", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Boss: true},
-			"spider_queen": {Name: "Королева Пауков", HPMult: 1, Speed: 0.7, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
-			"cave_troll":   {Name: "Пещерный Тролль", HPMult: 1, Speed: 0.5, Armor: 0.4, WallDPS: 80, Bounty: 80, Regen: 0.01, Boss: true},
-			"lich":         {Name: "Лич", HPMult: 1, Speed: 0.55, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
-			"ghost_king":   {Name: "Призрачный Король", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Ghost: true, Boss: true},
-			"ice_golem":    {Name: "Ледяной Голем", HPMult: 1, Speed: 0.5, Armor: 0.5, WallDPS: 80, Bounty: 80, SlowImmune: true, Boss: true},
-			"swamp_witch":  {Name: "Болотная Ведьма", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Boss: true},
-			"hydra":        {Name: "Гидра", HPMult: 1.1, Speed: 0.5, Armor: 0.25, WallDPS: 70, Bounty: 90, Boss: true},
-			"frost_demon":  {Name: "Демон Стужи", HPMult: 1, Speed: 0.65, Armor: 0.25, WallDPS: 70, Bounty: 80, SlowImmune: true, Boss: true},
+			"bone_knight":   {Name: "Костяной Рыцарь", HPMult: 1, Speed: 0.6, Armor: 0.3, WallDPS: 60, Bounty: 80, Boss: true},
+			"cult_leader":   {Name: "Вожак Культа", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Boss: true},
+			"spider_queen":  {Name: "Королева Пауков", HPMult: 1, Speed: 0.7, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
+			"cave_troll":    {Name: "Пещерный Тролль", HPMult: 1, Speed: 0.5, Armor: 0.4, WallDPS: 80, Bounty: 80, Regen: 0.01, Boss: true},
+			"lich":          {Name: "Лич", HPMult: 1, Speed: 0.55, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
+			"ghost_king":    {Name: "Призрачный Король", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Ghost: true, Boss: true},
+			"ice_golem":     {Name: "Ледяной Голем", HPMult: 1, Speed: 0.5, Armor: 0.5, WallDPS: 80, Bounty: 80, SlowImmune: true, Boss: true},
+			"swamp_witch":   {Name: "Болотная Ведьма", HPMult: 1, Speed: 0.6, Armor: 0.1, WallDPS: 60, Bounty: 80, Boss: true},
+			"hydra":         {Name: "Гидра", HPMult: 1.1, Speed: 0.5, Armor: 0.25, WallDPS: 70, Bounty: 90, Boss: true},
+			"tax_collector": {Name: "Сборщик податей", HPMult: 0.4, Speed: 0.9, Armor: 0.3, Bounty: 20, Boss: true},
+			"golden_golem":  {Name: "Золотой голем", HPMult: 0.35, Speed: 1.8, Armor: 0.2, Bounty: 10, Boss: true},
+			"frost_demon":   {Name: "Демон Стужи", HPMult: 1, Speed: 0.65, Armor: 0.25, WallDPS: 70, Bounty: 80, SlowImmune: true, Boss: true},
 			// A guest boss of any biome, deliberately unfair: see sdf.go.
 			"sdf": {Name: "ЭссДиЭф", HPMult: 15, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
 		},
