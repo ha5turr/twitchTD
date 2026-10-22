@@ -123,7 +123,7 @@ func TestRogueShadowStep(t *testing.T) {
 
 func TestHotfix4Numbers(t *testing.T) {
 	c := DefaultConfig()
-	if c.Towers["arrow"].NetEvery != 20 || c.Towers["trap"].Damage != 38 {
+	if c.Towers["arrow"].NetEvery != 20 || c.Towers["trap"].Damage != 30 {
 		t.Fatal("nets come less often and traps hit a little softer")
 	}
 }
