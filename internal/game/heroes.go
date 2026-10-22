@@ -26,9 +26,11 @@ type Run struct {
 	Name  string
 	Kind  string // "charge" | "step"
 	Pos   vec
-	dist  float64      // charge: route distance, falling to 0
-	left  float64      // step: seconds left on the field
-	hit   map[int]bool // charge: enemies already shoved
+	dist  float64      // charge, bear, wolf: route distance, falling to 0
+	left  float64      // step: seconds left on the field; bear: seconds left fighting
+	hit   map[int]bool // charge, wolf: enemies already met
+	hold  bool         // bear: holding the line
+	lane  float64      // wolf: sideways offset, so two wolves run side by side
 }
 
 type meteor struct {
@@ -54,14 +56,22 @@ func (g *Game) tickHeroes(dt float64) {
 	if g.Phase == PhaseWave && len(g.Enemies) > 0 {
 		for _, key := range g.tavernMates() {
 			c := g.Chatters[key]
-			if c.Class == "warlock" {
-				g.tickPact(key, c, dt) // the warlock's second skill keeps its own time
+			// Second skills keep their own time.
+			switch c.Class {
+			case "warlock":
+				g.tickSecond(c, g.Cfg.PactEverySec, dt, func() bool { return g.bloodPact(c) })
+			case "pyro":
+				g.tickSecond(c, g.Cfg.PyroGateEverySec, dt, func() bool { return g.manGate(key, c) })
+			case "mage":
+				g.tickSecond(c, g.Cfg.MageFeastEverySec, dt, func() bool { return g.feast(c) })
+			case "shaman":
+				g.tickSecond(c, g.Cfg.ShamanWolfEverySec, dt, func() bool { return g.spiritWolves(key, c) })
 			}
 			every := map[string]float64{
 				"warrior": g.Cfg.WarriorEverySec, "mage": g.Cfg.MageEverySec,
 				"bard": g.Cfg.BardEverySec, "rogue": g.Cfg.RogueStepEverySec,
 				"cleric": g.Cfg.ClericEverySec, "pyro": g.Cfg.PyroEverySec, "ranger": g.Cfg.RangerEverySec,
-				"warlock": g.Cfg.WarlockEverySec, "shaman": g.Cfg.ShamanEverySec,
+				"warlock": g.Cfg.WarlockEverySec, "shaman": g.Cfg.ShamanEverySec, "druid": g.Cfg.BearEverySec,
 			}[c.Class]
 			if every <= 0 {
 				continue
@@ -95,6 +105,8 @@ func (g *Game) tickHeroes(dt float64) {
 				g.massCurse(c)
 			case "shaman":
 				g.earthquake(c)
+			case "druid":
+				g.bearForm(key, c)
 			}
 		}
 	}
@@ -127,6 +139,14 @@ func (g *Game) tickRuns(dt float64) {
 				continue // reached the spawn: back in the tavern
 			}
 			r.Pos = g.routePos(r.dist)
+		case "bear":
+			if !g.tickBear(r, dt) {
+				continue
+			}
+		case "wolf":
+			if !g.tickWolf(r, dt) {
+				continue
+			}
 		case "step":
 			r.left -= dt
 			if r.left <= 0 {
@@ -300,10 +320,14 @@ func (g *Game) pillarOfLight(key string, c *Chatter) {
 	if !ok {
 		return
 	}
+	// Every shrine of the cleric's makes the pillar hit harder and stun longer.
+	shrines := float64(g.kindOf(key, "shrine"))
+	stun := g.Cfg.PillarStunSec + g.Cfg.ClericShrineStun*shrines
+	dmg := g.skillHP() * g.Cfg.PillarDmg * (1 + g.Cfg.ClericShrineDmg*shrines)
 	for _, e := range g.Enemies {
 		if !e.dead && e.Pos.sub(p).len() <= g.Cfg.PillarRadius {
-			e.stunLeft = max(e.stunLeft, g.Cfg.PillarStunSec)
-			g.damage(e, g.skillHP()*g.Cfg.PillarDmg, key, true)
+			e.stunLeft = max(e.stunLeft, stun)
+			g.damage(e, dmg, key, true)
 		}
 	}
 	g.emit(Event{Kind: "pillar", User: c.Name, X: p.X, Y: p.Y})

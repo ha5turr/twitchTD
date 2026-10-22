@@ -100,6 +100,7 @@ const EXTRA = [
       tc_slime: kt(0, 8), tc_slimelet: kt(1, 8), tc_bat: kt(8, 13), tc_goblin: kt(9, 9),
       tc_hag: kt(0, 10), tc_wyrm: kt(0, 11), tc_frog: kt(7, 14),
       tc_collector: kt(9, 0), // the guest who comes for the treasury
+      tc_bear: kt(3, 16), // the druid's bear form
     },
   },
   { file: 'assets/miniworld/Mausoleum.png', defs: { mausoleum: [[0, 0, 32, 32]], mausoleum_pale: [[32, 0, 32, 32]] } },

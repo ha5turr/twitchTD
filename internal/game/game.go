@@ -60,7 +60,7 @@ type Chatter struct {
 	nextBuff, nextSec float64
 	passiveCD         float64 // rogue and druid: seconds to the next trick (rogues.go)
 	skillCD           float64 // class skill (heroes.go): seconds to the next use
-	pactCD            float64 // the warlock's second skill, the blood pact
+	skill2CD          float64 // a class's second skill (blood pact, gate brazier, feast, wolves)
 	musicLeft         float64 // bard: seconds of music left
 	wasActive         bool    // chatted since the last AFK sweep (economy.go)
 	Joined            bool    // took part this session: !play or any game command (commands.go)
@@ -115,6 +115,7 @@ type Game struct {
 	Memes       []*MemeRequest    // memecoin requests waiting for the streamer
 	RewardUses  map[string]int    // channel point rewards taken this game, by "title|login"
 	pactLeft    float64           // a warlock's blood pact: seconds every building still hits harder
+	gateFires   []*GateFire       // pyromancers' braziers on the tavern wall
 	pactBoost   float64
 	Panthers    []*Panther // druids on the hunt
 	Runs        []*Run     // charging warriors, rogues in a shadow-step
@@ -191,7 +192,7 @@ func (g *Game) NewGame(biome Biome) {
 	if !g.Cfg.KeepTreasury {
 		g.Treasury, g.treasuryAcc = 0, 0
 	}
-	g.Panthers, g.Runs, g.meteors = nil, nil, nil
+	g.Panthers, g.Runs, g.meteors, g.gateFires = nil, nil, nil, nil
 	// Dice stakes go back before wallets reset, so a new game never eats them.
 	for _, d := range g.Dice {
 		g.refundDice(d)
@@ -309,6 +310,7 @@ func (g *Game) Tick(dt float64) {
 	g.tickHeroes(dt)
 	g.tickWorkers(dt)
 	g.tickTowers(dt)
+	g.tickGateFires(dt)
 	g.tickProjectiles(dt)
 	g.sweepDead()
 	if g.Walls <= 0 && g.Phase != PhaseGameOver {

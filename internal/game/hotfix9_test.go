@@ -296,3 +296,35 @@ func TestUpgradeToMax(t *testing.T) {
 		t.Fatalf("not enough for one level: nothing is spent and the price is told: %q", r)
 	}
 }
+
+func TestShrineLimit(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.Cfg.TowerLimit, g.Cfg.TowerLimitMax, g.Cfg.MaxOrders = 10, 10, 10
+	for _, u := range []string{"anna", "boris"} {
+		g.HandleChat(ChatMessage{User: u, Text: "!play"})
+		g.Chatters[u].Gold = 1000
+	}
+	g.Chatters["anna"].Class = "ranger"
+	g.Chatters["boris"].Class = "cleric"
+	build := func(u string) bool {
+		p := freeCell(t, g)
+		g.HandleChat(ChatMessage{User: u, Text: "!b " + p.Name() + " shrine"})
+		return g.Towers[p] != nil
+	}
+	for i := 0; i < g.Cfg.ShrineLimit; i++ {
+		if !build("anna") {
+			t.Fatalf("shrine %d is within the limit", i+1)
+		}
+	}
+	if build("anna") {
+		t.Fatal("a third shrine is refused")
+	}
+	for i := 0; i < g.Cfg.ShrineLimitCleric; i++ {
+		if !build("boris") {
+			t.Fatalf("a cleric builds shrine %d", i+1)
+		}
+	}
+	if build("boris") {
+		t.Fatal("even a cleric stops at his limit")
+	}
+}

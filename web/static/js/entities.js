@@ -27,12 +27,13 @@ export class Entities {
     this.proj = new Map();
     this.workers = new Map();
     this.panthers = new Map(); // druids on the hunt
-    this.runs = new Map(); // charging warriors, shadow-stepping rogues
+    this.runs = new Map(); // charging warriors, shadow-stepping rogues, bears, wolves
+    this.gateFires = new Map(); // pyromancers' braziers on the tavern wall
     this.t = 0;
   }
 
   clear() {
-    for (const m of [this.enemies, this.towers, this.proj, this.workers, this.panthers, this.runs]) {
+    for (const m of [this.enemies, this.towers, this.proj, this.workers, this.panthers, this.runs, this.gateFires]) {
       for (const v of m.values()) v.destroy();
       m.clear();
     }
@@ -48,7 +49,10 @@ export class Entities {
     sync(this.workers, workers, (w) => new WorkerView(w, this), (v, w) => v.set(w));
     const panthers = (state.panthers ?? []).map((p) => ({ ...p, id: p.name }));
     sync(this.panthers, panthers, (p) => new PantherView(p, this), (v, p) => v.set(p));
-    const runs = (state.runs ?? []).map((r) => ({ ...r, id: r.name }));
+    // Two wolves share their shaman's name: key by name, kind and order.
+    const runs = (state.runs ?? []).map((r, i) => ({ ...r, id: `${r.name}|${r.kind}|${i}` }));
+    const fires = (state.gateFires ?? []).map((f) => ({ ...f, id: f.name }));
+    sync(this.gateFires, fires, (f) => new GateFireView(f, this), (v, f) => v.set(f));
     sync(this.runs, runs, (r) => new RunView(r, this), (v, r) => v.set(r));
     // !me lights up the speaker's buildings for a few seconds.
     for (const ev of state.events ?? []) {
@@ -70,6 +74,7 @@ export class Entities {
     for (const v of this.workers.values()) v.frame(k, dt);
     for (const v of this.panthers.values()) v.frame(k, this.t);
     for (const v of this.runs.values()) v.frame(Math.min(1, dt * 20), this.t);
+    for (const v of this.gateFires.values()) v.frame(this.t);
     for (const v of this.towers.values()) v.frame(this.t, this.enemies);
   }
 
@@ -87,6 +92,7 @@ export class Entities {
       if (p.kind === 'magic') out.push({ x: p.root.x, y: p.root.y, r: 70, color: 0xb58cff, a: 0.8 });
       if (p.kind === 'fire') out.push({ x: p.root.x, y: p.root.y, r: 90, color: 0xff7a2a, a: 0.9 });
     }
+    for (const f of this.gateFires.values()) out.push({ x: f.cx, y: f.cy, r: 130, color: 0xff7a2a, a: 0.9 });
     for (const e of this.enemies.values()) {
       if (e.kind === 'golden_golem') out.push({ x: e.root.x, y: e.root.y, r: 170, color: 0xffd24a, a: 0.8 }); // it glitters
       else if (e.boss) out.push({ x: e.root.x, y: e.root.y, r: 160, color: 0xff3b3b, a: 0.6 });
@@ -595,10 +601,20 @@ class RunView {
     this.kind = r.kind;
     this.root = new Container();
     const charge = r.kind === 'charge';
-    this.body = hasTileset() && sprite(charge ? 'knight_m_run' : 'rogue_idle', 2.6, 0.3);
+    if (r.kind === 'bear') this.body = hasTileset() && sprite('tc_bear', 4.2);
+    else if (r.kind === 'wolf') {
+      // A spectral wolf: the panther's run, pale blue and see-through.
+      this.body = hasTileset() && sprite('panther_run', 2.8, 0.35);
+      if (this.body) {
+        this.body.tint = 0x9ef0ff;
+        this.body.alpha = 0.7;
+      }
+    } else this.body = hasTileset() && sprite(charge ? 'knight_m_run' : 'rogue_idle', 2.6, 0.3);
     if (!this.body) {
       this.body = new Graphics();
-      drawFigure(this.body, charge ? 0x9aa0a8 : 0x4a2a6a, charge ? 'warrior' : 'rogue');
+      if (r.kind === 'bear') this.body.ellipse(0, -18, 26, 18).fill(0x6a4a2a);
+      else if (r.kind === 'wolf') this.body.ellipse(0, -10, 20, 9).fill({ color: 0x9ef0ff, alpha: 0.7 });
+      else drawFigure(this.body, charge ? 0x9aa0a8 : 0x4a2a6a, charge ? 'warrior' : 'rogue');
     }
     this.root.addChild(this.body);
     this.name = new Text({ text: r.name, style: { fontFamily: FONT_UI, fontSize: 14, fontWeight: '700', fill: nickColor(r.name), stroke: { color: 0x000000, width: 4 } } });
@@ -614,14 +630,61 @@ class RunView {
   set(r) {
     const px = toPx(r.x, r.y);
     this.target = { x: px.x, y: px.y + 20 };
+    this.hold = !!r.hold;
   }
 
   frame(k, t) {
     const dx = this.target.x - this.root.x;
     this.root.x += dx * k;
     this.root.y += (this.target.y - this.root.y) * k;
-    if (Math.abs(dx) > 0.5 && this.body.anchor) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
+    // The cat sheet runs left, the heroes right: mirror whichever way it goes.
+    const faceLeft = this.kind === 'wolf' ? dx > 0 : dx < 0;
+    if (Math.abs(dx) > 0.5 && this.body.anchor) this.body.scale.x = Math.abs(this.body.scale.x) * (faceLeft ? -1 : 1);
     if (this.kind === 'step') this.body.alpha = 0.55 + 0.35 * Math.sin(t * 30); // a shadow, not quite there
+    if (this.kind === 'wolf') this.body.alpha = 0.55 + 0.2 * Math.sin(t * 12);
+    // A bear holding the line rears and swipes.
+    if (this.kind === 'bear') this.body.rotation = this.hold ? Math.sin(t * 9) * 0.12 : 0;
+  }
+
+  destroy() {
+    this.root.destroy({ children: true });
+  }
+}
+
+// A pyromancer at the brazier on the tavern wall by the door: a campfire
+// with its level dots, burning while he shoots from it.
+class GateFireView {
+  constructor(f, layer) {
+    this.root = new Container();
+    this.g = new Graphics();
+    this.body = hasTileset() && sprite('campfire', 1.6, 0.18);
+    if (this.body) this.root.addChild(this.body);
+    else this.g.ellipse(0, -8, 16, 10).fill(0xff6a1a);
+    this.root.addChild(this.g);
+    this.name = new Text({ text: '', style: { fontFamily: FONT_UI, fontSize: 13, fontWeight: '700', fill: nickColor(f.name), stroke: { color: 0x000000, width: 4 } } });
+    this.name.anchor.set(0.5, 1);
+    this.name.y = -44;
+    this.root.addChild(this.name);
+    const px = toPx(f.x, f.y);
+    this.cx = px.x;
+    this.cy = px.y;
+    this.root.position.set(px.x, px.y + 24);
+    layer.world.addChild(this.root);
+    this.level = 0;
+    this.set(f);
+  }
+
+  set(f) {
+    this.name.text = `${f.name} · ${f.left} с`;
+    if (f.lvl !== this.level) {
+      this.level = f.lvl;
+      this.g.clear();
+      for (let i = 0; i < f.lvl; i++) this.g.circle(-((f.lvl - 1) * 8) / 2 + i * 8, 6, 3).fill(RARITY[Math.min(f.lvl, 5) - 1]);
+    }
+  }
+
+  frame(t) {
+    this.root.scale.set(1 + 0.04 * Math.sin(t * 7));
   }
 
   destroy() {
