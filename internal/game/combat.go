@@ -104,6 +104,7 @@ type Projectile struct {
 	BurnDPS float64
 	BurnSec float64
 	Assist  []string // owners of the drums that sped this shot up
+	Crit    bool     // a ranger's critical hit
 }
 
 // levelMult is how much a building's main stat grows with its level.
@@ -321,6 +322,7 @@ func (g *Game) tickEnemies(dt float64) {
 func (g *Game) move(e *Enemy, spec EnemySpec, step float64) {
 	e.siegeSec, e.rage = 0, false // walking again cools it down
 	from, to := e.Dist, e.Dist+step
+	to = g.heldByBear(e, spec, to) // a druid's bear holds the line
 	for i, p := range g.Map.Path {
 		t := g.Towers[p]
 		if t == nil || !t.Built || spec.Ghost {
@@ -476,41 +478,55 @@ func (g *Game) tickTowers(dt float64) {
 		if spec.StrikeEvery > 0 {
 			g.tickStrike(t, spec, dt)
 		}
-		t.cooldown -= dt
-		if t.cooldown > 0 {
-			continue
-		}
-		tc := center(t.Cell)
-		var target *Enemy
-		for _, e := range g.Enemies {
-			if spec.Only != "" && e.Kind != spec.Only {
-				continue // clowns see nobody but ЭссДиЭф
-			}
-			if !e.dead && e.Pos.sub(tc).len() <= spec.Range && (target == nil || e.Dist > target.Dist) {
-				target = e
-			}
-		}
-		if target == nil {
-			continue
-		}
-		dmgAura, rateAura := g.auras(t)
-		t.cooldown = 1 / (spec.Rate * rateAura)
-		mult := g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * dmgAura * g.drinkMult(t)
-		damage := spec.Damage * mult
-		if spec.BossPct > 0 {
-			damage = spec.BossPct * target.MaxHP * mult
-		}
-		if spec.Chain > 0 {
-			g.chainZap(t, spec, target, damage) // lightning needs no flight time
-			continue
-		}
-		g.Projectiles = append(g.Projectiles, &Projectile{
-			ID: g.id(), Kind: t.Kind, Pos: tc, Target: target.ID, Aim: target.Pos,
-			Damage: damage, Magic: spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
-			Splash: spec.Splash, BurnDPS: spec.BurnDPS * mult, BurnSec: spec.BurnSec,
-			Assist: g.drummers(t),
-		})
+		g.shoot(t, spec, dt)
 	}
+}
+
+// shoot fires a shooter at the enemy furthest along within its range, with
+// every buff it has. The pyromancer's brazier on the wall shoots this way too.
+func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
+	t.cooldown -= dt
+	if t.cooldown > 0 {
+		return
+	}
+	tc := center(t.Cell)
+	reach := g.towerRange(t, spec)
+	var target *Enemy
+	for _, e := range g.Enemies {
+		if spec.Only != "" && e.Kind != spec.Only {
+			continue // clowns see nobody but ЭссДиЭф
+		}
+		if !e.dead && e.Pos.sub(tc).len() <= reach && (target == nil || e.Dist > target.Dist) {
+			target = e
+		}
+	}
+	if target == nil {
+		return
+	}
+	dmgAura, rateAura := g.auras(t)
+	t.cooldown = 1 / (spec.Rate * rateAura)
+	mult := g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * dmgAura * g.drinkMult(t)
+	damage := spec.Damage * mult
+	if spec.BossPct > 0 {
+		damage = spec.BossPct * target.MaxHP * mult
+	}
+	if spec.Chain > 0 {
+		g.chainZap(t, spec, target, damage) // lightning needs no flight time
+		return
+	}
+	crit := false
+	if ch := g.critChance(t); ch > 0 {
+		crit = g.rng.Float64() < ch // only a ranger's ballistas roll
+	}
+	if crit {
+		damage *= g.Cfg.CritMult
+	}
+	g.Projectiles = append(g.Projectiles, &Projectile{
+		ID: g.id(), Kind: t.Kind, Pos: tc, Target: target.ID, Aim: target.Pos,
+		Damage: damage, Magic: spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
+		Splash: spec.Splash, BurnDPS: spec.BurnDPS * mult, BurnSec: spec.BurnSec,
+		Assist: g.drummers(t), Crit: crit,
+	})
 }
 
 func (g *Game) enemy(id int) *Enemy {
@@ -548,6 +564,9 @@ func (g *Game) tickProjectiles(dt float64) {
 			g.emit(Event{Kind: "blast", X: p.Aim.X, Y: p.Aim.Y})
 		case target != nil:
 			g.damage(target, p.Damage, p.Owner, p.Magic)
+			if p.Crit {
+				g.emit(Event{Kind: "crit", X: target.Pos.X, Y: target.Pos.Y, Amount: int(math.Round(p.Damage))})
+			}
 		}
 		g.assist = nil
 	}
@@ -786,7 +805,7 @@ func (g *Game) tickNet(t *Tower, spec TowerSpec, dt float64) {
 	tc := center(t.Cell)
 	var at *Enemy
 	for _, e := range g.Enemies {
-		if !e.dead && e.netLeft <= 0 && e.netImmune <= 0 && e.Pos.sub(tc).len() <= spec.Range && (at == nil || e.Dist > at.Dist) {
+		if !e.dead && e.netLeft <= 0 && e.netImmune <= 0 && e.Pos.sub(tc).len() <= g.towerRange(t, spec) && (at == nil || e.Dist > at.Dist) {
 			at = e
 		}
 	}

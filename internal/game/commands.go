@@ -180,6 +180,9 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	case kind == clownKind && g.clownsOf(key) > 0:
 		g.reply(c.Name, "у тебя уже есть клоун")
 		return
+	case kind == "shrine" && !g.isStreamer(key) && g.shrineLimit(c) > 0 && g.kindOf(key, "shrine") >= g.shrineLimit(c):
+		g.reply(c.Name, fmt.Sprintf("святилищ у одного игрока не больше %d (у жреца %d)", g.Cfg.ShrineLimit, g.Cfg.ShrineLimitCleric))
+		return
 	case kind != clownKind && !g.isStreamer(key) && g.towersOf(key)-g.clownsOf(key) >= g.TowerLimit():
 		g.reply(c.Name, fmt.Sprintf("лимит построек %d", g.TowerLimit()))
 		return
@@ -486,4 +489,23 @@ func (g *Game) join(key string, c *Chatter, cmd string) {
 		g.reply(c.Name, "добро пожаловать в таверну! Строй: !b C4 arrow, все команды: !помощь")
 	}
 	g.arrive(key, c)
+}
+
+// shrineLimit is how many shrines c may own: more for a cleric.
+func (g *Game) shrineLimit(c *Chatter) int {
+	if c.Class == "cleric" {
+		return g.Cfg.ShrineLimitCleric
+	}
+	return g.Cfg.ShrineLimit
+}
+
+// kindOf counts the buildings of one kind a player owns.
+func (g *Game) kindOf(owner, kind string) int {
+	n := 0
+	for _, t := range g.Towers {
+		if t.Owner == owner && t.Kind == kind {
+			n++
+		}
+	}
+	return n
 }

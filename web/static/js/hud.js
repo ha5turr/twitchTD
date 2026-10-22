@@ -317,6 +317,21 @@ export class Hud {
         this.bolts.push({ x: b.x, y: b.y, pts: jagged(a, b, 4, 6), life: 0.4, color: 0xb05aff, width: 2, ring: 0x8a3aff });
         break;
       }
+      case 'crit':
+        this.floatAt(ev.x, ev.y - 0.7, `КРИТ! ${ev.amount ?? ''}`, 0xffd24a, FONT_UI, 22);
+        break;
+      case 'gateFire':
+        this.toasts.push({ text: `🔥 ${ev.user} встаёт к жаровне на стене таверны (ур. ${ev.amount ?? 1})`, color: 0xffa36a });
+        break;
+      case 'feast':
+        this.toasts.push({ text: `🍗 ${ev.user} накрывает столы: все постройки +50% на ${ev.amount ?? 20} с`, color: 0xffd8a0 });
+        break;
+      case 'wolves':
+        this.toasts.push({ text: `🐺 ${ev.user} призывает духов-волков`, color: 0x9ef0ff });
+        break;
+      case 'bear':
+        this.toasts.push({ text: ev.amount ? `🐻 ${ev.user} в облике медведя встаёт у двери таверны!` : `🐻 ${ev.user} в облике медведя бросается в бой`, color: 0xc89a6a });
+        break;
       case 'massCurse':
         this.toasts.push({ text: `🔮 ${ev.user} насылает порчу: проклято врагов — ${ev.amount ?? 0}`, color: 0xc07aff });
         this.curseFlash = 0.6;

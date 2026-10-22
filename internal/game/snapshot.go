@@ -44,30 +44,31 @@ func (g *Game) MapMessage() MapMsg {
 }
 
 type StateMsg struct {
-	T        string         `json:"t"` // "state"
-	Phase    Phase          `json:"phase"`
-	Timer    float64        `json:"timer"`
-	Wave     int            `json:"wave"`
-	Walls    float64        `json:"walls"`
-	WallsMax float64        `json:"wallsMax"`
-	Paused   bool           `json:"paused"`
-	Cap      int            `json:"walletCap"`
-	Limit    int            `json:"towerLimit"`
-	Treasury int            `json:"treasury"`
-	Active   int            `json:"active"`
-	Enemies  []EnemyView    `json:"enemies"`
-	Towers   []TowerView    `json:"towers"`
-	Proj     []ProjView     `json:"proj"`
-	Chatters []ChatterView  `json:"chatters"`
-	Workers  []WorkerView   `json:"workers"`
-	Events   []Event        `json:"events,omitempty"`
-	Summary  *Summary       `json:"summary,omitempty"` // only on the game over screen
-	Dice     []DiceView     `json:"dice"`
-	Memes    []*MemeRequest `json:"memes,omitempty"` // memecoin requests for the panel
-	Panthers []PantherView  `json:"panthers,omitempty"`
-	Runs     []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
-	Reward   float64        `json:"reward,omitempty"` // reward multiplier, above 1 after boss waves
-	Pact     float64        `json:"pact,omitempty"`   // seconds a warlock's blood pact still powers every building
+	T         string         `json:"t"` // "state"
+	Phase     Phase          `json:"phase"`
+	Timer     float64        `json:"timer"`
+	Wave      int            `json:"wave"`
+	Walls     float64        `json:"walls"`
+	WallsMax  float64        `json:"wallsMax"`
+	Paused    bool           `json:"paused"`
+	Cap       int            `json:"walletCap"`
+	Limit     int            `json:"towerLimit"`
+	Treasury  int            `json:"treasury"`
+	Active    int            `json:"active"`
+	Enemies   []EnemyView    `json:"enemies"`
+	Towers    []TowerView    `json:"towers"`
+	Proj      []ProjView     `json:"proj"`
+	Chatters  []ChatterView  `json:"chatters"`
+	Workers   []WorkerView   `json:"workers"`
+	Events    []Event        `json:"events,omitempty"`
+	Summary   *Summary       `json:"summary,omitempty"` // only on the game over screen
+	Dice      []DiceView     `json:"dice"`
+	Memes     []*MemeRequest `json:"memes,omitempty"` // memecoin requests for the panel
+	Panthers  []PantherView  `json:"panthers,omitempty"`
+	Runs      []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
+	Reward    float64        `json:"reward,omitempty"` // reward multiplier, above 1 after boss waves
+	Pact      float64        `json:"pact,omitempty"`
+	GateFires []GateFireView `json:"gateFires,omitempty"` // pyromancers' braziers on the tavern wall   // seconds a warlock's blood pact still powers every building
 }
 
 type EnemyView struct {
@@ -187,7 +188,15 @@ func (g *Game) StateMessage() StateMsg {
 	}
 	s.Memes = g.Memes
 	for _, r := range g.Runs {
-		s.Runs = append(s.Runs, RunView{r.Name, r.Kind, round2(r.Pos.X), round2(r.Pos.Y)})
+		s.Runs = append(s.Runs, RunView{r.Name, r.Kind, round2(r.Pos.X), round2(r.Pos.Y), r.hold})
+	}
+	for _, f := range g.gateFires {
+		name := f.t.Owner
+		if c := g.Chatters[name]; c != nil {
+			name = c.Name
+		}
+		cp := center(f.t.Cell)
+		s.GateFires = append(s.GateFires, GateFireView{name, cp.X, cp.Y, f.t.Level, math.Ceil(f.left)})
 	}
 	for _, p := range g.Panthers {
 		s.Panthers = append(s.Panthers, PantherView{p.Name, round2(p.Pos.X), round2(p.Pos.Y)})
@@ -230,7 +239,17 @@ type PantherView struct {
 // RunView is a mercenary out on a class skill: "charge" or "step".
 type RunView struct {
 	Name string  `json:"name"`
-	Kind string  `json:"kind"`
+	Kind string  `json:"kind"` // charge, step, bear, wolf
 	X    float64 `json:"x"`
 	Y    float64 `json:"y"`
+	Hold bool    `json:"hold,omitempty"` // a bear holding the line
+}
+
+// GateFireView is a pyromancer's brazier on the tavern wall.
+type GateFireView struct {
+	Name  string  `json:"name"`
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Level int     `json:"lvl"`
+	Left  float64 `json:"left"`
 }

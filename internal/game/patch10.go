@@ -131,27 +131,6 @@ func (g *Game) massCurse(c *Chatter) {
 	}
 }
 
-// tickPact runs the warlock's second skill on its own timer; the first use
-// comes halfway through, like every class skill.
-func (g *Game) tickPact(key string, c *Chatter, dt float64) {
-	every := g.Cfg.PactEverySec
-	if every <= 0 {
-		return
-	}
-	if c.pactCD == 0 {
-		c.pactCD = every / 2
-	}
-	c.pactCD -= dt
-	if c.pactCD > 0 {
-		return
-	}
-	if !g.bloodPact(c) {
-		c.pactCD = 10 // the walls are too weak: try again soon
-		return
-	}
-	c.pactCD = every
-}
-
 // bloodPact (warlock): the walls pay PactWallsPct of their strength and every
 // building on the map hits PactBoost harder for PactSec. Never while the
 // walls are low: it reports false then and nothing happens.

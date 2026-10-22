@@ -16,7 +16,7 @@ import (
 // editable lists the settings the streamer panel may change at runtime. The
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
-	"towerLimit", "towerLimitMax", "smallTeamBonus", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
+	"towerLimit", "towerLimitMax", "smallTeamBonus", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "shrineLimit", "shrineLimitCleric", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
 	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
@@ -151,6 +151,8 @@ func validate(cfg appConfig) error {
 		return fmt.Errorf("извилистость трассы должна быть от 0 до 1")
 	case cfg.EventChance < 0 || cfg.EventChance > 1, cfg.EventFromWave < 0:
 		return fmt.Errorf("шанс гостя должен быть от 0 до 1, волна — не отрицательной")
+	case cfg.ShrineLimit < 0, cfg.ShrineLimitCleric < 0:
+		return fmt.Errorf("лимит святилищ не может быть отрицательным")
 	case cfg.ShrineAssistPct < 0 || cfg.ShrineAssistPct > 1:
 		return fmt.Errorf("доля святилищ должна быть от 0 до 1")
 	case cfg.PassOutMugs < 0, cfg.PassOutSec < 0:
