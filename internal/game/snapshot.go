@@ -67,6 +67,7 @@ type StateMsg struct {
 	Panthers []PantherView  `json:"panthers,omitempty"`
 	Runs     []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
 	Reward   float64        `json:"reward,omitempty"` // reward multiplier, above 1 after boss waves
+	Pact     float64        `json:"pact,omitempty"`   // seconds a warlock's blood pact still powers every building
 }
 
 type EnemyView struct {
@@ -192,6 +193,7 @@ func (g *Game) StateMessage() StateMsg {
 		s.Panthers = append(s.Panthers, PantherView{p.Name, round2(p.Pos.X), round2(p.Pos.Y)})
 	}
 	s.Reward = round2(g.rewardMult)
+	s.Pact = math.Ceil(g.pactLeft)
 	if g.Phase == PhaseGameOver {
 		s.Summary = g.summary
 	}

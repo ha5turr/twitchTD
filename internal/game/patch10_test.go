@@ -105,10 +105,22 @@ func TestWarlockAndShamanSkills(t *testing.T) {
 	boss.ability = 1e9
 	sk := enemyAt(g, "skeleton", 5, 1000)
 	ghost := enemyAt(g, "ghost", 5, 1000)
-	g.Walls = 500
-	g.abyssPact("anna", c)
-	if boss.HP != 10000*(1-g.Cfg.WarlockDrainPct) || g.Walls != 500+g.Cfg.WarlockHealMax {
-		t.Fatalf("the pact drains the boss first and mends the walls: hp %.0f walls %.0f", boss.HP, g.Walls)
+	g.massCurse(c)
+	if sk.curseLeft <= 0 || sk.curseAmp != g.Cfg.WarlockCurseAmp || boss.curseAmp != g.Cfg.WarlockCurseAmp/2 || sk.curseOwner != "" {
+		t.Fatal("the mass curse curses everyone, bosses at half, and pays no shards")
+	}
+	sk.curseLeft = 0
+	g.Walls = g.Cfg.WallsHP
+	if !g.bloodPact(c) || g.Walls != g.Cfg.WallsHP*(1-g.Cfg.PactWallsPct) || g.pactLeft <= 0 {
+		t.Fatal("the blood pact costs the walls and powers every building")
+	}
+	tw := placeAs(g, "anna", "arrow", freeCell(t, g))
+	if got := g.drinkMult(tw); got != 1+g.Cfg.PactBoost {
+		t.Fatalf("buildings hit harder under the pact: %.2f", got)
+	}
+	g.Walls = g.Cfg.WallsHP * g.Cfg.PactMinWalls * 0.9
+	if g.bloodPact(c) {
+		t.Fatal("no pact while the walls are low")
 	}
 	g.earthquake(c)
 	if sk.stunLeft != g.Cfg.QuakeStunSec || boss.stunLeft != g.Cfg.QuakeStunSec/2 || ghost.stunLeft > 0 {

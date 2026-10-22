@@ -60,6 +60,7 @@ type Chatter struct {
 	nextBuff, nextSec float64
 	passiveCD         float64 // rogue and druid: seconds to the next trick (rogues.go)
 	skillCD           float64 // class skill (heroes.go): seconds to the next use
+	pactCD            float64 // the warlock's second skill, the blood pact
 	musicLeft         float64 // bard: seconds of music left
 	wasActive         bool    // chatted since the last AFK sweep (economy.go)
 	Joined            bool    // took part this session: !play or any game command (commands.go)
@@ -73,7 +74,7 @@ type Event struct {
 	X      float64 `json:"x,omitempty"`
 	Y      float64 `json:"y,omitempty"`
 	Amount int     `json:"amount,omitempty"`
-	X2     float64 `json:"x2,omitempty"` // the far end of a beam (zap, curse, drain)
+	X2     float64 `json:"x2,omitempty"` // the far end of a beam (zap, curse)
 	Y2     float64 `json:"y2,omitempty"`
 }
 
@@ -113,9 +114,11 @@ type Game struct {
 	Dice        []*DiceGame       // games of dice in the tavern
 	Memes       []*MemeRequest    // memecoin requests waiting for the streamer
 	RewardUses  map[string]int    // channel point rewards taken this game, by "title|login"
-	Panthers    []*Panther        // druids on the hunt
-	Runs        []*Run            // charging warriors, rogues in a shadow-step
-	meteors     []*meteor         // a mage's meteor shower, still falling
+	pactLeft    float64           // a warlock's blood pact: seconds every building still hits harder
+	pactBoost   float64
+	Panthers    []*Panther // druids on the hunt
+	Runs        []*Run     // charging warriors, rogues in a shadow-step
+	meteors     []*meteor  // a mage's meteor shower, still falling
 
 	// Admin reaches the overlay settings (sound) for mod chat commands.
 	Admin SettingsAdmin
@@ -169,7 +172,7 @@ func (g *Game) NewGame(biome Biome) {
 		}
 	}
 	cam, hasCam := g.Cfg.WebcamRect()
-	g.Map = GenerateMap(g.rng.Uint64()%1_000_000, biome, cam, hasCam)
+	g.Map = GenerateMap(g.rng.Uint64()%1_000_000, biome, g.Cfg.PathCurve, cam, hasCam)
 	g.buildRoute()
 
 	g.Phase = PhaseBuild
@@ -184,6 +187,7 @@ func (g *Game) NewGame(biome Biome) {
 	g.summary = nil
 	g.rewardMult = 1
 	g.RewardUses = nil
+	g.pactLeft = 0
 	if !g.Cfg.KeepTreasury {
 		g.Treasury, g.treasuryAcc = 0, 0
 	}

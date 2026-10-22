@@ -1,6 +1,7 @@
 package game
 
 import (
+	"math"
 	"math/rand/v2"
 )
 
@@ -14,6 +15,12 @@ const (
 	BiomeSwamp   Biome = "swamp"
 )
 
+// biomeAliases lets !tdnew take the biomes' Russian names.
+var biomeAliases = map[string]Biome{
+	"руины": BiomeRuins, "подземелье": BiomeDungeon, "крипта": BiomeCrypt,
+	"лёд": BiomeIce, "лед": BiomeIce, "пещеры": BiomeIce, "болото": BiomeSwamp,
+}
+
 var AllBiomes = []Biome{BiomeRuins, BiomeDungeon, BiomeCrypt, BiomeIce, BiomeSwamp}
 
 // biomeProfile drives the generator: path shape and obstacle style.
@@ -21,7 +28,29 @@ type biomeProfile struct {
 	minLen, maxLen int
 	minTurns       int
 	straight       float64 // weight multiplier for keeping the current direction
+	back           float64 // weight of turning back toward the entrance (0: the default 0.6)
+	left           float64 // weight of heading for the tavern (0: the default 3)
+	minRun         int     // cells a stretch runs before the next turn (0 or 1: any)
 	obstacles      func(r *rand.Rand, g *Grid)
+}
+
+// curved bends a biome's path by curve, from 0 (the biome as designed) to 1
+// (as winding as the grid allows). The path snakes rather than stairs: it
+// heads for the tavern less eagerly and runs up and down instead, every
+// stretch at least two cells long, doubling back now and then, with more
+// turns required and room for the longer path all that makes.
+func (p biomeProfile) curved(curve float64) biomeProfile {
+	curve = math.Max(0, math.Min(1, curve))
+	if curve == 0 {
+		return p // the biome as designed, exactly as maps were before 0.13
+	}
+	p.minTurns += int(math.Round(curve * 6))
+	p.minLen += int(math.Round(curve * 8))
+	p.maxLen += int(math.Round(curve * 22))
+	p.left = 3 - 2.2*curve
+	p.back = 0.6 + 0.8*curve
+	p.minRun = 2
+	return p
 }
 
 var profiles = map[Biome]biomeProfile{
@@ -35,6 +64,7 @@ var profiles = map[Biome]biomeProfile{
 type MapData struct {
 	Seed    uint64
 	Biome   Biome
+	Curve   float64 // how winding the path was asked to be (pathCurve)
 	Grid    Grid
 	Path    []Pos // from the right edge to column A
 	Torches []Pos
@@ -61,13 +91,14 @@ func (c Config) WebcamRect() (Rect, bool) {
 	}, true
 }
 
-// GenerateMap builds a map for the biome. The same seed, biome and webcam zone
-// always give the same map.
-func GenerateMap(seed uint64, biome Biome, webcam Rect, hasWebcam bool) *MapData {
-	prof := profiles[biome]
+// GenerateMap builds a map for the biome, its path bent by curve (0..1). The
+// same seed, biome, curve and webcam zone always give the same map.
+func GenerateMap(seed uint64, biome Biome, curve float64, webcam Rect, hasWebcam bool) *MapData {
+	base := profiles[biome]
+	prof := base.curved(curve)
 	for attempt := uint64(0); ; attempt++ {
 		r := rand.New(rand.NewPCG(seed, attempt))
-		m := &MapData{Seed: seed, Biome: biome}
+		m := &MapData{Seed: seed, Biome: biome, Curve: curve}
 		if hasWebcam {
 			for y := webcam.Min.Y; y <= webcam.Max.Y; y++ {
 				for x := webcam.Min.X; x <= webcam.Max.X; x++ {
@@ -77,6 +108,12 @@ func GenerateMap(seed uint64, biome Biome, webcam Rect, hasWebcam bool) *MapData
 		}
 		path := carvePath(r, &m.Grid, prof)
 		if path == nil {
+			// A very winding path may not fit around the webcam: ask for a
+			// turn less every few tries, down to what the biome itself wants.
+			if attempt%40 == 39 && prof.minTurns > base.minTurns {
+				prof.minTurns--
+				prof.minLen = max(base.minLen, prof.minLen-1)
+			}
 			if attempt > 400 {
 				// Practically unreachable; relax the profile rather than hang.
 				prof.minLen, prof.minTurns = 16, 2
@@ -128,6 +165,11 @@ func carvePath(r *rand.Rand, g *Grid, prof biomeProfile) []Pos {
 // walk extends the path depth-first with backtracking. dir is the index of
 // the last move in dirs.
 func (c *carver) walk(cur Pos, dir, turns int) bool {
+	return c.walkRun(cur, dir, turns, 1)
+}
+
+// walkRun is walk that knows how many cells the current stretch has run.
+func (c *carver) walkRun(cur Pos, dir, turns, run int) bool {
 	c.budget--
 	if c.budget <= 0 || len(c.path) > c.prof.maxLen {
 		return false
@@ -146,13 +188,18 @@ func (c *carver) walk(cur Pos, dir, turns int) bool {
 		if !c.free(n, cur, prev) {
 			continue
 		}
-		t := turns
+		// A short stretch may not turn yet, unless it is the very first step
+		// or the last cells before the tavern.
+		if d != dir && len(c.path) > 1 && run < c.prof.minRun && cur.X > 0 {
+			continue
+		}
+		t, r := turns, run+1
 		if d != dir {
-			t++
+			t, r = t+1, 1
 		}
 		c.visited[n.Y][n.X] = true
 		c.path = append(c.path, n)
-		if c.walk(n, d, t) {
+		if c.walkRun(n, d, t, r) {
 			return true
 		}
 		c.path = c.path[:len(c.path)-1]
@@ -188,6 +235,12 @@ func (c *carver) free(n, cur, prev Pos) bool {
 // order returns direction indices in a weighted random order.
 func (c *carver) order(cur int) []int {
 	w := dirWeight
+	if c.prof.left > 0 {
+		w[0] = c.prof.left
+	}
+	if c.prof.back > 0 {
+		w[3] = c.prof.back // doubling back toward the entrance makes switchbacks
+	}
 	w[cur] *= c.prof.straight
 	idx := []int{0, 1, 2, 3}
 	out := make([]int, 0, 4)

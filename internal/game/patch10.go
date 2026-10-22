@@ -107,28 +107,63 @@ func (g *Game) chainZap(t *Tower, spec TowerSpec, target *Enemy, dmg float64) {
 	g.assist = nil
 }
 
-// abyssPact (warlock): takes a share of the strongest enemy's life, a boss
-// first, and gives it to the tavern walls.
-func (g *Game) abyssPact(key string, c *Chatter) {
-	var at *Enemy
+// massCurse (warlock): every enemy on the map is cursed for a while: no
+// armor and WarlockCurseAmp more damage taken (bosses half). A stronger curse
+// from an altar is kept; mass curses pay no soul shards.
+func (g *Game) massCurse(c *Chatter) {
+	n := 0
 	for _, e := range g.Enemies {
 		if e.dead {
 			continue
 		}
-		boss, atBoss := g.Cfg.Enemies[e.Kind].Boss, at != nil && g.Cfg.Enemies[at.Kind].Boss
-		if at == nil || boss && !atBoss || boss == atBoss && e.MaxHP > at.MaxHP {
-			at = e
+		amp := g.Cfg.WarlockCurseAmp
+		if g.Cfg.Enemies[e.Kind].Boss {
+			amp /= 2
 		}
+		if e.curseLeft <= 0 || e.curseAmp < amp {
+			e.curseAmp, e.curseOwner = amp, ""
+		}
+		e.curseLeft = max(e.curseLeft, g.Cfg.WarlockCurseSec)
+		n++
 	}
-	if at == nil {
+	if n > 0 {
+		g.emit(Event{Kind: "massCurse", User: c.Name, Amount: n})
+	}
+}
+
+// tickPact runs the warlock's second skill on its own timer; the first use
+// comes halfway through, like every class skill.
+func (g *Game) tickPact(key string, c *Chatter, dt float64) {
+	every := g.Cfg.PactEverySec
+	if every <= 0 {
 		return
 	}
-	drain := min(at.HP, g.Cfg.WarlockDrainPct*at.MaxHP)
-	heal := min(drain, g.Cfg.WarlockHealMax, g.Cfg.WallsHP-g.Walls)
-	g.Walls += heal
-	gate := g.gate()
-	g.emit(Event{Kind: "drain", User: c.Name, X: gate.X, Y: gate.Y, X2: at.Pos.X, Y2: at.Pos.Y, Amount: int(math.Round(heal))})
-	g.damage(at, drain, key, true)
+	if c.pactCD == 0 {
+		c.pactCD = every / 2
+	}
+	c.pactCD -= dt
+	if c.pactCD > 0 {
+		return
+	}
+	if !g.bloodPact(c) {
+		c.pactCD = 10 // the walls are too weak: try again soon
+		return
+	}
+	c.pactCD = every
+}
+
+// bloodPact (warlock): the walls pay PactWallsPct of their strength and every
+// building on the map hits PactBoost harder for PactSec. Never while the
+// walls are low: it reports false then and nothing happens.
+func (g *Game) bloodPact(c *Chatter) bool {
+	if g.Walls < g.Cfg.PactMinWalls*g.Cfg.WallsHP {
+		return false
+	}
+	cost := g.Cfg.PactWallsPct * g.Cfg.WallsHP
+	g.Walls -= cost
+	g.pactLeft, g.pactBoost = g.Cfg.PactSec, g.Cfg.PactBoost
+	g.emit(Event{Kind: "bloodPact", User: c.Name, Amount: int(math.Round(cost))})
+	return true
 }
 
 // earthquake (shaman): every enemy on the ground is stunned for a moment;
