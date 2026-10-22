@@ -116,6 +116,8 @@ type Game struct {
 	RewardUses  map[string]int    // channel point rewards taken this game, by "title|login"
 	pactLeft    float64           // a warlock's blood pact: seconds every building still hits harder
 	gateFires   []*GateFire       // pyromancers' braziers on the tavern wall
+	storms      []*Storm          // artifact totems' lightning charges on the path
+	wallShield  float64           // artifact shrines' shield over the tavern walls
 	pactBoost   float64
 	Panthers    []*Panther // druids on the hunt
 	Runs        []*Run     // charging warriors, rogues in a shadow-step
@@ -192,7 +194,8 @@ func (g *Game) NewGame(biome Biome) {
 	if !g.Cfg.KeepTreasury {
 		g.Treasury, g.treasuryAcc = 0, 0
 	}
-	g.Panthers, g.Runs, g.meteors, g.gateFires = nil, nil, nil, nil
+	g.Panthers, g.Runs, g.meteors, g.gateFires, g.storms = nil, nil, nil, nil, nil
+	g.wallShield = 0
 	// Dice stakes go back before wallets reset, so a new game never eats them.
 	for _, d := range g.Dice {
 		g.refundDice(d)
@@ -311,6 +314,9 @@ func (g *Game) Tick(dt float64) {
 	g.tickWorkers(dt)
 	g.tickTowers(dt)
 	g.tickGateFires(dt)
+	g.tickStorms(dt)
+	g.tickSoulLinks()
+	g.tickWallShield()
 	g.tickProjectiles(dt)
 	g.sweepDead()
 	if g.Walls <= 0 && g.Phase != PhaseGameOver {

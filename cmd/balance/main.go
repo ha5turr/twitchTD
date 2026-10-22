@@ -164,6 +164,11 @@ func (b *bot) act(g *game.Game, r *rand.Rand) {
 	}
 	mine := 0
 	for _, t := range g.Towers {
+		if t.Owner == b.name && t.Kind == "arrow" && g.IsArtifact(t) && t.Ammo == "" {
+			// An artifact ballista gets arrows, as a player would pick them.
+			ammo := []string{"огонь", "яд", "взрыв"}[r.IntN(3)]
+			g.HandleChat(game.ChatMessage{User: b.name, Text: "!стрелы " + t.Cell.Name() + " " + ammo})
+		}
 		if t.Owner == b.name {
 			mine++
 			// A barricade under half its strength is mended first, as a
@@ -186,7 +191,7 @@ func (b *bot) act(g *game.Game, r *rand.Rand) {
 	// Upgrade the cheapest of our buildings that still can grow.
 	var best *game.Tower
 	for _, t := range g.Towers {
-		if t.Owner == b.name && t.Built && t.PendingCost == 0 && t.Level < g.Cfg.Towers[t.Kind].MaxLevel {
+		if t.Owner == b.name && t.Built && t.PendingCost == 0 && t.Level < g.TowerMaxLevel(t) {
 			if best == nil || g.Cfg.TowerCost(t.Kind, t.Level+1) < g.Cfg.TowerCost(best.Kind, best.Level+1) {
 				best = t
 			}

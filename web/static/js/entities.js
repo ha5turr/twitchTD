@@ -7,6 +7,9 @@ import { hasTileset, sprite, frames, texture } from './tileset.js';
 
 const { Container, Graphics, Text } = PIXI;
 
+// Icons of an artifact ballista's arrows.
+const AMMO_ICONS = { poison: '☠️', fire: '🔥', blast: '💥' };
+
 // How long !me keeps the speaker's buildings lit.
 const HIGHLIGHT_SEC = 6;
 
@@ -293,6 +296,12 @@ class TowerView {
     this.frog.position.set(this.cx, this.cy + (this.frog.anchor?.y === 1 ? 24 : 0));
     this.frog.visible = false;
     layer.world.addChild(this.frog);
+    // An artifact ballista's arrows, as an icon over its top left corner.
+    this.ammo = '';
+    this.ammoIcon = new Text({ text: '', style: { fontSize: 20, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif' } });
+    this.ammoIcon.anchor.set(0.5);
+    this.ammoIcon.position.set(this.cx - 32, this.cy - 30);
+    layer.labels.addChild(this.ammoIcon);
     // The ring !me lights around the speaker's buildings, in his nick colour.
     this.glow = new Graphics();
     this.glow.position.set(this.cx, this.cy);
@@ -336,8 +345,13 @@ class TowerView {
       }
     }
     const trap = this.kind === 'trap' && t.built;
-    this.charges.text = trap ? `×${t.charges ?? 0}` : '';
-    this.empty = trap && !t.charges; // a spent trap waits for the next wave
+    this.charges.text = trap ? (t.artifact ? '×∞' : `×${t.charges ?? 0}`) : '';
+    this.empty = trap && !t.charges && !t.artifact; // a spent trap waits for the next wave
+    this.war = !!t.war;
+    if ((t.ammo ?? '') !== this.ammo) {
+      this.ammo = t.ammo ?? '';
+      this.ammoIcon.text = AMMO_ICONS[this.ammo] ?? '';
+    }
     if (t.lvl === this.level && t.built === this.built) return;
     this.level = t.lvl;
     this.built = t.built;
@@ -353,7 +367,7 @@ class TowerView {
       this.art = towerArt(this.kind, sprite);
       if (this.art) this.root.addChildAt(this.art, this.kind === 'trap' || this.kind === 'wall' ? 0 : 1);
     }
-    drawTower(g, this.kind, RARITY[Math.min(t.lvl, 5) - 1], t.lvl, { pixel: hasTileset(), art: !!this.art });
+    drawTower(g, this.kind, RARITY[Math.min(t.lvl, 6) - 1], t.lvl, { pixel: hasTileset(), art: !!this.art });
   }
 
   highlight(secs) {
@@ -380,7 +394,12 @@ class TowerView {
     const dt = t - (this.lastT ?? t);
     this.lastT = t;
     if (this.glowLeft <= 0) {
-      g.visible = false;
+      // A war beat from artifact drums lights the building amber.
+      g.clear();
+      if (this.war) {
+        g.roundRect(-44, -44, 88, 88, 12).stroke({ width: 4, color: 0xffb347, alpha: 0.8 });
+        g.visible = true;
+      } else g.visible = false;
       return;
     }
     this.glowLeft -= dt;
@@ -433,6 +452,7 @@ class TowerView {
     this.web.destroy();
     this.frog.destroy();
     this.glow.destroy();
+    this.ammoIcon.destroy();
     this.name.destroy();
     this.bar.destroy();
     this.charges.destroy();
@@ -679,7 +699,7 @@ class GateFireView {
     if (f.lvl !== this.level) {
       this.level = f.lvl;
       this.g.clear();
-      for (let i = 0; i < f.lvl; i++) this.g.circle(-((f.lvl - 1) * 8) / 2 + i * 8, 6, 3).fill(RARITY[Math.min(f.lvl, 5) - 1]);
+      for (let i = 0; i < f.lvl; i++) this.g.circle(-((f.lvl - 1) * 8) / 2 + i * 8, 6, 3).fill(RARITY[Math.min(f.lvl, 6) - 1]);
     }
   }
 

@@ -95,6 +95,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdAchievements(c)
 	case "!мемы", "!memes":
 		g.cmdMemes(c, key, args)
+	case "!стрелы", "!arrows", "!ammo":
+		g.cmdAmmo(c, key, args)
 	case "!towers", "!башни":
 		var parts []string
 		for _, k := range TowerKinds {
@@ -242,8 +244,12 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 	}
 	spec := g.Cfg.Towers[t.Kind]
 	switch {
-	case t.Level >= spec.MaxLevel:
-		g.reply(c.Name, "уже максимальный уровень")
+	case t.Level >= g.maxLevel(t):
+		if g.maxLevel(t) == spec.MaxLevel && t.Kind != clownKind {
+			g.reply(c.Name, "уже максимальный уровень; 6-й, артефактный, — только для постройки своего класса")
+		} else {
+			g.reply(c.Name, "уже максимальный уровень")
+		}
 		return
 	case !t.Built || t.PendingCost > 0 || t.repairing:
 		g.reply(c.Name, t.Cell.Name()+": наёмник ещё работает над ней")
@@ -259,7 +265,7 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 		// As many levels as the wallet (and a grant) pays for, at once.
 		budget := c.Gold + c.Grant
 		cost, levels = 0, 0
-		for lvl := t.Level + 1; lvl <= spec.MaxLevel; lvl++ {
+		for lvl := t.Level + 1; lvl <= g.maxLevel(t); lvl++ {
 			next := g.Cfg.TowerCost(t.Kind, lvl)
 			if !streamer && cost+next > budget {
 				break
@@ -285,6 +291,7 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 	if streamer {
 		t.Level += levels
 		g.readyTower(t)
+		g.announceArtifact(t, c.Name)
 	} else {
 		t.PendingCost, t.PendingUp = cost, levels
 		g.order(key, c.Name, t.Cell)
@@ -467,6 +474,7 @@ var gameCommands = map[string]bool{
 	"!sell": true, "!продать": true,
 	"!repair": true, "!чинить": true, "!починить": true,
 	"!me": true, "!я": true,
+	"!стрелы": true, "!arrows": true, "!ammo": true,
 	"!dice": true, "!кости": true,
 	"!class": true, "!класс": true,
 	"!drink": true, "!d": true, "!выпить": true, "!пить": true,

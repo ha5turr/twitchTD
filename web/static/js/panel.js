@@ -110,7 +110,7 @@ canvas.addEventListener('click', (ev) => {
 
 const COLORS = { '.': '#2a2a26', '#': '#5a5040', o: '#151412', w: '#1a2230' };
 const TOWER_COLORS = Object.fromEntries(TOOLS.map(([k, , c]) => [k, c]));
-const RARITY = ['#e8e8e8', '#4cd964', '#3d8bff', '#b05cff', '#ff9a2e'];
+const RARITY = ['#e8e8e8', '#4cd964', '#3d8bff', '#b05cff', '#ff9a2e', '#ff3b3b'];
 
 function draw() {
   if (!map) return;
@@ -135,7 +135,7 @@ function draw() {
       ctx.fillStyle = TOWER_COLORS[t.kind] ?? '#888';
       ctx.fillRect(px + 14, py + 14, s - 30, s - 30);
       ctx.lineWidth = 6;
-      ctx.strokeStyle = t.disabled ? '#777' : RARITY[Math.min(t.lvl, 5) - 1];
+      ctx.strokeStyle = t.disabled ? '#777' : RARITY[Math.min(t.lvl, 6) - 1];
       ctx.strokeRect(px + 14, py + 14, s - 30, s - 30);
       ctx.globalAlpha = 1;
     }

@@ -129,7 +129,7 @@ const STONE = 0x1b1a1f;
 const STONE_EDGE = 0x4a4238;
 
 // qualityDots shows a building's quality: one dot per level in the loot
-// rarity colour (white, green, blue, purple, orange), stacked bottom up in a
+// rarity colour (white, green, blue, purple, orange, artifact red), stacked bottom up in a
 // thin column at the right edge of the cell. There it clears the sprite in
 // the middle, the owner's nick below and the progress bar above.
 const DOTS_X = 41; // between the stone base (34) and the cell edge (48)

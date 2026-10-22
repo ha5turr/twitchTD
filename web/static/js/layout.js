@@ -45,8 +45,8 @@ export const BIOMES = {
   },
 };
 
-// Loot rarity colours by tower level 1..5.
-export const RARITY = [0xe8e8e8, 0x4cd964, 0x3d8bff, 0xb05cff, 0xff9a2e];
+// Loot rarity colours by tower level 1..6: the 6th, red, is a class building's artifact level.
+export const RARITY = [0xe8e8e8, 0x4cd964, 0x3d8bff, 0xb05cff, 0xff9a2e, 0xff3b3b];
 
 // Stable per-nick colour, the same everywhere a nick appears.
 export function nickColor(name) {
