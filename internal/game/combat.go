@@ -70,6 +70,7 @@ type Tower struct {
 	// the paid price of an upgrade a mercenary has not finished yet.
 	Built       bool
 	PendingCost int
+	PendingUp   int     // levels the paid upgrade adds when the mercenary finishes it (!up C4 max: several)
 	Progress    float64 // 0..1 of the current construction or upgrade
 	HP, MaxHP   float64 // barricades
 	Charges     int     // traps

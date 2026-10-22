@@ -272,3 +272,27 @@ func TestRageAtTheTavernDoor(t *testing.T) {
 		t.Fatalf("a raging enemy at the door heals no more and hits harder: hp %.0f, hit %.1f vs %.1f", e.HP, before-g.Walls, calm)
 	}
 }
+
+func TestUpgradeToMax(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	c := g.Chatters["anna"]
+	tw := placeAs(g, "anna", "arrow", freeCell(t, g))
+	// Levels 2, 3 and 4 cost 100 + 150 + 200 = 450; level 5 would need 250 more.
+	c.Gold = 500
+	g.HandleChat(ChatMessage{User: "anna", Text: "!up " + tw.Cell.Name() + " max"})
+	if c.Gold != 50 || tw.PendingUp != 3 || tw.PendingCost != 450 {
+		t.Fatalf("max pays for as many levels as the wallet allows: gold %d, levels %d, cost %d", c.Gold, tw.PendingUp, tw.PendingCost)
+	}
+	for i := 0; i < 600 && tw.PendingCost > 0; i++ {
+		run(g, 0.1)
+	}
+	if tw.Level != 4 {
+		t.Fatalf("the mercenary raises it three levels in one go: level %d", tw.Level)
+	}
+	c.Gold = 100
+	g.HandleChat(ChatMessage{User: "anna", Text: "!up " + tw.Cell.Name() + " макс"})
+	if r := lastReply(g); tw.PendingUp != 0 || c.Gold != 100 || !strings.Contains(r, "нужно 250") {
+		t.Fatalf("not enough for one level: nothing is spent and the price is told: %q", r)
+	}
+}
