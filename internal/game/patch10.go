@@ -95,7 +95,11 @@ func (g *Game) chainZap(t *Tower, spec TowerSpec, target *Enemy, dmg float64) {
 		g.emit(Event{Kind: "zap", X: from.X, Y: from.Y, X2: p.X, Y2: p.Y})
 		hit[cur] = true
 		g.damage(cur, dmg, t.Owner, spec.Magic)
-		from, dmg = p, dmg*spec.ChainFalloff
+		falloff := spec.ChainFalloff
+		if g.artifact(t) {
+			falloff = g.Cfg.TotemArtFalloff
+		}
+		from, dmg = p, dmg*falloff
 		var next *Enemy
 		for _, e := range g.Enemies {
 			if !e.dead && !hit[e] && e.Pos.sub(p).len() <= spec.ChainRange && (next == nil || e.Pos.sub(p).len() < next.Pos.sub(p).len()) {

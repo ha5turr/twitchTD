@@ -126,18 +126,45 @@ type Config struct {
 	MageFeastEverySec  float64 `json:"mageFeastEverySec"`  // the mage's feast on the tavern tables
 	ShamanWolfEverySec float64 `json:"shamanWolfEverySec"` // the shaman's two spectral wolves
 	WolfSpeed          float64 `json:"wolfSpeed"`
-	WolfDmg            float64 `json:"wolfDmg"`      // each bite, share of the wave's base HP
-	PactEverySec       float64 `json:"pactEverySec"` // blood pact: the warlock's second skill
-	PactWallsPct       float64 `json:"pactWallsPct"` // share of the tavern walls' max HP it costs
-	PactBoost          float64 `json:"pactBoost"`    // extra damage every building on the map deals
-	PactSec            float64 `json:"pactSec"`      // for this long
-	PactMinWalls       float64 `json:"pactMinWalls"` // no pact while the walls are below this share
-	ShamanEverySec     float64 `json:"shamanEverySec"`
-	QuakeStunSec       float64 `json:"quakeStunSec"`    // ground enemies stunned by the earthquake (bosses half)
-	CurseShardPct      float64 `json:"curseShardPct"`   // a cursed kill pays the altar's owner this share of the bounty
-	CurseSoulChance    float64 `json:"curseSoulChance"` // and gives him a soul with this chance
-	ArrowRainDmg       float64 `json:"arrowRainDmg"`
-	ArrowRainRadius    float64 `json:"arrowRainRadius"`
+	WolfDmg            float64 `json:"wolfDmg"` // each bite, share of the wave's base HP
+	// Artifact buildings (artifact.go).
+	PoisonPct        float64 `json:"poisonPct"` // each poison stack eats this share of the HP left per second
+	PoisonSec        float64 `json:"poisonSec"`
+	PoisonBossMult   float64 `json:"poisonBossMult"` // bosses suffer this much of it
+	ArrowFireBurn    float64 `json:"arrowFireBurn"`  // fire arrows burn this share of the shot per second
+	ArrowBlastRadius float64 `json:"arrowBlastRadius"`
+	ArrowBlastPct    float64 `json:"arrowBlastPct"` // what the blast deals to those around the target
+	DrumArtRate      float64 `json:"drumArtRate"`   // artifact drums: extra fire rate on top of the aura
+	DrumWarEvery     float64 `json:"drumWarEvery"`  // the war beat: buildings in reach hit harder
+	DrumWarSec       float64 `json:"drumWarSec"`
+	DrumWarBoost     float64 `json:"drumWarBoost"`
+	WallShoveEvery   float64 `json:"wallShoveEvery"`  // an artifact barricade shoves its attackers a cell back
+	WallSpikeDPS     float64 `json:"wallSpikeDps"`    // its spikes, share of the wave's base HP per second
+	TotemArtFalloff  float64 `json:"totemArtFalloff"` // an artifact totem's chain keeps this much per jump
+	StormEvery       float64 `json:"stormEvery"`      // it lays a charge of lightning on the path
+	StormSec         float64 `json:"stormSec"`
+	StormSlow        float64 `json:"stormSlow"` // speed multiplier inside it
+	StormRadius      float64 `json:"stormRadius"`
+	MageArtChance    float64 `json:"mageArtChance"` // an artifact obelisk's chance of an empowered hit
+	MageArtMult      float64 `json:"mageArtMult"`
+	MageArtSlow      float64 `json:"mageArtSlow"`
+	MageArtSlowSec   float64 `json:"mageArtSlowSec"`
+	ShrineShieldPct  float64 `json:"shrineShieldPct"` // each artifact shrine shields the walls with this share of their strength
+	SoulLinkDmg      float64 `json:"soulLinkDmg"`     // crossing a soul link: share of the wave's base HP
+	SoulLinkSlow     float64 `json:"soulLinkSlow"`
+	SoulLinkSlowSec  float64 `json:"soulLinkSlowSec"`
+	SoulLinkWidth    float64 `json:"soulLinkWidth"`
+	PactEverySec     float64 `json:"pactEverySec"` // blood pact: the warlock's second skill
+	PactWallsPct     float64 `json:"pactWallsPct"` // share of the tavern walls' max HP it costs
+	PactBoost        float64 `json:"pactBoost"`    // extra damage every building on the map deals
+	PactSec          float64 `json:"pactSec"`      // for this long
+	PactMinWalls     float64 `json:"pactMinWalls"` // no pact while the walls are below this share
+	ShamanEverySec   float64 `json:"shamanEverySec"`
+	QuakeStunSec     float64 `json:"quakeStunSec"`    // ground enemies stunned by the earthquake (bosses half)
+	CurseShardPct    float64 `json:"curseShardPct"`   // a cursed kill pays the altar's owner this share of the bounty
+	CurseSoulChance  float64 `json:"curseSoulChance"` // and gives him a soul with this chance
+	ArrowRainDmg     float64 `json:"arrowRainDmg"`
+	ArrowRainRadius  float64 `json:"arrowRainRadius"`
 
 	// Traps (hotfix 2).
 	TrapBleed      float64 `json:"trapBleed"` // bleeding per second as a share of the snap's damage
@@ -401,6 +428,32 @@ func DefaultConfig() Config {
 		ShamanWolfEverySec:   50,
 		WolfSpeed:            7,
 		WolfDmg:              0.3,
+		PoisonPct:            0.02,
+		PoisonSec:            5,
+		PoisonBossMult:       0.25,
+		ArrowFireBurn:        0.3,
+		ArrowBlastRadius:     0.8,
+		ArrowBlastPct:        0.6,
+		DrumArtRate:          0.2,
+		DrumWarEvery:         20,
+		DrumWarSec:           6,
+		DrumWarBoost:         0.3,
+		WallShoveEvery:       8,
+		WallSpikeDPS:         0.04,
+		TotemArtFalloff:      0.95,
+		StormEvery:           30,
+		StormSec:             20,
+		StormSlow:            0.8,
+		StormRadius:          0.55,
+		MageArtChance:        0.2,
+		MageArtMult:          1.5,
+		MageArtSlow:          0.5,
+		MageArtSlowSec:       2,
+		ShrineShieldPct:      0.1,
+		SoulLinkDmg:          0.4,
+		SoulLinkSlow:         0.8,
+		SoulLinkSlowSec:      2,
+		SoulLinkWidth:        0.35,
 		PactEverySec:         90,
 		PactWallsPct:         0.08,
 		PactBoost:            0.35,

@@ -161,6 +161,7 @@ func (g *Game) finish(t *Tower, w *Worker) {
 		t.Built = true
 		g.readyTower(t)
 		g.emit(Event{Kind: "built", User: w.Name, X: cp.X, Y: cp.Y, Text: t.Kind})
+		g.checkMonogamist(t.Owner)
 		if c := g.Chatters[t.Owner]; c != nil && c.count("builds", 1) >= buildsNeeded {
 			g.unlock(t.Owner, "architect")
 		}
@@ -173,6 +174,7 @@ func (g *Game) finish(t *Tower, w *Worker) {
 	if t.Level >= g.Cfg.Towers[t.Kind].MaxLevel {
 		g.unlock(t.Owner, "masterpiece")
 	}
+	g.announceArtifact(t, w.Name)
 }
 
 func (g *Game) enemyNear(p vec) bool {

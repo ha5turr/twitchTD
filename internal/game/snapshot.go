@@ -68,7 +68,11 @@ type StateMsg struct {
 	Runs      []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
 	Reward    float64        `json:"reward,omitempty"` // reward multiplier, above 1 after boss waves
 	Pact      float64        `json:"pact,omitempty"`
-	GateFires []GateFireView `json:"gateFires,omitempty"` // pyromancers' braziers on the tavern wall   // seconds a warlock's blood pact still powers every building
+	GateFires []GateFireView `json:"gateFires,omitempty"` // pyromancers' braziers on the tavern wall
+	Shield    float64        `json:"shield,omitempty"`    // artifact shrines' shield over the walls
+	ShieldMax float64        `json:"shieldMax,omitempty"`
+	Storms    [][2]float64   `json:"storms,omitempty"` // artifact totems' lightning charges
+	Links     [][4]float64   `json:"links,omitempty"`  // warlocks' soul links, x1 y1 x2 y2   // seconds a warlock's blood pact still powers every building
 }
 
 type EnemyView struct {
@@ -104,6 +108,9 @@ type TowerView struct {
 	Charges  int     `json:"charges,omitempty"` // traps
 	Disabled bool    `json:"disabled,omitempty"`
 	Hex      bool    `json:"hex,omitempty"` // a frog for now (the swamp witch)
+	Artifact bool    `json:"artifact,omitempty"`
+	Ammo     string  `json:"ammo,omitempty"` // an artifact ballista's arrows
+	War      bool    `json:"war,omitempty"`  // powered by an artifact drum's war beat
 }
 
 type WorkerView struct {
@@ -163,7 +170,7 @@ func (g *Game) StateMessage() StateMsg {
 		}
 		s.Towers = append(s.Towers, TowerView{
 			t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress),
-			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0,
+			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0, g.artifact(t), t.Ammo, t.warLeft > 0,
 		})
 	}
 	sort.Slice(s.Towers, func(i, j int) bool { return s.Towers[i].ID < s.Towers[j].ID })
@@ -203,6 +210,13 @@ func (g *Game) StateMessage() StateMsg {
 	}
 	s.Reward = round2(g.rewardMult)
 	s.Pact = math.Ceil(g.pactLeft)
+	s.Shield, s.ShieldMax = math.Ceil(g.wallShield), g.wallShieldMax()
+	for _, st := range g.storms {
+		s.Storms = append(s.Storms, [2]float64{round2(st.Pos.X), round2(st.Pos.Y)})
+	}
+	for _, l := range g.soulLinks() {
+		s.Links = append(s.Links, [4]float64{l.A.X, l.A.Y, l.B.X, l.B.Y})
+	}
 	if g.Phase == PhaseGameOver {
 		s.Summary = g.summary
 	}
