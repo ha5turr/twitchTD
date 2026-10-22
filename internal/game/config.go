@@ -53,17 +53,19 @@ type Config struct {
 	ClassBonus float64 `json:"classBonus"` // extra damage of a class's signature building
 
 	// Support buildings and barricades (hotfix "We Deeply sorry").
-	ShrineAssistPct  float64 `json:"shrineAssistPct"`  // a shrine takes this part of its share of the damage in every kill's bounty
-	DrumAssistPct    float64 `json:"drumAssistPct"`    // share of a kill's bounty for each drum that sped up the shot
-	ShrineWallRepair float64 `json:"shrineWallRepair"` // share of every barricade's HP a shrine mends after a wave, per level
-	WallHoldGold     float64 `json:"wallHoldGold"`     // gold per second for each enemy a barricade holds
-	WallRepairShare  float64 `json:"wallRepairShare"`  // price of a full repair as a share of the barricade's last price
-	WallRepairCDSec  float64 `json:"wallRepairCdSec"`  // a barricade can be mended again only this long after the last repair
-	WallHoldMax      float64 `json:"wallHoldMax"`      // gold one barricade may pay for holding per wave (grows with rewards); 0 = no cap
-	SiegeRageSec     float64 `json:"siegeRageSec"`     // an enemy held this long by a barricade flies into a rage: no healing, harder blows
-	SiegeRagePerSec  float64 `json:"siegeRagePerSec"`  // a raging enemy's blows on the barricade grow by this share per second
-	WallRefundPct    int     `json:"wallRefundPct"`    // refund when a barricade is broken
-	WallRefundClass  int     `json:"wallRefundClass"`  // the same for the Воитель
+	ShrineLimit       int     `json:"shrineLimit"`       // shrines one player may own; 0 = no limit
+	ShrineLimitCleric int     `json:"shrineLimitCleric"` // the same for a cleric, whose signature building it is
+	ShrineAssistPct   float64 `json:"shrineAssistPct"`   // a shrine takes this part of its share of the damage in every kill's bounty
+	DrumAssistPct     float64 `json:"drumAssistPct"`     // share of a kill's bounty for each drum that sped up the shot
+	ShrineWallRepair  float64 `json:"shrineWallRepair"`  // share of every barricade's HP a shrine mends after a wave, per level
+	WallHoldGold      float64 `json:"wallHoldGold"`      // gold per second for each enemy a barricade holds
+	WallRepairShare   float64 `json:"wallRepairShare"`   // price of a full repair as a share of the barricade's last price
+	WallRepairCDSec   float64 `json:"wallRepairCdSec"`   // a barricade can be mended again only this long after the last repair
+	WallHoldMax       float64 `json:"wallHoldMax"`       // gold one barricade may pay for holding per wave (grows with rewards); 0 = no cap
+	SiegeRageSec      float64 `json:"siegeRageSec"`      // an enemy held this long by a barricade flies into a rage: no healing, harder blows
+	SiegeRagePerSec   float64 `json:"siegeRagePerSec"`   // a raging enemy's blows on the barricade grow by this share per second
+	WallRefundPct     int     `json:"wallRefundPct"`     // refund when a barricade is broken
+	WallRefundClass   int     `json:"wallRefundClass"`   // the same for the Воитель
 
 	// Class passives (rogues.go).
 	RogueEverySec     float64 `json:"rogueEverySec"`
@@ -311,6 +313,8 @@ func DefaultConfig() Config {
 		StunRadius:           0.45,
 		StunRestSec:          2,
 		ClassBonus:           0.2,
+		ShrineLimit:          2,
+		ShrineLimitCleric:    4,
 		ShrineAssistPct:      0.5,
 		DrumAssistPct:        0.5,
 		ShrineWallRepair:     0.1,
