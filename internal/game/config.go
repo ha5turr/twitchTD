@@ -104,9 +104,14 @@ type Config struct {
 	PathFireBurnSec   float64 `json:"pathFireBurnSec"`
 	BossNetImmuneSec  float64 `json:"bossNetImmuneSec"` // after a net a boss shakes off new ones this long
 	RangerEverySec    float64 `json:"rangerEverySec"`
-	WarlockEverySec   float64 `json:"warlockEverySec"`
-	WarlockDrainPct   float64 `json:"warlockDrainPct"` // share of the strongest enemy's max HP the pact takes
-	WarlockHealMax    float64 `json:"warlockHealMax"`  // tavern walls mended by one pact, at most
+	WarlockEverySec   float64 `json:"warlockEverySec"` // mass curse: every enemy on the map cursed at once
+	WarlockCurseSec   float64 `json:"warlockCurseSec"` // for this long
+	WarlockCurseAmp   float64 `json:"warlockCurseAmp"` // taking this much more damage (bosses half)
+	PactEverySec      float64 `json:"pactEverySec"`    // blood pact: the warlock's second skill
+	PactWallsPct      float64 `json:"pactWallsPct"`    // share of the tavern walls' max HP it costs
+	PactBoost         float64 `json:"pactBoost"`       // extra damage every building on the map deals
+	PactSec           float64 `json:"pactSec"`         // for this long
+	PactMinWalls      float64 `json:"pactMinWalls"`    // no pact while the walls are below this share
 	ShamanEverySec    float64 `json:"shamanEverySec"`
 	QuakeStunSec      float64 `json:"quakeStunSec"`    // ground enemies stunned by the earthquake (bosses half)
 	CurseShardPct     float64 `json:"curseShardPct"`   // a cursed kill pays the altar's owner this share of the bounty
@@ -163,6 +168,7 @@ type Config struct {
 	// Chance that a boss wave brings ЭссДиЭф instead of the biome's boss.
 	SdfChance float64 `json:"sdfChance"`
 	// ЭссДиЭф never comes before this wave (`!tdspawn sdf` still works any time).
+	PathCurve     float64 `json:"pathCurve"`     // how winding new maps' paths are, 0 (straighter) to 1 (as winding as fits)
 	EventChance   float64 `json:"eventChance"`   // chance an ordinary wave brings a guest (tax collector or golden golem)
 	EventFromWave int     `json:"eventFromWave"` // not before this wave
 	SdfFromWave   int     `json:"sdfFromWave"`
@@ -352,9 +358,14 @@ func DefaultConfig() Config {
 		PathFireBurnSec:      4,
 		BossNetImmuneSec:     6,
 		RangerEverySec:       30,
-		WarlockEverySec:      70,
-		WarlockDrainPct:      0.05,
-		WarlockHealMax:       100,
+		WarlockEverySec:      60,
+		WarlockCurseSec:      6,
+		WarlockCurseAmp:      0.15,
+		PactEverySec:         90,
+		PactWallsPct:         0.08,
+		PactBoost:            0.35,
+		PactSec:              10,
+		PactMinWalls:         0.3,
 		ShamanEverySec:       70,
 		QuakeStunSec:         1.5,
 		CurseShardPct:        0.5,
@@ -408,6 +419,7 @@ func DefaultConfig() Config {
 		EnemyRegen:         0.002,
 		SdfChance:          0.2,
 		SdfFromWave:        10,
+		PathCurve:          0.5,
 		EventChance:        0.15,
 		EventFromWave:      3,
 		Enemies: map[string]EnemySpec{

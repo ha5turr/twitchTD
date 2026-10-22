@@ -345,6 +345,9 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		biome := Biome("")
 		if len(args) > 0 {
 			biome = Biome(strings.ToLower(args[0]))
+			if b, ok := biomeAliases[string(biome)]; ok {
+				biome = b
+			}
 			if _, ok := profiles[biome]; !ok {
 				biome = ""
 			}

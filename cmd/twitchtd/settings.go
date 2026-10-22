@@ -17,7 +17,7 @@ import (
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
 	"towerLimit", "towerLimitMax", "smallTeamBonus", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
-	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "baseHP", "hpGrowth", "chatterHPCoef",
+	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
 
@@ -147,6 +147,8 @@ func validate(cfg appConfig) error {
 		return fmt.Errorf("потолок лимита, бонус малой команды, золото за удержание и время до ярости не могут быть отрицательными")
 	case cfg.GrantPct < 0 || cfg.GrantPct > 2, cfg.GrantFromWave < 0:
 		return fmt.Errorf("доля подъёмных должна быть от 0 до 2, волна — не отрицательной")
+	case cfg.PathCurve < 0 || cfg.PathCurve > 1:
+		return fmt.Errorf("извилистость трассы должна быть от 0 до 1")
 	case cfg.EventChance < 0 || cfg.EventChance > 1, cfg.EventFromWave < 0:
 		return fmt.Errorf("шанс гостя должен быть от 0 до 1, волна — не отрицательной")
 	case cfg.ShrineAssistPct < 0 || cfg.ShrineAssistPct > 1:

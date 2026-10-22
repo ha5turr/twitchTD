@@ -54,6 +54,9 @@ func (g *Game) tickHeroes(dt float64) {
 	if g.Phase == PhaseWave && len(g.Enemies) > 0 {
 		for _, key := range g.tavernMates() {
 			c := g.Chatters[key]
+			if c.Class == "warlock" {
+				g.tickPact(key, c, dt) // the warlock's second skill keeps its own time
+			}
 			every := map[string]float64{
 				"warrior": g.Cfg.WarriorEverySec, "mage": g.Cfg.MageEverySec,
 				"bard": g.Cfg.BardEverySec, "rogue": g.Cfg.RogueStepEverySec,
@@ -89,12 +92,13 @@ func (g *Game) tickHeroes(dt float64) {
 			case "ranger":
 				g.arrowRain(key, c)
 			case "warlock":
-				g.abyssPact(key, c)
+				g.massCurse(c)
 			case "shaman":
 				g.earthquake(c)
 			}
 		}
 	}
+	g.pactLeft = max(0, g.pactLeft-dt)
 	g.tickRuns(dt)
 	g.tickMeteors(dt)
 }
