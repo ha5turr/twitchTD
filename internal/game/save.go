@@ -11,6 +11,7 @@ import (
 type Save struct {
 	Seed     uint64       `json:"seed"`
 	Biome    Biome        `json:"biome"`
+	Curve    *float64     `json:"curve,omitempty"` // the map's pathCurve; absent in saves before 0.13
 	Wave     int          `json:"wave"`
 	Walls    float64      `json:"walls"`
 	Over     bool         `json:"over"`
@@ -63,7 +64,7 @@ type SavedChatter struct {
 
 func (g *Game) Export() Save {
 	s := Save{
-		Seed: g.Map.Seed, Biome: g.Map.Biome, Wave: g.Wave, Walls: g.Walls, Over: g.Phase == PhaseGameOver,
+		Seed: g.Map.Seed, Biome: g.Map.Biome, Curve: &g.Map.Curve, Wave: g.Wave, Walls: g.Walls, Over: g.Phase == PhaseGameOver,
 		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned, Memes: g.Memes, RewardUses: g.RewardUses,
 	}
 	for _, t := range g.Towers {
@@ -115,7 +116,11 @@ func (g *Game) Restore(s Save) {
 		return
 	}
 	cam, hasCam := g.Cfg.WebcamRect()
-	g.Map = GenerateMap(s.Seed, s.Biome, cam, hasCam)
+	curve := 0.0 // older saves were generated before the setting existed
+	if s.Curve != nil {
+		curve = *s.Curve
+	}
+	g.Map = GenerateMap(s.Seed, s.Biome, curve, cam, hasCam)
 	g.buildRoute()
 	g.Phase = PhaseBuild
 	g.Timer = g.Cfg.FirstBuildPhaseSec

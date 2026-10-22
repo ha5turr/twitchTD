@@ -22,6 +22,9 @@ func (g *Game) drinkMult(t *Tower) float64 {
 	if t.drinkLeft > 0 {
 		m *= t.drink
 	}
+	if g.pactLeft > 0 {
+		m *= 1 + g.pactBoost // a warlock's blood pact: every building on the map
+	}
 	return m
 }
 

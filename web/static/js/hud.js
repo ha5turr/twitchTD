@@ -120,6 +120,7 @@ export class Hud {
     if (st.paused) phase = 'Пауза';
     this.phaseText.text = phase;
     this.infoText.text = `наёмников ${st.active}   seed ${this.map?.seed ?? ''}   v${this.map?.version ?? ''}`;
+    this.pact = st.pact ?? 0; // a warlock's blood pact: the field glows red while it lasts
     if (this.lastWalls !== null && st.walls < this.lastWalls) this.hitFlash = 0.35;
     this.lastWalls = st.walls;
     this.treasury = st.treasury ?? 0;
@@ -316,13 +317,13 @@ export class Hud {
         this.bolts.push({ x: b.x, y: b.y, pts: jagged(a, b, 4, 6), life: 0.4, color: 0xb05aff, width: 2, ring: 0x8a3aff });
         break;
       }
-      case 'drain': {
-        const a = toPx(ev.x, ev.y);
-        const b = toPx(ev.x2 ?? ev.x, ev.y2 ?? ev.y);
-        this.bolts.push({ x: b.x, y: b.y, pts: jagged(b, a, 8, 10), life: 0.8, color: 0xd02a4a, width: 5, ring: 0x7a1a3a });
-        this.toasts.push({ text: `🩸 ${ev.user} заключает сделку с бездной: стены +${ev.amount ?? 0}`, color: 0xe08aa0 });
+      case 'massCurse':
+        this.toasts.push({ text: `🔮 ${ev.user} насылает порчу: проклято врагов — ${ev.amount ?? 0}`, color: 0xc07aff });
+        this.curseFlash = 0.6;
         break;
-      }
+      case 'bloodPact':
+        this.toasts.push({ text: `🩸 ${ev.user} заключает кровавый пакт: стены −${ev.amount ?? 0}, постройки бьют сильнее`, color: 0xff6a6a });
+        break;
       case 'quake':
         this.quakes.push({ life: 1 });
         this.toasts.push({ text: `🌋 ${ev.user} сотрясает землю`, color: 0xc8a070 });
@@ -482,6 +483,16 @@ export class Hud {
       if (!b.noRing) this.blasts.circle(b.x, b.y, 60 * (1.3 - a * 0.3)).stroke({ width: 3, color: b.ring ?? 0x7ab8ff, alpha: a });
       return true;
     });
+    // Blood pact: a red throb round the field while every building hits
+    // harder; a mass curse: one violet flash.
+    if (this.pact > 0) {
+      const a = 0.25 + 0.15 * Math.sin(this.t * 5);
+      this.blasts.rect(LEFT + 4, TOP + 4, COLS * CELL - 8, ROWS * CELL - 8).stroke({ width: 8, color: 0xd02a2a, alpha: a });
+    }
+    if (this.curseFlash > 0) {
+      this.curseFlash -= dt;
+      this.blasts.rect(LEFT, TOP, COLS * CELL, ROWS * CELL).fill({ color: 0x8a3aff, alpha: 0.18 * Math.max(0, this.curseFlash / 0.6) });
+    }
     // Gold rain: coins burst out of a fallen golden golem and fall.
     this.coins = this.coins.filter((c) => {
       c.life -= dt;

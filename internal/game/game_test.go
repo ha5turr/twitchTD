@@ -25,7 +25,7 @@ func TestGenerateMap(t *testing.T) {
 	cam, _ := DefaultConfig().WebcamRect()
 	for _, b := range AllBiomes {
 		for seed := uint64(0); seed < 200; seed++ {
-			m := GenerateMap(seed, b, cam, true)
+			m := GenerateMap(seed, b, 1, cam, true) // the most winding asked, the hardest to fit
 			name := fmt.Sprintf("%s/%d", b, seed)
 			p := m.Path
 			if p[0].X != GridW-1 || p[len(p)-1].X != 0 {
@@ -42,7 +42,7 @@ func TestGenerateMap(t *testing.T) {
 					}
 				}
 			}
-			again := GenerateMap(seed, b, cam, true)
+			again := GenerateMap(seed, b, 1, cam, true)
 			if again.Grid != m.Grid {
 				t.Fatalf("%s: generation is not deterministic", name)
 			}
