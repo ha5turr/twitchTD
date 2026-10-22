@@ -126,6 +126,10 @@ export class Hud {
     this.treasury = st.treasury ?? 0;
     const boss = st.enemies.find((e) => e.boss);
     this.withBoss = !!boss;
+    this.shield = st.shield ?? 0;
+    this.shieldMax = st.shieldMax ?? 0;
+    this.storms = st.storms ?? [];
+    this.links = st.links ?? [];
     this.drawWalls(st.walls, st.wallsMax);
     this.drawBoss(boss);
     if (st.phase === 'gameover' && st.summary) this.summary.show(st.summary, st.timer);
@@ -141,8 +145,11 @@ export class Hud {
     b.clear();
     b.roundRect(0, 0, 720, 28, 6).fill(0x000000).stroke({ width: 2, color: 0x5a4a35 });
     b.roundRect(3, 3, 714 * f, 22, 4).fill(color);
+    // An artifact shrine's shield: a pale blue band over the walls' bar.
+    if (this.shield > 0) b.roundRect(3, 3, 714 * Math.min(1, this.shield / maxHp), 8, 3).fill({ color: 0x9ad8ff, alpha: 0.9 });
     const pot = this.treasury > 0 ? `  ·  казна ${this.treasury} з` : '';
-    this.wallsText.text = `Стены таверны ${Math.ceil(hp)} / ${maxHp}${pot}`;
+    const shield = this.shieldMax > 0 ? `  ·  щит ${Math.ceil(this.shield)}` : '';
+    this.wallsText.text = `Стены таверны ${Math.ceil(hp)} / ${maxHp}${shield}${pot}`;
     // With a boss the walls' caption goes inside their bar to make room.
     b.y = this.withBoss ? 22 : 46;
     this.wallsText.y = this.withBoss ? 23 : 78;
@@ -317,6 +324,26 @@ export class Hud {
         this.bolts.push({ x: b.x, y: b.y, pts: jagged(a, b, 4, 6), life: 0.4, color: 0xb05aff, width: 2, ring: 0x8a3aff });
         break;
       }
+      case 'artifact':
+        this.toasts.push({ text: `🔴 ${ev.user}: артефактная постройка!`, color: 0xff6a5a });
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
+        break;
+      case 'ammo':
+        this.floatAt(ev.x, ev.y - 0.6, { poison: 'яд ☠️', fire: 'огонь 🔥', blast: 'взрыв 💥' }[ev.text] ?? 'обычные', 0xffe0a0, FONT_UI, 18);
+        break;
+      case 'arcane':
+        this.floatAt(ev.x, ev.y - 0.6, '×1,5', 0xc9a6ff, FONT_UI, 18);
+        break;
+      case 'warDrum':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
+        this.floatAt(ev.x, ev.y - 0.7, 'боевой ритм!', 0xffb347, FONT_UI, 20);
+        break;
+      case 'storm':
+        this.floatAt(ev.x, ev.y - 0.5, 'заряд!', 0x9ef0ff, FONT_UI, 18);
+        break;
+      case 'soulLink':
+        this.floatAt(ev.x, ev.y - 0.5, 'связь душ', 0xd0a0ff, FONT_UI, 15);
+        break;
       case 'crit':
         this.floatAt(ev.x, ev.y - 0.7, `КРИТ! ${ev.amount ?? ''}`, 0xffd24a, FONT_UI, 22);
         break;
@@ -507,6 +534,19 @@ export class Hud {
     if (this.curseFlash > 0) {
       this.curseFlash -= dt;
       this.blasts.rect(LEFT, TOP, COLS * CELL, ROWS * CELL).fill({ color: 0x8a3aff, alpha: 0.18 * Math.max(0, this.curseFlash / 0.6) });
+    }
+    // Artifact totems' lightning charges on the path: a crackling ring.
+    for (const [sx, sy] of this.storms ?? []) {
+      const p = toPx(sx, sy);
+      const a = 0.5 + 0.3 * Math.sin(this.t * 14 + sx);
+      this.blasts.circle(p.x, p.y, 0.55 * CELL).fill({ color: 0x7ae0ff, alpha: 0.12 }).stroke({ width: 3, color: 0x9ef0ff, alpha: a });
+    }
+    // Warlocks' soul links between artifact altars: a violet thread.
+    for (const [x1, y1, x2, y2] of this.links ?? []) {
+      const a = toPx(x1, y1);
+      const b = toPx(x2, y2);
+      this.blasts.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 5, color: 0xb05aff, alpha: 0.35 + 0.15 * Math.sin(this.t * 4) });
+      this.blasts.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2, color: 0xf0d0ff, alpha: 0.7 });
     }
     // Gold rain: coins burst out of a fallen golden golem and fall.
     this.coins = this.coins.filter((c) => {

@@ -45,6 +45,7 @@ type SavedTower struct {
 	Built       bool   `json:"built"`
 	PendingCost int    `json:"pendingCost"`
 	Granted     int    `json:"granted,omitempty"`
+	Ammo        string `json:"ammo,omitempty"`
 }
 
 type SavedChatter struct {
@@ -68,7 +69,7 @@ func (g *Game) Export() Save {
 		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned, Memes: g.Memes, RewardUses: g.RewardUses,
 	}
 	for _, t := range g.Towers {
-		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost, t.Granted})
+		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost, t.Granted, t.Ammo})
 	}
 	escrow := g.diceEscrow() // stakes on dice tables count as the players' gold
 	for key, c := range g.Chatters {
@@ -146,6 +147,7 @@ func (g *Game) Restore(s Save) {
 			refund = st.PendingCost
 			t := &Tower{ID: g.id(), Kind: st.Kind, Cell: p, Owner: st.Owner, Level: st.Level, Invested: st.Invested - st.PendingCost, Built: true}
 			t.Granted = min(st.Granted, t.Invested)
+			t.Ammo = st.Ammo
 			g.Towers[p] = t
 			g.readyTower(t)
 		}

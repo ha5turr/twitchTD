@@ -32,19 +32,27 @@ type Enemy struct {
 	shieldUp  bool
 
 	// Traps (hotfix 2): bleeding, and healing cut while the cut is fresh.
-	bleedLeft  float64
-	bleedDPS   float64
-	bleedOwner string
-	healCut    float64 // seconds left of halved healing
-	netLeft    float64 // seconds left tangled in a ballista net
-	netImmune  float64 // a boss shakes off nets until this runs out
-	curseLeft  float64 // seconds left cursed by a warlock's altar
-	curseAmp   float64 // extra damage taken while cursed
-	curseOwner string
-	heads      int             // a hydra's heads
-	nextCut    float64         // the share of health at which the hydra grows the next one
-	stunLeft   float64         // seconds left stunned by a pillar of light
-	helpers    map[string]bool // trap owners who hurt it: they share the kill
+	bleedLeft   float64
+	bleedDPS    float64
+	bleedOwner  string
+	healCut     float64 // seconds left of halved healing
+	netLeft     float64 // seconds left tangled in a ballista net
+	netImmune   float64 // a boss shakes off nets until this runs out
+	curseLeft   float64 // seconds left cursed by a warlock's altar
+	curseAmp    float64 // extra damage taken while cursed
+	curseOwner  string
+	poisonN     int // artifact traps and arrows: poison stacks
+	poisonLeft  float64
+	poisonOwner string
+	sburnN      int // an artifact brazier's stacked burn
+	sburnLeft   float64
+	sburnDPS    float64
+	sburnOwner  string
+	linked      map[int]bool    // soul links already crossed
+	heads       int             // a hydra's heads
+	nextCut     float64         // the share of health at which the hydra grows the next one
+	stunLeft    float64         // seconds left stunned by a pillar of light
+	helpers     map[string]bool // trap owners who hurt it: they share the kill
 
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
@@ -88,23 +96,30 @@ type Tower struct {
 	curseCD     float64 // seconds until the altar curses again
 	hexLeft     float64 // seconds left as a frog (the swamp witch)
 	shrineWave  int     // gold a shrine paid its owner this wave, for the toast
+	Ammo        string  // an artifact ballista's arrows: "", poison, fire, blast
+	artCD       float64 // an artifact's timed power (war beat, shove, lightning charge)
+	warLeft     float64 // seconds an artifact drum's war beat still powers this building
 }
 
 type Projectile struct {
-	ID      int
-	Kind    string
-	Pos     vec
-	Target  int
-	Aim     vec // last known target position
-	Damage  float64
-	Magic   bool
-	Speed   float64
-	Owner   string
-	Splash  float64
-	BurnDPS float64
-	BurnSec float64
-	Assist  []string // owners of the drums that sped this shot up
-	Crit    bool     // a ranger's critical hit
+	ID        int
+	Kind      string
+	Pos       vec
+	Target    int
+	Aim       vec // last known target position
+	Damage    float64
+	Magic     bool
+	Speed     float64
+	Owner     string
+	Splash    float64
+	BurnDPS   float64
+	BurnSec   float64
+	Assist    []string // owners of the drums that sped this shot up
+	Crit      bool     // a ranger's critical hit
+	Poison    bool     // an artifact ballista's poison arrow
+	SlowHit   bool     // an artifact obelisk's empowered hit slows
+	BurnStack bool     // an artifact brazier's burn stacks
+	SplashPct float64  // a blast arrow: share of the damage to those around the target
 }
 
 // levelMult is how much a building's main stat grows with its level.
@@ -264,6 +279,9 @@ func (g *Game) tickEnemies(dt float64) {
 				continue
 			}
 		}
+		if g.tickAfflictions(e, spec, dt) {
+			continue
+		}
 		e.healCut = max(0, e.healCut-dt)
 		e.netLeft = max(0, e.netLeft-dt)
 		e.netImmune = max(0, e.netImmune-dt)
@@ -296,7 +314,7 @@ func (g *Game) tickEnemies(dt float64) {
 		case e.AtGate:
 			// The tavern door enrages too: a crowd at the gate cannot sit
 			// there healing forever.
-			g.Walls -= spec.WallDPS * blows * g.siege(e, dt) * dt
+			g.hurtWalls(spec.WallDPS * blows * g.siege(e, dt) * dt) // an artifact shrine's shield takes it first
 			// Guards on the walls shoot back, so a leak costs hit points but
 			// is not the end by itself; a boss at the gate still is.
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
@@ -336,7 +354,7 @@ func (g *Game) move(e *Enemy, spec EnemySpec, step float64) {
 				e.blocked = t
 			}
 		case RoleTrap:
-			if from < c && to >= c && t.Disabled <= 0 && t.Charges > 0 && !e.traps[t.ID] {
+			if from < c && to >= c && t.Disabled <= 0 && (t.Charges > 0 || g.artifact(t)) && !e.traps[t.ID] {
 				g.springTrap(e, t, spec)
 			}
 		}
@@ -360,7 +378,11 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 		e.traps = map[int]bool{}
 	}
 	e.traps[t.ID] = true
-	t.Charges--
+	if g.artifact(t) {
+		g.poison(e, t.Owner) // an artifact trap never runs out and is poisoned
+	} else {
+		t.Charges--
+	}
 	// A trap slows everyone, even those immune to frost: each charge is one
 	// snap with its full damage.
 	e.slowMult = ts.Slow
@@ -386,6 +408,9 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, blows, dt float64) {
 		return
 	}
 	t.HP -= spec.WallDPS * blows * g.siege(e, dt) * dt
+	if g.artifact(t) {
+		g.damage(e, g.skillHP()*g.Cfg.WallSpikeDPS*dt, t.Owner, false) // its spikes
+	}
 	g.payHold(t, dt)
 	if t.HP <= 0 {
 		g.breakWall(t)
@@ -442,6 +467,9 @@ func (g *Game) auras(t *Tower) (dmg, rate float64) {
 		m := auraMult(a) * g.classBonus(a.Owner, a.Kind)
 		dmg += spec.AuraDmg * m
 		rate += spec.AuraRate * m
+		if spec.AuraRate > 0 && g.artifact(a) {
+			rate += g.Cfg.DrumArtRate // artifact drums beat faster still
+		}
 	}
 	return dmg, rate
 }
@@ -458,6 +486,7 @@ func (g *Game) tickTowers(dt float64) {
 			continue
 		}
 		spec := g.Cfg.Towers[t.Kind]
+		g.tickArtifact(t, spec, dt)
 		if spec.WallHeal > 0 {
 			heal := spec.WallHeal * float64(t.Level) * g.classBonus(t.Owner, t.Kind) * dt
 			g.Walls = min(g.Walls+heal, g.Cfg.WallsHP)
@@ -521,12 +550,14 @@ func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
 	if crit {
 		damage *= g.Cfg.CritMult
 	}
-	g.Projectiles = append(g.Projectiles, &Projectile{
+	p := &Projectile{
 		ID: g.id(), Kind: t.Kind, Pos: tc, Target: target.ID, Aim: target.Pos,
 		Damage: damage, Magic: spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
 		Splash: spec.Splash, BurnDPS: spec.BurnDPS * mult, BurnSec: spec.BurnSec,
 		Assist: g.drummers(t), Crit: crit,
-	})
+	}
+	g.arm(t, p)
+	g.Projectiles = append(g.Projectiles, p)
 }
 
 func (g *Game) enemy(id int) *Enemy {
@@ -558,11 +589,25 @@ func (g *Game) tickProjectiles(dt float64) {
 			for _, e := range g.Enemies {
 				if !e.dead && e.Pos.sub(p.Aim).len() <= p.Splash {
 					g.burn(e, p)
-					g.damage(e, p.Damage, p.Owner, p.Magic)
+					dmg := p.Damage
+					if p.SplashPct > 0 && e != target {
+						dmg *= p.SplashPct // a blast arrow hits its target in full, the rest less
+					}
+					g.damage(e, dmg, p.Owner, p.Magic)
 				}
 			}
 			g.emit(Event{Kind: "blast", X: p.Aim.X, Y: p.Aim.Y})
 		case target != nil:
+			g.burn(target, p) // fire arrows
+			if p.Poison {
+				g.poison(target, p.Owner)
+			}
+			if p.SlowHit {
+				if !g.Cfg.Enemies[target.Kind].SlowImmune {
+					target.slowMult, target.slowLeft = g.Cfg.MageArtSlow, g.Cfg.MageArtSlowSec
+				}
+				g.emit(Event{Kind: "arcane", X: target.Pos.X, Y: target.Pos.Y})
+			}
 			g.damage(target, p.Damage, p.Owner, p.Magic)
 			if p.Crit {
 				g.emit(Event{Kind: "crit", X: target.Pos.X, Y: target.Pos.Y, Amount: int(math.Round(p.Damage))})
@@ -575,6 +620,10 @@ func (g *Game) tickProjectiles(dt float64) {
 
 func (g *Game) burn(e *Enemy, p *Projectile) {
 	if p.BurnDPS <= 0 {
+		return
+	}
+	if p.BurnStack {
+		g.stackBurn(e, p) // an artifact brazier's burn piles up
 		return
 	}
 	e.burnLeft, e.burnDPS, e.burnOwner = p.BurnSec, p.BurnDPS, p.Owner
@@ -747,7 +796,7 @@ func (g *Game) heal(e *Enemy, hp float64) {
 	if e.rage {
 		return // too busy smashing a barricade to mend
 	}
-	if e.healCut > 0 || e.burnLeft > 0 { // fresh cuts and every burn halve healing
+	if e.healCut > 0 || e.burning() { // fresh cuts and every burn halve healing
 		hp *= 1 - g.Cfg.TrapHealCut
 	}
 	e.HP = min(e.MaxHP, e.HP+hp)

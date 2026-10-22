@@ -61,7 +61,11 @@ func (g *Game) tickDispel(e *Enemy, spec EnemySpec, dt float64) {
 		if o.netLeft > 0 || o.burnLeft > 0 || o.curseLeft > 0 || o.bleedLeft > 0 || o.slowLeft > 0 || o.healCut > 0 {
 			n++
 		}
+		if o.poisonLeft > 0 || o.sburnLeft > 0 {
+			n++
+		}
 		o.netLeft, o.burnLeft, o.curseLeft, o.bleedLeft, o.slowLeft, o.healCut = 0, 0, 0, 0, 0, 0
+		o.poisonLeft, o.sburnLeft = 0, 0
 		o.slowMult = 1
 	}
 	if n > 0 {
@@ -100,7 +104,7 @@ func (g *Game) tickHydra(e *Enemy) {
 	}
 	for e.nextCut > 0 && e.HP <= e.nextCut*e.MaxHP {
 		e.nextCut -= 0.25
-		if e.burnLeft > 0 {
+		if e.burning() {
 			g.emit(Event{Kind: "cauterize", X: e.Pos.X, Y: e.Pos.Y})
 			continue
 		}
