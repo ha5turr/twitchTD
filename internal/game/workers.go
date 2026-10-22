@@ -114,7 +114,7 @@ func (g *Game) tickWorkers(dt float64) {
 			t := g.Towers[w.Orders[0]]
 			total := g.Cfg.BuildTimeSec
 			if t.Built {
-				total = g.Cfg.UpgradeTimeSec
+				total = g.Cfg.UpgradeTimeSec * float64(max(t.PendingUp, 1)) // each level takes its time
 			}
 			w.work += dt
 			t.Progress = min(w.work/total, 1)
@@ -166,8 +166,8 @@ func (g *Game) finish(t *Tower, w *Worker) {
 		}
 		return
 	}
-	t.Level++
-	t.PendingCost = 0
+	t.Level += max(t.PendingUp, 1)
+	t.PendingCost, t.PendingUp = 0, 0
 	g.readyTower(t) // a stronger barricade is also a repaired one
 	g.emit(Event{Kind: "upgraded", User: w.Name, X: cp.X, Y: cp.Y, Amount: t.Level})
 	if t.Level >= g.Cfg.Towers[t.Kind].MaxLevel {

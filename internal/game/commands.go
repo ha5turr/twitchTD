@@ -251,7 +251,25 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 		g.reply(c.Name, fmt.Sprintf("у наёмника уже %d приказа, подожди", g.Cfg.MaxOrders))
 		return
 	}
-	cost := g.Cfg.TowerCost(t.Kind, t.Level+1)
+	cost, levels := g.Cfg.TowerCost(t.Kind, t.Level+1), 1
+	if len(args) > 1 && upToMax[strings.ToLower(args[1])] {
+		// As many levels as the wallet (and a grant) pays for, at once.
+		budget := c.Gold + c.Grant
+		cost, levels = 0, 0
+		for lvl := t.Level + 1; lvl <= spec.MaxLevel; lvl++ {
+			next := g.Cfg.TowerCost(t.Kind, lvl)
+			if !streamer && cost+next > budget {
+				break
+			}
+			cost += next
+			levels++
+		}
+		if levels == 0 {
+			g.reply(c.Name, fmt.Sprintf("на следующий уровень нужно %d золота, у тебя %d", g.Cfg.TowerCost(t.Kind, t.Level+1), budget))
+			return
+		}
+		g.reply(c.Name, fmt.Sprintf("%s: улучшаю до %d ур. за %d золота", t.Cell.Name(), t.Level+levels, cost))
+	}
 	if !streamer {
 		granted, ok := g.spend(c, cost)
 		if !ok {
@@ -262,10 +280,10 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 	}
 	t.Invested += cost
 	if streamer {
-		t.Level++
+		t.Level += levels
 		g.readyTower(t)
 	} else {
-		t.PendingCost = cost
+		t.PendingCost, t.PendingUp = cost, levels
 		g.order(key, c.Name, t.Cell)
 	}
 	cp := center(t.Cell)
@@ -436,6 +454,9 @@ func (g *Game) ignored(key string) bool {
 // tavern and no weight in the difficulty, so people who just say hi and
 // leave do not make the waves harder. !помощь only explains, so it does not
 // count.
+// upToMax are the words that make !up raise a building as far as the gold goes.
+var upToMax = map[string]bool{"max": true, "макс": true, "максимум": true, "all": true, "все": true, "всё": true}
+
 var gameCommands = map[string]bool{
 	"!play": true, "!играть": true, "!join": true,
 	"!build": true, "!b": true, "!строить": true, "!с": true,
