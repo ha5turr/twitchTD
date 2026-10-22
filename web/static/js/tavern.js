@@ -51,7 +51,9 @@ export class Tavern {
     this.card = new Card();
     this.ui.addChild(this.card.root);
     this.dice = new DiceTables();
+    this.feast = new Feast();
     this.ui.addChild(this.dice.root);
+    this.ui.addChild(this.feast.root);
   }
 
   drawInterior() {
@@ -231,6 +233,7 @@ export class Tavern {
     const m = this.mercs.get(ev.user);
     if (ev.kind === 'drink' && m) m.drink(DRINK_NAMES[ev.text] ?? ev.text);
     if (ev.kind === 'card') this.card.show(ev.user, this.mercs.get(ev.user), this.limits, ev.amount ?? 0);
+    if (ev.kind === 'feast') this.feast.show(ev.amount ?? 20);
     if (ev.kind === 'class' && m) m.redraw = true;
     if (ev.kind === 'diceRoll') this.dice.result(ev);
     if (ev.kind === 'robbed' && m) m.shout(`−${ev.amount} з, ЭссДиЭф!`, 4);
@@ -243,6 +246,7 @@ export class Tavern {
   }
 
   frame(dt) {
+    this.feast.frame(dt);
     for (const m of this.mercs.values()) m.frame(dt);
     this.board.frame(dt);
     this.card.frame(dt);
@@ -693,5 +697,37 @@ class DiceTables {
         t.style.fill = 0xffffff;
       }
     });
+  }
+}
+
+// Feast is the mage's spread on the two long tables: dishes appear while
+// its boost lasts and fade over the last two seconds.
+const DISHES = ['🍗', '🥖', '🧀', '🍎', '🍷', '🥧', '🍖', '🍇'];
+class Feast {
+  constructor() {
+    this.root = new Container();
+    this.root.visible = false;
+    this.left = 0;
+    const top = ROW_Y0 - 30;
+    const len = ROWS * ROW_DY - 28;
+    let i = 0;
+    for (const x of [128, 256]) {
+      for (let y = top; y <= top + len; y += 44) {
+        const t = new Text({ text: DISHES[i++ % DISHES.length], style: { fontSize: 26, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif' } });
+        t.anchor.set(0.5);
+        t.position.set(x, y);
+        this.root.addChild(t);
+      }
+    }
+  }
+
+  show(secs) {
+    this.left = secs;
+  }
+
+  frame(dt) {
+    this.left = Math.max(0, this.left - dt);
+    this.root.visible = this.left > 0;
+    this.root.alpha = Math.min(1, this.left / 2);
   }
 }

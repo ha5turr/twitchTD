@@ -77,49 +77,67 @@ type Config struct {
 	DruidMaul         float64 `json:"druidMaul"`         // damage per bite, in base enemy HP of the wave
 
 	// Class skills (heroes.go), all in seconds or in base enemy HP of the wave.
-	WarriorEverySec   float64 `json:"warriorEverySec"`
-	WarriorSpeed      float64 `json:"warriorSpeed"` // cells per second along the path
-	WarriorPush       float64 `json:"warriorPush"`  // cells each enemy is shoved back
-	MageEverySec      float64 `json:"mageEverySec"`
-	MeteorCount       int     `json:"meteorCount"`
-	MeteorDmg         float64 `json:"meteorDmg"`
-	MeteorRadius      float64 `json:"meteorRadius"`
-	MeteorBurn        float64 `json:"meteorBurn"` // burn per second
-	MeteorBurnSec     float64 `json:"meteorBurnSec"`
-	BardEverySec      float64 `json:"bardEverySec"`
-	BardMusicSec      float64 `json:"bardMusicSec"`
-	NoteDmg           float64 `json:"noteDmg"`
-	NoteRate          float64 `json:"noteRate"` // notes per second
-	NoteRange         float64 `json:"noteRange"`
-	RogueStepEverySec float64 `json:"rogueStepEverySec"`
-	RogueStepSec      float64 `json:"rogueStepSec"` // seconds the rogue stays out
-	RogueStepDmg      float64 `json:"rogueStepDmg"`
-	RogueFanDmg       float64 `json:"rogueFanDmg"`
-	RogueFanRadius    float64 `json:"rogueFanRadius"`
-	ClericEverySec    float64 `json:"clericEverySec"`
-	PillarDmg         float64 `json:"pillarDmg"`
-	PillarStunSec     float64 `json:"pillarStunSec"`
-	PillarRadius      float64 `json:"pillarRadius"` // one cell
-	PyroEverySec      float64 `json:"pyroEverySec"`
-	PathFireDmg       float64 `json:"pathFireDmg"`
-	PathFireBurn      float64 `json:"pathFireBurn"` // burn per second
-	PathFireBurnSec   float64 `json:"pathFireBurnSec"`
-	BossNetImmuneSec  float64 `json:"bossNetImmuneSec"` // after a net a boss shakes off new ones this long
-	RangerEverySec    float64 `json:"rangerEverySec"`
-	WarlockEverySec   float64 `json:"warlockEverySec"` // mass curse: every enemy on the map cursed at once
-	WarlockCurseSec   float64 `json:"warlockCurseSec"` // for this long
-	WarlockCurseAmp   float64 `json:"warlockCurseAmp"` // taking this much more damage (bosses half)
-	PactEverySec      float64 `json:"pactEverySec"`    // blood pact: the warlock's second skill
-	PactWallsPct      float64 `json:"pactWallsPct"`    // share of the tavern walls' max HP it costs
-	PactBoost         float64 `json:"pactBoost"`       // extra damage every building on the map deals
-	PactSec           float64 `json:"pactSec"`         // for this long
-	PactMinWalls      float64 `json:"pactMinWalls"`    // no pact while the walls are below this share
-	ShamanEverySec    float64 `json:"shamanEverySec"`
-	QuakeStunSec      float64 `json:"quakeStunSec"`    // ground enemies stunned by the earthquake (bosses half)
-	CurseShardPct     float64 `json:"curseShardPct"`   // a cursed kill pays the altar's owner this share of the bounty
-	CurseSoulChance   float64 `json:"curseSoulChance"` // and gives him a soul with this chance
-	ArrowRainDmg      float64 `json:"arrowRainDmg"`
-	ArrowRainRadius   float64 `json:"arrowRainRadius"`
+	WarriorEverySec    float64 `json:"warriorEverySec"`
+	WarriorSpeed       float64 `json:"warriorSpeed"` // cells per second along the path
+	WarriorPush        float64 `json:"warriorPush"`  // cells each enemy is shoved back
+	MageEverySec       float64 `json:"mageEverySec"`
+	MeteorCount        int     `json:"meteorCount"`
+	MeteorDmg          float64 `json:"meteorDmg"`
+	MeteorRadius       float64 `json:"meteorRadius"`
+	MeteorBurn         float64 `json:"meteorBurn"` // burn per second
+	MeteorBurnSec      float64 `json:"meteorBurnSec"`
+	BardEverySec       float64 `json:"bardEverySec"`
+	BardMusicSec       float64 `json:"bardMusicSec"`
+	NoteDmg            float64 `json:"noteDmg"`
+	NoteRate           float64 `json:"noteRate"` // notes per second
+	NoteRange          float64 `json:"noteRange"`
+	RogueStepEverySec  float64 `json:"rogueStepEverySec"`
+	RogueStepSec       float64 `json:"rogueStepSec"` // seconds the rogue stays out
+	RogueStepDmg       float64 `json:"rogueStepDmg"`
+	RogueFanDmg        float64 `json:"rogueFanDmg"`
+	RogueFanRadius     float64 `json:"rogueFanRadius"`
+	ClericEverySec     float64 `json:"clericEverySec"`
+	PillarDmg          float64 `json:"pillarDmg"`
+	PillarStunSec      float64 `json:"pillarStunSec"`
+	PillarRadius       float64 `json:"pillarRadius"` // one cell
+	PyroEverySec       float64 `json:"pyroEverySec"`
+	PathFireDmg        float64 `json:"pathFireDmg"`
+	PathFireBurn       float64 `json:"pathFireBurn"` // burn per second
+	PathFireBurnSec    float64 `json:"pathFireBurnSec"`
+	BossNetImmuneSec   float64 `json:"bossNetImmuneSec"` // after a net a boss shakes off new ones this long
+	RangerEverySec     float64 `json:"rangerEverySec"`
+	WarlockEverySec    float64 `json:"warlockEverySec"`  // mass curse: every enemy on the map cursed at once
+	WarlockCurseSec    float64 `json:"warlockCurseSec"`  // for this long
+	WarlockCurseAmp    float64 `json:"warlockCurseAmp"`  // taking this much more damage (bosses half)
+	RangerRangeBonus   float64 `json:"rangerRangeBonus"` // a ranger's ballistas reach this much further
+	CritBase           float64 `json:"critBase"`         // chance of a ranger's ballista to land a critical hit
+	CritPerBoss        float64 `json:"critPerBoss"`      // more after every boss wave held
+	CritMax            float64 `json:"critMax"`
+	CritMult           float64 `json:"critMult"`         // a critical hit's damage multiplier
+	ClericShrineDmg    float64 `json:"clericShrineDmg"`  // the pillar of light hits this much harder per shrine of the cleric
+	ClericShrineStun   float64 `json:"clericShrineStun"` // and stuns this many seconds longer
+	PyroGateEverySec   float64 `json:"pyroGateEverySec"` // the pyromancer mans a brazier on the wall by the door
+	PyroGateSec        float64 `json:"pyroGateSec"`      // for this long
+	BearEverySec       float64 `json:"bearEverySec"`     // the druid's bear form
+	BearSpeed          float64 `json:"bearSpeed"`
+	BearFightSec       float64 `json:"bearFightSec"`
+	BearReach          float64 `json:"bearReach"`          // cells around the bear it mauls
+	BearDPS            float64 `json:"bearDps"`            // per second, share of the wave's base HP
+	MageFeastEverySec  float64 `json:"mageFeastEverySec"`  // the mage's feast on the tavern tables
+	ShamanWolfEverySec float64 `json:"shamanWolfEverySec"` // the shaman's two spectral wolves
+	WolfSpeed          float64 `json:"wolfSpeed"`
+	WolfDmg            float64 `json:"wolfDmg"`      // each bite, share of the wave's base HP
+	PactEverySec       float64 `json:"pactEverySec"` // blood pact: the warlock's second skill
+	PactWallsPct       float64 `json:"pactWallsPct"` // share of the tavern walls' max HP it costs
+	PactBoost          float64 `json:"pactBoost"`    // extra damage every building on the map deals
+	PactSec            float64 `json:"pactSec"`      // for this long
+	PactMinWalls       float64 `json:"pactMinWalls"` // no pact while the walls are below this share
+	ShamanEverySec     float64 `json:"shamanEverySec"`
+	QuakeStunSec       float64 `json:"quakeStunSec"`    // ground enemies stunned by the earthquake (bosses half)
+	CurseShardPct      float64 `json:"curseShardPct"`   // a cursed kill pays the altar's owner this share of the bounty
+	CurseSoulChance    float64 `json:"curseSoulChance"` // and gives him a soul with this chance
+	ArrowRainDmg       float64 `json:"arrowRainDmg"`
+	ArrowRainRadius    float64 `json:"arrowRainRadius"`
 
 	// Traps (hotfix 2).
 	TrapBleed      float64 `json:"trapBleed"` // bleeding per second as a share of the snap's damage
@@ -357,7 +375,7 @@ func DefaultConfig() Config {
 		PillarStunSec:        2,
 		PillarRadius:         0.7,
 		PyroEverySec:         75,
-		PathFireDmg:          0.15,
+		PathFireDmg:          0.25,
 		PathFireBurn:         0.04,
 		PathFireBurnSec:      4,
 		BossNetImmuneSec:     6,
@@ -365,6 +383,24 @@ func DefaultConfig() Config {
 		WarlockEverySec:      60,
 		WarlockCurseSec:      6,
 		WarlockCurseAmp:      0.15,
+		RangerRangeBonus:     1,
+		CritBase:             0.10,
+		CritPerBoss:          0.05,
+		CritMax:              0.70,
+		CritMult:             2,
+		ClericShrineDmg:      0.25,
+		ClericShrineStun:     0.5,
+		PyroGateEverySec:     70,
+		PyroGateSec:          15,
+		BearEverySec:         60,
+		BearSpeed:            4,
+		BearFightSec:         10,
+		BearReach:            0.9,
+		BearDPS:              0.06,
+		MageFeastEverySec:    120,
+		ShamanWolfEverySec:   50,
+		WolfSpeed:            7,
+		WolfDmg:              0.3,
 		PactEverySec:         90,
 		PactWallsPct:         0.08,
 		PactBoost:            0.35,
@@ -414,7 +450,7 @@ func DefaultConfig() Config {
 		TreasuryGoldPerSec: 40,
 		IgnoreUsers:        []string{"nightbot", "streamelements", "streamlabs", "moobot", "fossabot", "wizebot", "sery_bot", "soundalerts", "hasturyan"},
 		BaseHP:             30,
-		HPGrowth:           1.155,
+		HPGrowth:           1.16,
 		ChatterHPCoef:      0.25,
 		BaseCount:          6,
 		CountPerWave:       2,
