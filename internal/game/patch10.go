@@ -72,7 +72,7 @@ func (g *Game) payCurse(e *Enemy) {
 	if c == nil {
 		return
 	}
-	gold := int(math.Round(float64(g.Cfg.Enemies[e.Kind].Bounty) * g.rewardMult * g.Cfg.CurseShardPct))
+	gold := int(math.Round(g.bounty(e.Kind) * g.Cfg.CurseShardPct))
 	got := 0
 	if gold > 0 {
 		got = g.addGold(c, gold)

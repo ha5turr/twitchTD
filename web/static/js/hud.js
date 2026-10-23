@@ -455,7 +455,7 @@ export class Hud {
         this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
         break;
       case 'waveCleared':
-        this.showBanner('Волна отбита', 'наёмникам выплачена награда', 2.2);
+        this.showBanner('Волна отбита', ev.text ? `малой команде награда ×${ev.text}` : 'наёмникам выплачена награда', 2.2);
         break;
       case 'newGame':
         this.showBanner(BIOMES[ev.text]?.name ?? 'Новая карта', 'новая карта, стройте оборону', 4);

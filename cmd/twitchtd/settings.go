@@ -16,7 +16,7 @@ import (
 // editable lists the settings the streamer panel may change at runtime. The
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
-	"towerLimit", "towerLimitMax", "smallTeamBonus", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "shrineLimit", "shrineLimitCleric", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
+	"towerLimit", "towerLimitMax", "smallTeamBonus", "smallRewardSize", "smallWaveMult", "smallKillMult", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "shrineLimit", "shrineLimitCleric", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
 	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
@@ -145,6 +145,8 @@ func validate(cfg appConfig) error {
 		return fmt.Errorf("лимит построек, потолок кошелька, фаза стройки (от 5 с) и частота боссов должны быть положительными")
 	case cfg.TowerLimitMax < 0, cfg.SmallTeamBonus < 0, cfg.WallHoldMax < 0, cfg.SiegeRageSec < 0:
 		return fmt.Errorf("потолок лимита, бонус малой команды, золото за удержание и время до ярости не могут быть отрицательными")
+	case cfg.SmallRewardSize < 0, cfg.SmallWaveMult < 0 || cfg.SmallWaveMult > 10, cfg.SmallKillMult < 0 || cfg.SmallKillMult > 10:
+		return fmt.Errorf("награды малой команде: размер не может быть отрицательным, множители — от 0 до 10")
 	case cfg.GrantPct < 0 || cfg.GrantPct > 2, cfg.GrantFromWave < 0:
 		return fmt.Errorf("доля подъёмных должна быть от 0 до 2, волна — не отрицательной")
 	case cfg.PathCurve < 0 || cfg.PathCurve > 1:

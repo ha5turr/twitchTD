@@ -4,20 +4,67 @@
     {
       "name": "twitchtd-sim",
       "runtimeExecutable": "go",
-      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "12", "-web", "web/static", "-config", "configs/dev-fast.json"],
+      "runtimeArgs": [
+        "run",
+        "./cmd/twitchtd",
+        "-sim",
+        "12",
+        "-web",
+        "web/static",
+        "-config",
+        "configs/dev-fast.json"
+      ],
       "port": 8787
     },
     {
       "name": "twitchtd-sim-alt",
       "runtimeExecutable": "go",
-      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "12", "-web", "web/static", "-config", "configs/dev-fast.json", "-addr", "127.0.0.1:8790"],
+      "runtimeArgs": [
+        "run",
+        "./cmd/twitchtd",
+        "-sim",
+        "12",
+        "-web",
+        "web/static",
+        "-config",
+        "configs/dev-fast.json",
+        "-addr",
+        "127.0.0.1:8790"
+      ],
       "port": 8790
     },
     {
       "name": "twitchtd-fakesb",
       "runtimeExecutable": "go",
-      "runtimeArgs": ["run", "./cmd/twitchtd", "-sim", "4", "-web", "web/static", "-config", "configs/dev-fakesb.json"],
+      "runtimeArgs": [
+        "run",
+        "./cmd/twitchtd",
+        "-sim",
+        "4",
+        "-web",
+        "web/static",
+        "-config",
+        "configs/dev-fakesb.json"
+      ],
       "port": 8787
+    },
+    {
+      "name": "twitchtd-sim-solo",
+      "runtimeExecutable": "go",
+      "runtimeArgs": [
+        "run",
+        "./cmd/twitchtd",
+        "-sim",
+        "1",
+        "-fresh",
+        "-web",
+        "web/static",
+        "-config",
+        "configs/dev-fast.json",
+        "-addr",
+        "127.0.0.1:8791"
+      ],
+      "port": 8791
     }
   ]
 }
