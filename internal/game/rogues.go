@@ -27,7 +27,7 @@ func (g *Game) tavernMates() []string {
 	cut := g.Now().Add(-activeWindow(g.Cfg))
 	var out []string
 	for key, c := range g.Chatters {
-		if key != StreamerName && c.Joined && c.LastSeen.After(cut) && g.Workers[key] == nil && g.panther(key) == nil && g.runOf(key) == nil {
+		if key != StreamerName && c.Joined && !c.jailed() && c.LastSeen.After(cut) && g.Workers[key] == nil && g.panther(key) == nil && g.runOf(key) == nil {
 			out = append(out, key)
 		}
 	}

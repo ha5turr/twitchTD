@@ -1,6 +1,7 @@
 package game
 
 import (
+	"math"
 	"strings"
 	"testing"
 )
@@ -242,5 +243,20 @@ func TestArtifactAndMonogamistAchievements(t *testing.T) {
 	run(g, 60)
 	if !a.Ach["artifact"] {
 		t.Fatal("an artifact building earns «Хранитель реликвии»")
+	}
+}
+
+func TestArtifactTrapSnapsMilder(t *testing.T) {
+	g, _ := newTestGame(t)
+	g, tw := artGame(t, "rogue", "trap", g.Map.Path[5])
+	g.Cfg.EnemyRegen = 0
+	full := g.Cfg.Towers["trap"].Damage * g.levelMult(tw) * g.classBonus("anna", "trap")
+	e := enemyAt(g, "skeleton", 5, 1e6)
+	g.springTrap(e, tw, g.Cfg.Enemies["skeleton"])
+	if hit := 1e6 - e.HP; math.Abs(hit-full*g.Cfg.TrapArtSnap) > 1e-6 {
+		t.Fatalf("an artifact trap snaps for %.0f%% of its damage: %.1f of %.1f", g.Cfg.TrapArtSnap*100, hit, full)
+	}
+	if math.Abs(e.bleedDPS-full*g.Cfg.TrapBleed) > 1e-6 {
+		t.Fatal("and bleeds in full")
 	}
 }

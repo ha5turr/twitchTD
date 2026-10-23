@@ -178,6 +178,7 @@ type Config struct {
 	TrapHealCut    float64 `json:"trapHealCut"` // share of healing lost while the cut is fresh
 	TrapHealCutSec float64 `json:"trapHealCutSec"`
 	TrapAssistPct  float64 `json:"trapAssistPct"` // share of the bounty for the trap owner when someone else kills
+	TrapArtSnap    float64 `json:"trapArtSnap"`   // an artifact trap snaps every passer-by: this share of its damage at once, the bleeding in full
 
 	// Rewards grow after every boss wave by this share (kills, assists, barricades).
 	RewardGrowth  float64              `json:"rewardGrowth"`
@@ -185,6 +186,17 @@ type Config struct {
 	DrunkDecaySec float64              `json:"drunkDecaySec"` // seconds for one mug to wear off
 	PassOutMugs   float64              `json:"passOutMugs"`   // this drunk, a mercenary passes out under the table
 	PassOutSec    float64              `json:"passOutSec"`    // and ignores his owner's commands this long
+
+	// The tavern's emotes and the jail (jail.go).
+	SayCdSec      float64 `json:"sayCdSec"`      // a player's lines over the head at most this often
+	DanceSec      float64 `json:"danceSec"`      // a dance on the table lasts this long
+	DanceCdSec    float64 `json:"danceCdSec"`    // and comes again after this long
+	JailVoteSec   float64 `json:"jailVoteSec"`   // a vote to lock someone up runs this long
+	JailMinYes    int     `json:"jailMinYes"`    // and needs this many for, and more for than against
+	JailRetrySec  float64 `json:"jailRetrySec"`  // a player spared by a vote is safe from the next for this long
+	JailSec       float64 `json:"jailSec"`       // the term behind bars
+	JailRansomPct float64 `json:"jailRansomPct"` // ransom as a share of the wallet and the buildings
+	JailRansomMin int     `json:"jailRansomMin"` // at least this; at most half a wallet
 
 	DiceTables   int     `json:"diceTables"`   // games of dice that can run at once
 	DiceMinStake int     `json:"diceMinStake"` // smallest stake in gold
@@ -479,6 +491,7 @@ func DefaultConfig() Config {
 		TrapHealCut:          0.5,
 		TrapHealCutSec:       3,
 		TrapAssistPct:        0.5,
+		TrapArtSnap:          0.7,
 		RewardGrowth:         0.15,
 		Drinks: map[string]DrinkSpec{
 			"ale":    {Name: "Эль", Price: 10, Mugs: 1, Boost: 1.5, After: 0.5, Sec: 20},
@@ -489,6 +502,15 @@ func DefaultConfig() Config {
 		PassOutMugs:      8,
 		PassOutSec:       90,
 		DiceTables:       2,
+		SayCdSec:         3,
+		DanceSec:         6,
+		DanceCdSec:       60,
+		JailVoteSec:      45,
+		JailMinYes:       2,
+		JailRetrySec:     300,
+		JailSec:          180,
+		JailRansomPct:    0.15,
+		JailRansomMin:    30,
 		DiceMinStake:     10,
 		DiceWaitSec:      120,
 		DiceRollSec:      3,

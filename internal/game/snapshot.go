@@ -63,6 +63,7 @@ type StateMsg struct {
 	Events    []Event        `json:"events,omitempty"`
 	Summary   *Summary       `json:"summary,omitempty"` // only on the game over screen
 	Dice      []DiceView     `json:"dice"`
+	JailVote  *JailVoteView  `json:"jailVote,omitempty"`
 	Memes     []*MemeRequest `json:"memes,omitempty"` // memecoin requests for the panel
 	Panthers  []PantherView  `json:"panthers,omitempty"`
 	Runs      []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
@@ -142,6 +143,17 @@ type ChatterView struct {
 	Rank   int    `json:"rank,omitempty"`  // index in Ranks
 	Music  bool   `json:"music,omitempty"` // a bard playing
 	Out    bool   `json:"out,omitempty"`   // passed out under the table
+	Jail   int    `json:"jail,omitempty"`  // seconds left behind bars
+	Ransom int    `json:"ransom,omitempty"`
+}
+
+// JailVoteView is the vote to lock someone up, for the tavern's notice.
+type JailVoteView struct {
+	Target string  `json:"target"`
+	By     string  `json:"by"`
+	Left   float64 `json:"left"`
+	Yes    int     `json:"yes"`
+	No     int     `json:"no"`
 }
 
 func round2(f float64) float64 { return math.Round(f*100) / 100 }
@@ -186,8 +198,11 @@ func (g *Game) StateMessage() StateMsg {
 			continue
 		}
 		s.Chatters = append(s.Chatters, ChatterView{
-			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(), c.musicLeft > 0, c.out > 0,
+			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(), c.musicLeft > 0, c.out > 0, int(math.Ceil(c.jailLeft)), c.ransom,
 		})
+	}
+	if v := g.jailVote; v != nil {
+		s.JailVote = &JailVoteView{v.TargetName, v.ByName, math.Ceil(v.left), len(v.yes), len(v.no)}
 	}
 	s.Dice = []DiceView{}
 	for _, d := range g.Dice {
