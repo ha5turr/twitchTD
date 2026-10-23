@@ -573,6 +573,7 @@ func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
 		damage = spec.BossPct * target.MaxHP * mult
 	}
 	if spec.Chain > 0 {
+		damage *= g.stormGrowth()
 		g.chainZap(t, spec, target, damage) // lightning needs no flight time
 		return
 	}

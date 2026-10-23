@@ -48,6 +48,12 @@ func (g *Game) critChance(t *Tower) float64 {
 	return math.Min(g.Cfg.CritMax, g.Cfg.CritBase+g.Cfg.CritPerBoss*float64(g.bossesHeld()))
 }
 
+// stormGrowth is how much harder a totem's lightning hits for the boss
+// waves held, so it keeps up with the waves' growing HP late in the game.
+func (g *Game) stormGrowth() float64 {
+	return 1 + math.Min(g.Cfg.TotemBossMax, g.Cfg.TotemPerBoss*float64(g.bossesHeld()))
+}
+
 // tickSecond runs a class's second skill on its own timer, the first use
 // halfway through like every skill. fire reports whether it went off; if
 // not, it tries again in a few seconds.
