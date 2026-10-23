@@ -5,6 +5,8 @@ import (
 	"maps"
 	"math"
 	"slices"
+	"strconv"
+	"strings"
 )
 
 type Enemy struct {
@@ -156,7 +158,9 @@ func (g *Game) StartWave() {
 		t.holdPaid = 0
 	}
 	g.Timer = 0
-	sq := math.Sqrt(max(g.difficultyChatters(), 1))
+	players := g.difficultyChatters()
+	g.smallKill = g.smallBoost(players, g.Cfg.SmallKillMult)
+	sq := math.Sqrt(max(players, 1))
 	g.waveHP = g.Cfg.BaseHP * math.Pow(g.Cfg.HPGrowth, float64(g.Wave)) * (1 + g.Cfg.ChatterHPCoef*sq)
 	count := g.Cfg.BaseCount + g.Cfg.CountPerWave*g.Wave + int(sq)
 
@@ -187,7 +191,8 @@ func (g *Game) endWave() {
 	g.packClowns()
 	g.shrinesMendWalls()
 	g.shrineToasts()
-	bonus := int(math.Round(float64(10+2*g.Wave) * g.rewardMult))
+	boost := 1 + g.smallBoost(g.difficultyChatters(), g.Cfg.SmallWaveMult)
+	bonus := int(math.Round(float64(10+2*g.Wave) * g.rewardMult * boost))
 	if g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0 {
 		// A boss wave held: from now on every reward is worth more.
 		g.rewardMult *= 1 + g.Cfg.RewardGrowth
@@ -209,7 +214,32 @@ func (g *Game) endWave() {
 			g.addGold(c, bonus)
 		}
 	}
-	g.emit(Event{Kind: "waveCleared", Amount: g.Wave})
+	cleared := Event{Kind: "waveCleared", Amount: g.Wave}
+	if boost > 1 {
+		cleared.Text = fmtMult(boost) // the banner tells a small party it is paid more
+	}
+	g.emit(cleared)
+}
+
+// smallBoost is how much more than usual a party of n players earns, for a
+// solo payout of full times the usual: all of it for one player, nothing
+// from SmallRewardSize players on, evenly in between.
+func (g *Game) smallBoost(n, full float64) float64 {
+	size := float64(g.Cfg.SmallRewardSize)
+	if size <= 1 || full <= 1 || n >= size {
+		return 0
+	}
+	return (full - 1) * (size - max(n, 1)) / (size - 1)
+}
+
+// bounty is what killing an enemy of kind pays this wave.
+func (g *Game) bounty(kind string) float64 {
+	return float64(g.Cfg.Enemies[kind].Bounty) * g.rewardMult * (1 + g.smallKill)
+}
+
+// fmtMult writes a multiplier the Russian way: 1.5 as "1,5", 2 as "2".
+func fmtMult(x float64) string {
+	return strings.Replace(strconv.FormatFloat(math.Round(x*100)/100, 'f', -1, 64), ".", ",", 1)
 }
 
 func (g *Game) tickSpawns(dt float64) {
@@ -674,7 +704,7 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	if isGuest(e.Kind) {
 		g.guestKilled(e)
 	}
-	bounty := int(math.Round(float64(g.Cfg.Enemies[e.Kind].Bounty) * g.rewardMult))
+	bounty := int(math.Round(g.bounty(e.Kind)))
 	if e.summoned {
 		bounty = 1
 	}
@@ -728,7 +758,7 @@ func (g *Game) payAssists(killer string, e *Enemy) {
 	for key := range e.helpers {
 		pct[key] = max(pct[key], g.Cfg.TrapAssistPct)
 	}
-	bounty := float64(g.Cfg.Enemies[e.Kind].Bounty) * g.rewardMult
+	bounty := g.bounty(e.Kind)
 	for _, key := range slices.Sorted(maps.Keys(pct)) {
 		share := int(math.Round(bounty * pct[key]))
 		if c := g.Chatters[key]; c != nil && key != killer && key != StreamerName && share > 0 {
@@ -761,7 +791,7 @@ func (g *Game) payShrines(killer string, e *Enemy) {
 			total += v
 		}
 	}
-	bounty := float64(g.Cfg.Enemies[e.Kind].Bounty) * g.rewardMult
+	bounty := g.bounty(e.Kind)
 	for _, s := range shrines {
 		c := g.Chatters[s.t.Owner]
 		if c == nil || s.t.Owner == killer || s.t.Owner == StreamerName {

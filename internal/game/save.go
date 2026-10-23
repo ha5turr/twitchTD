@@ -59,8 +59,9 @@ type SavedChatter struct {
 	Progress Progress
 
 	// This game only: restored with the board, not by LoadChatters.
-	Grant   int  `json:"grant,omitempty"`
-	Arrived bool `json:"arrived,omitempty"`
+	Grant       int  `json:"grant,omitempty"`
+	Arrived     bool `json:"arrived,omitempty"`
+	ClassLocked bool `json:"classLocked,omitempty"` // the class was changed this game
 }
 
 func (g *Game) Export() Save {
@@ -73,7 +74,7 @@ func (g *Game) Export() Save {
 	}
 	escrow := g.diceEscrow() // stakes on dice tables count as the players' gold
 	for key, c := range g.Chatters {
-		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class, c.progress(), c.Grant, c.arrived})
+		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class, c.progress(), c.Grant, c.arrived, c.classLocked})
 	}
 	return s
 }
@@ -158,6 +159,7 @@ func (g *Game) Restore(s Save) {
 	for _, sc := range s.Chatters {
 		if c := g.Chatters[sc.Login]; c != nil {
 			c.Grant, c.arrived = sc.Grant, sc.Arrived
+			c.classLocked = sc.ClassLocked // a restart mid-game must not free a second change
 		}
 	}
 	g.mapChanged = true

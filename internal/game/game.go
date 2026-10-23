@@ -140,6 +140,7 @@ type Game struct {
 	rushLeft   float64              // seconds of the frost demon's speed-up left
 	assist     []string             // drummers behind the shot being resolved
 	rewardMult float64              // grows after every boss wave: kills, assists and barricades pay more
+	smallKill  float64              // a small party's extra share of every bounty this wave (0.5 is x1.5)
 	afkCheck   float64              // seconds to the next AFK sweep
 	helpAt     map[string]time.Time // last !помощь answer per topic
 	nextMeme   int
@@ -189,6 +190,7 @@ func (g *Game) NewGame(biome Biome) {
 	g.queue = nil
 	g.summary = nil
 	g.rewardMult = 1
+	g.smallKill = 0
 	g.RewardUses = nil
 	g.pactLeft = 0
 	if !g.Cfg.KeepTreasury {

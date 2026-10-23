@@ -29,6 +29,12 @@ type Config struct {
 	GrantPct       float64 `json:"grantPct"`
 	SmallTeamSize  int     `json:"smallTeamSize"`
 	SmallTeamBonus int     `json:"smallTeamBonus"`
+	// A party of fewer than SmallRewardSize players earns more: a solo
+	// player gets SmallWaveMult times the wave bonus and SmallKillMult times
+	// the kill bounties, fading evenly to the usual pay at SmallRewardSize.
+	SmallRewardSize int     `json:"smallRewardSize"`
+	SmallWaveMult   float64 `json:"smallWaveMult"`
+	SmallKillMult   float64 `json:"smallKillMult"`
 	// StreamerPlays makes the broadcaster's own chat lines play by the
 	// viewers' rules (gold, limits, a mercenary in the tavern). The panel
 	// keeps its free, instant building either way.
@@ -345,6 +351,9 @@ func DefaultConfig() Config {
 		GrantPct:             0.5,
 		SmallTeamSize:        2,
 		SmallTeamBonus:       2,
+		SmallRewardSize:      3,
+		SmallWaveMult:        3,
+		SmallKillMult:        1.5,
 		SellRefundPct:        60,
 		ActiveWindowMn:       10,
 		ChatGold:             5,

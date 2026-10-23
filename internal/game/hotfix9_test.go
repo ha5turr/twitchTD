@@ -328,3 +328,24 @@ func TestShrineLimit(t *testing.T) {
 		t.Fatal("even a cleric stops at his limit")
 	}
 }
+
+func TestClassChangeSurvivesRestart(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	g.Chatters["anna"].Class = "ranger"
+	g.HandleChat(ChatMessage{User: "anna", Text: "!class маг"})
+	save := g.Export()
+
+	g2, _ := newTestGame(t)
+	g2.LoadChatters(save.Chatters)
+	g2.Restore(save)
+	g2.HandleChat(ChatMessage{User: "anna", Text: "!класс жрец"})
+	if c := g2.Chatters["anna"]; c.Class != "mage" {
+		t.Fatalf("a restart mid-game does not allow a second class change: %s, %q", c.Class, lastReply(g2))
+	}
+	g2.NewGame("")
+	g2.HandleChat(ChatMessage{User: "anna", Text: "!класс жрец"})
+	if g2.Chatters["anna"].Class != "cleric" {
+		t.Fatal("a new game allows a change again")
+	}
+}
