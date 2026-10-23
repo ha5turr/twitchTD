@@ -48,6 +48,16 @@ type Chatter struct {
 	GameDrinks  int
 	classLocked bool // the class was changed this game
 
+	// The jail (jail.go): seconds left behind bars, the ransom that frees
+	// earlier, whether this game already locked him up once, and until when
+	// a failed vote shields him from the next one.
+	jailLeft   float64
+	jailedOnce bool
+	ransom     int
+	jailVoteAt time.Time
+	saidAt     time.Time // last !s line
+	dancedAt   time.Time // last dance on the table
+
 	// Kept between games (progress.go).
 	Souls      int
 	Ach        map[string]bool // achievements earned
@@ -143,6 +153,7 @@ type Game struct {
 	smallKill  float64              // a small party's extra share of every bounty this wave (0.5 is x1.5)
 	afkCheck   float64              // seconds to the next AFK sweep
 	helpAt     map[string]time.Time // last !помощь answer per topic
+	jailVote   *JailVote            // the tavern voting to lock someone up
 	nextMeme   int
 }
 
@@ -203,6 +214,7 @@ func (g *Game) NewGame(biome Biome) {
 		g.refundDice(d)
 	}
 	g.Dice = nil
+	g.jailVote = nil
 	for _, c := range g.Chatters {
 		if !g.Cfg.KeepGold {
 			c.Gold = g.Cfg.StartGold
@@ -210,6 +222,7 @@ func (g *Game) NewGame(biome Biome) {
 		c.GameDamage, c.GameKills, c.GameDrinks, c.classLocked = 0, 0, 0, false
 		c.Grant, c.arrived = 0, c.Joined // those still in the tavern start this game with it
 		c.out = 0
+		c.jailLeft, c.jailedOnce, c.ransom, c.jailVoteAt = 0, false, 0, time.Time{}
 	}
 	g.mapChanged = true
 	g.emit(Event{Kind: "newGame", Text: string(biome)})
@@ -292,6 +305,7 @@ func (g *Game) Tick(dt float64) {
 	g.sweepAFK(dt)
 	g.tickTreasury(dt)
 	g.tickDice(dt)
+	g.tickJail(dt)
 	switch g.Phase {
 	case PhaseBuild:
 		g.Timer -= dt

@@ -54,6 +54,10 @@ func (g *Game) HandleChat(m ChatMessage) {
 	if (gameCommands[cmd] || cmd == "!leave" || cmd == "!выйти" || cmd == "!уйти") && g.asleep(c) {
 		return // passed out under the table
 	}
+	if c.jailed() && !jailFree[cmd] && !(m.Mod && strings.HasPrefix(cmd, "!td")) {
+		g.inJail(c) // behind bars: only a line over the head and the ransom
+		return
+	}
 	if gameCommands[cmd] && key != StreamerName {
 		g.join(key, c, cmd)
 	}
@@ -97,6 +101,18 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdMemes(c, key, args)
 	case "!стрелы", "!arrows", "!ammo":
 		g.cmdAmmo(c, key, args)
+	case "!s", "!say", "!скажи":
+		g.cmdSay(c, args)
+	case "!dance", "!танец", "!пляс", "!танцевать":
+		g.cmdDance(c, key)
+	case "!тюрьма", "!jail", "!посадить":
+		g.cmdJail(c, key, args)
+	case "!за", "!yes":
+		g.cmdVote(c, key, true)
+	case "!против", "!no":
+		g.cmdVote(c, key, false)
+	case "!выкуп", "!ransom", "!bail":
+		g.cmdRansom(c)
 	case "!towers", "!башни":
 		var parts []string
 		for _, k := range TowerKinds {
@@ -413,6 +429,8 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 				g.spawnEnemy(args[0], hp*spec.HPMult, 0.4*float64(i))
 			}
 		}
+	case "!tdfree", "!tdосвободить": // let an inmate out of the jail
+		g.cmdFree(c, args)
 	case "!tdban", "!tdunban": // forbid or allow building for a chatter
 		if len(args) == 1 {
 			g.ban(args[0], cmd == "!tdban")
@@ -481,6 +499,8 @@ var gameCommands = map[string]bool{
 	"!towers": true, "!башни": true,
 	"!души": true, "!souls": true, "!ачивки": true, "!achievements": true, "!ach": true,
 	"!мемы": true, "!memes": true, "!link": true, "!привязать": true,
+	"!dance": true, "!танец": true, "!пляс": true, "!танцевать": true,
+	"!тюрьма": true, "!jail": true, "!посадить": true,
 }
 
 // join seats a chatter in the tavern for this session.

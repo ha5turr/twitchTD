@@ -186,6 +186,17 @@ type Config struct {
 	PassOutMugs   float64              `json:"passOutMugs"`   // this drunk, a mercenary passes out under the table
 	PassOutSec    float64              `json:"passOutSec"`    // and ignores his owner's commands this long
 
+	// The tavern's emotes and the jail (jail.go).
+	SayCdSec      float64 `json:"sayCdSec"`      // a player's lines over the head at most this often
+	DanceSec      float64 `json:"danceSec"`      // a dance on the table lasts this long
+	DanceCdSec    float64 `json:"danceCdSec"`    // and comes again after this long
+	JailVoteSec   float64 `json:"jailVoteSec"`   // a vote to lock someone up runs this long
+	JailMinYes    int     `json:"jailMinYes"`    // and needs this many for, and more for than against
+	JailRetrySec  float64 `json:"jailRetrySec"`  // a player spared by a vote is safe from the next for this long
+	JailSec       float64 `json:"jailSec"`       // the term behind bars
+	JailRansomPct float64 `json:"jailRansomPct"` // ransom as a share of the wallet and the buildings
+	JailRansomMin int     `json:"jailRansomMin"` // at least this; at most half a wallet
+
 	DiceTables   int     `json:"diceTables"`   // games of dice that can run at once
 	DiceMinStake int     `json:"diceMinStake"` // smallest stake in gold
 	DiceWaitSec  float64 `json:"diceWaitSec"`  // how long a table waits for an opponent
@@ -489,6 +500,15 @@ func DefaultConfig() Config {
 		PassOutMugs:      8,
 		PassOutSec:       90,
 		DiceTables:       2,
+		SayCdSec:         3,
+		DanceSec:         6,
+		DanceCdSec:       60,
+		JailVoteSec:      45,
+		JailMinYes:       2,
+		JailRetrySec:     300,
+		JailSec:          180,
+		JailRansomPct:    0.15,
+		JailRansomMin:    30,
 		DiceMinStake:     10,
 		DiceWaitSec:      120,
 		DiceRollSec:      3,
