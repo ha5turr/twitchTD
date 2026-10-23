@@ -73,7 +73,7 @@ type StateMsg struct {
 	Shield    float64        `json:"shield,omitempty"`    // artifact shrines' shield over the walls
 	ShieldMax float64        `json:"shieldMax,omitempty"`
 	Storms    [][2]float64   `json:"storms,omitempty"` // artifact totems' lightning charges
-	Links     [][4]float64   `json:"links,omitempty"`  // warlocks' soul links, x1 y1 x2 y2   // seconds a warlock's blood pact still powers every building
+	Links     []LinkView     `json:"links,omitempty"`  // warlocks' soul links, hidden until crossed or shown by !me   // seconds a warlock's blood pact still powers every building
 }
 
 type EnemyView struct {
@@ -145,6 +145,13 @@ type ChatterView struct {
 	Out    bool   `json:"out,omitempty"`   // passed out under the table
 	Jail   int    `json:"jail,omitempty"`  // seconds left behind bars
 	Ransom int    `json:"ransom,omitempty"`
+}
+
+// LinkView is a soul link between two artifact altars.
+type LinkView struct {
+	ID    int        `json:"id"`
+	Owner string     `json:"owner"` // display name, as !me's card event has it
+	Ends  [4]float64 `json:"ends"`  // x1 y1 x2 y2
 }
 
 // JailVoteView is the vote to lock someone up, for the tavern's notice.
@@ -230,7 +237,11 @@ func (g *Game) StateMessage() StateMsg {
 		s.Storms = append(s.Storms, [2]float64{round2(st.Pos.X), round2(st.Pos.Y)})
 	}
 	for _, l := range g.soulLinks() {
-		s.Links = append(s.Links, [4]float64{l.A.X, l.A.Y, l.B.X, l.B.Y})
+		name := l.Owner
+		if c := g.Chatters[l.Owner]; c != nil {
+			name = c.Name
+		}
+		s.Links = append(s.Links, LinkView{l.ID, name, [4]float64{l.A.X, l.A.Y, l.B.X, l.B.Y}})
 	}
 	if g.Phase == PhaseGameOver {
 		s.Summary = g.summary
