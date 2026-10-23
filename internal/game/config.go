@@ -178,6 +178,7 @@ type Config struct {
 	TrapHealCut    float64 `json:"trapHealCut"` // share of healing lost while the cut is fresh
 	TrapHealCutSec float64 `json:"trapHealCutSec"`
 	TrapAssistPct  float64 `json:"trapAssistPct"` // share of the bounty for the trap owner when someone else kills
+	TrapArtSnap    float64 `json:"trapArtSnap"`   // an artifact trap snaps every passer-by: this share of its damage at once, the bleeding in full
 
 	// Rewards grow after every boss wave by this share (kills, assists, barricades).
 	RewardGrowth  float64              `json:"rewardGrowth"`
@@ -490,6 +491,7 @@ func DefaultConfig() Config {
 		TrapHealCut:          0.5,
 		TrapHealCutSec:       3,
 		TrapAssistPct:        0.5,
+		TrapArtSnap:          0.7,
 		RewardGrowth:         0.15,
 		Drinks: map[string]DrinkSpec{
 			"ale":    {Name: "Эль", Price: 10, Mugs: 1, Boost: 1.5, After: 0.5, Sec: 20},

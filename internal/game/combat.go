@@ -426,6 +426,9 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 		e.helpers = map[string]bool{}
 	}
 	e.helpers[t.Owner] = true
+	if g.artifact(t) {
+		dmg *= g.Cfg.TrapArtSnap // its charges never run out, so the snap itself is milder
+	}
 	g.damage(e, dmg, t.Owner, false)
 	cp := center(t.Cell)
 	g.emit(Event{Kind: "trap", X: cp.X, Y: cp.Y, Amount: t.Charges})
