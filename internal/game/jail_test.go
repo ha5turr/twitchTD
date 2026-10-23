@@ -156,3 +156,19 @@ func TestHelpFitsTwitch(t *testing.T) {
 		}
 	}
 }
+
+// A save written before the session was kept: nobody known gets a grant.
+func TestLegacySaveGivesNoGrants(t *testing.T) {
+	g := jailParty(t)
+	g.Wave = 8
+	placeAs(g, "boris", "arrow", freeCell(t, g)).Built = true
+	save := g.Export()
+	save.Session = nil
+	g2, _ := newTestGame(t)
+	g2.LoadChatters(save.Chatters)
+	g2.Restore(save)
+	g2.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	if g2.Chatters["anna"].Grant != 0 {
+		t.Fatal("an old save hands out no grants to players already known")
+	}
+}

@@ -3,6 +3,7 @@ package game
 import (
 	"math"
 	"slices"
+	"strings"
 )
 
 // Save is what survives a server restart or a pause between stream breaks:
@@ -17,6 +18,9 @@ type Save struct {
 	Over     bool         `json:"over"`
 	Towers   []SavedTower `json:"towers"`
 	Chatters []SavedChatter
+	// Session is each player's state in this game. It rides in the game's
+	// record: the chatters table keeps only what lasts between games.
+	Session []SessionChatter `json:"session"`
 
 	Treasury  int               `json:"treasury"`
 	Banned    map[string]bool   `json:"banned"`
@@ -57,10 +61,14 @@ type SavedChatter struct {
 	Class  string
 
 	Progress Progress
+}
 
-	// This game only: restored with the board, not by LoadChatters.
+// SessionChatter is a player's part in the current game, restored with the
+// board, not by LoadChatters.
+type SessionChatter struct {
+	Login       string  `json:"login"`
 	Grant       int     `json:"grant,omitempty"`
-	Arrived     bool    `json:"arrived,omitempty"`
+	Arrived     bool    `json:"arrived,omitempty"`     // joined this game: no grant on a return
 	ClassLocked bool    `json:"classLocked,omitempty"` // the class was changed this game
 	JailLeft    float64 `json:"jailLeft,omitempty"`    // still behind bars
 	JailedOnce  bool    `json:"jailedOnce,omitempty"`
@@ -77,7 +85,14 @@ func (g *Game) Export() Save {
 	}
 	escrow := g.diceEscrow() // stakes on dice tables count as the players' gold
 	for key, c := range g.Chatters {
-		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class, c.progress(), c.Grant, c.arrived, c.classLocked, c.jailLeft, c.jailedOnce, c.ransom})
+		s.Chatters = append(s.Chatters, SavedChatter{key, c.Name, c.Gold + escrow[key], c.Kills, c.Drinks, c.Class, c.progress()})
+		if c.Grant > 0 || c.arrived || c.classLocked || c.jailedOnce {
+			s.Session = append(s.Session, SessionChatter{key, c.Grant, c.arrived, c.classLocked, c.jailLeft, c.jailedOnce, c.ransom})
+		}
+	}
+	slices.SortFunc(s.Session, func(a, b SessionChatter) int { return strings.Compare(a.Login, b.Login) })
+	if s.Session == nil {
+		s.Session = []SessionChatter{} // saved, if empty: older saves have none at all
 	}
 	return s
 }
@@ -159,7 +174,14 @@ func (g *Game) Restore(s Save) {
 			g.addGold(c, refund)
 		}
 	}
-	for _, sc := range s.Chatters {
+	if s.Session == nil {
+		// A save from before 0.18.2 lost who had joined: count everyone
+		// known as arrived rather than hand the whole tavern a grant.
+		for _, c := range g.Chatters {
+			c.arrived = true
+		}
+	}
+	for _, sc := range s.Session {
 		if c := g.Chatters[sc.Login]; c != nil {
 			c.Grant, c.arrived = sc.Grant, sc.Arrived
 			c.classLocked = sc.ClassLocked                                             // a restart mid-game must not free a second change
