@@ -281,7 +281,8 @@ type SoulLink struct {
 	Damage float64
 }
 
-// soulLinks lists the links between every two artifact altars of one owner.
+// soulLinks lists the links between every two artifact altars of one owner
+// that stand within SoulLinkRange cells of each other.
 func (g *Game) soulLinks() []SoulLink {
 	byOwner := map[string][]*Tower{}
 	for _, t := range g.Towers {
@@ -294,6 +295,9 @@ func (g *Game) soulLinks() []SoulLink {
 		sortTowers(ts)
 		for i := 0; i < len(ts); i++ {
 			for j := i + 1; j < len(ts); j++ {
+				if center(ts[i].Cell).sub(center(ts[j].Cell)).len() > g.Cfg.SoulLinkRange+1e-9 {
+					continue
+				}
 				out = append(out, SoulLink{ID: ts[i].ID*100000 + ts[j].ID, Owner: owner, A: center(ts[i].Cell), B: center(ts[j].Cell)})
 			}
 		}
@@ -325,7 +329,7 @@ func (g *Game) tickSoulLinks() {
 				e.slowMult = math.Min(e.slowMult, g.Cfg.SoulLinkSlow)
 				e.slowLeft = max(e.slowLeft, g.Cfg.SoulLinkSlowSec)
 			}
-			g.emit(Event{Kind: "soulLink", X: e.Pos.X, Y: e.Pos.Y})
+			g.emit(Event{Kind: "soulLink", X: e.Pos.X, Y: e.Pos.Y, Amount: l.ID}) // the overlay flashes that link
 		}
 	}
 }

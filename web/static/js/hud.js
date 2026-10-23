@@ -30,6 +30,11 @@ const SDF_TRICK = {
   offroad: 'сошёл с тропы',
   tavern: 'грабит таверну',
 };
+// Soul links: how long one shows after an enemy crosses it, the last part
+// of which it fades out, and how long !me shows all of a warlock's.
+const LINK_FLASH = 1.2;
+const LINK_FADE = 0.6;
+const LINK_ME_SEC = 6;
 const FIELD_CX = LEFT + (COLS * CELL) / 2;
 const FIELD_CY = TOP + (ROWS * CELL) / 2;
 
@@ -72,6 +77,8 @@ export class Hud {
 
     this.floatLayer = new Container();
     this.blasts = new Graphics();
+    this.linkShow = new Map(); // soul link id -> seconds it still shows
+    this.linkOwners = new Map(); // warlock's name -> seconds his links show after !me
     this.rings = [];
     this.bolts = [];
     this.quakes = []; // shamans' earthquakes
@@ -130,6 +137,10 @@ export class Hud {
     this.shieldMax = st.shieldMax ?? 0;
     this.storms = st.storms ?? [];
     this.links = st.links ?? [];
+    for (const ev of st.events ?? []) {
+      if (ev.kind === 'soulLink') this.linkShow.set(ev.amount, LINK_FLASH);
+      if (ev.kind === 'card') this.linkOwners.set(ev.user, LINK_ME_SEC);
+    }
     this.drawWalls(st.walls, st.wallsMax);
     this.drawBoss(boss);
     if (st.phase === 'gameover' && st.summary) this.summary.show(st.summary, st.timer);
@@ -347,9 +358,6 @@ export class Hud {
       case 'storm':
         this.floatAt(ev.x, ev.y - 0.5, 'заряд!', 0x9ef0ff, FONT_UI, 18);
         break;
-      case 'soulLink':
-        this.floatAt(ev.x, ev.y - 0.5, 'связь душ', 0xd0a0ff, FONT_UI, 15);
-        break;
       case 'crit':
         this.floatAt(ev.x, ev.y - 0.7, `КРИТ! ${ev.amount ?? ''}`, 0xffd24a, FONT_UI, 22);
         break;
@@ -547,12 +555,26 @@ export class Hud {
       const a = 0.5 + 0.3 * Math.sin(this.t * 14 + sx);
       this.blasts.circle(p.x, p.y, 0.55 * CELL).fill({ color: 0x7ae0ff, alpha: 0.12 }).stroke({ width: 3, color: 0x9ef0ff, alpha: a });
     }
-    // Warlocks' soul links between artifact altars: a violet thread.
-    for (const [x1, y1, x2, y2] of this.links ?? []) {
+    // Warlocks' soul links stay hidden: a faint violet thread shows for a
+    // moment when an enemy crosses one, and all of a warlock's while his !me
+    // card is up. No bright core, so a web of them never glares.
+    for (const [id, left] of this.linkShow) {
+      if (left - dt <= 0) this.linkShow.delete(id);
+      else this.linkShow.set(id, left - dt);
+    }
+    for (const [name, left] of this.linkOwners) {
+      if (left - dt <= 0) this.linkOwners.delete(name);
+      else this.linkOwners.set(name, left - dt);
+    }
+    for (const l of this.links ?? []) {
+      const flash = Math.min(1, (this.linkShow.get(l.id) ?? 0) / LINK_FADE);
+      const shown = Math.min(1, this.linkOwners.get(l.owner) ?? 0);
+      const k = Math.max(flash, shown);
+      if (k <= 0) continue;
+      const [x1, y1, x2, y2] = l.ends;
       const a = toPx(x1, y1);
       const b = toPx(x2, y2);
-      this.blasts.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 5, color: 0xb05aff, alpha: 0.35 + 0.15 * Math.sin(this.t * 4) });
-      this.blasts.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2, color: 0xf0d0ff, alpha: 0.7 });
+      this.blasts.moveTo(a.x, a.y).lineTo(b.x, b.y).stroke({ width: 2, color: 0x9a6ad0, alpha: 0.35 * k });
     }
     // Gold rain: coins burst out of a fallen golden golem and fall.
     this.coins = this.coins.filter((c) => {

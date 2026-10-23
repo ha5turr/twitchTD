@@ -160,11 +160,12 @@ type Config struct {
 	SoulLinkSlow     float64 `json:"soulLinkSlow"`
 	SoulLinkSlowSec  float64 `json:"soulLinkSlowSec"`
 	SoulLinkWidth    float64 `json:"soulLinkWidth"`
-	PactEverySec     float64 `json:"pactEverySec"` // blood pact: the warlock's second skill
-	PactWallsPct     float64 `json:"pactWallsPct"` // share of the tavern walls' max HP it costs
-	PactBoost        float64 `json:"pactBoost"`    // extra damage every building on the map deals
-	PactSec          float64 `json:"pactSec"`      // for this long
-	PactMinWalls     float64 `json:"pactMinWalls"` // no pact while the walls are below this share
+	SoulLinkRange    float64 `json:"soulLinkRange"` // two altars link only this close, in cells
+	PactEverySec     float64 `json:"pactEverySec"`  // blood pact: the warlock's second skill
+	PactWallsPct     float64 `json:"pactWallsPct"`  // share of the tavern walls' max HP it costs
+	PactBoost        float64 `json:"pactBoost"`     // extra damage every building on the map deals
+	PactSec          float64 `json:"pactSec"`       // for this long
+	PactMinWalls     float64 `json:"pactMinWalls"`  // no pact while the walls are below this share
 	ShamanEverySec   float64 `json:"shamanEverySec"`
 	QuakeStunSec     float64 `json:"quakeStunSec"`    // ground enemies stunned by the earthquake (bosses half)
 	CurseShardPct    float64 `json:"curseShardPct"`   // a cursed kill pays the altar's owner this share of the bounty
@@ -475,6 +476,7 @@ func DefaultConfig() Config {
 		SoulLinkSlow:         0.8,
 		SoulLinkSlowSec:      2,
 		SoulLinkWidth:        0.35,
+		SoulLinkRange:        4,
 		PactEverySec:         90,
 		PactWallsPct:         0.08,
 		PactBoost:            0.35,
