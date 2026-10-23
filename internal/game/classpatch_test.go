@@ -1,6 +1,9 @@
 package game
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 // classGame starts a wave with one player of the given class in the tavern.
 func classGame(t *testing.T, class string) (*Game, *Chatter) {
@@ -156,5 +159,20 @@ func TestShamanWolves(t *testing.T) {
 		if r.Kind == "wolf" {
 			t.Fatal("and the wolves are gone at the end of the path")
 		}
+	}
+}
+
+func TestTotemGrowsWithBosses(t *testing.T) {
+	g, _ := newTestGame(t)
+	if g.stormGrowth() != 1 {
+		t.Fatal("no boss held: lightning as is")
+	}
+	g.Wave = 6 * g.Cfg.BossEvery
+	if want := 1 + 6*g.Cfg.TotemPerBoss; math.Abs(g.stormGrowth()-want) > 1e-9 {
+		t.Fatalf("six bosses held: x%.2f, want x%.2f", g.stormGrowth(), want)
+	}
+	g.Wave = 100
+	if g.stormGrowth() != 1+g.Cfg.TotemBossMax {
+		t.Fatal("and no more than the cap")
 	}
 }

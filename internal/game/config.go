@@ -119,6 +119,8 @@ type Config struct {
 	CritBase           float64 `json:"critBase"`         // chance of a ranger's ballista to land a critical hit
 	CritPerBoss        float64 `json:"critPerBoss"`      // more after every boss wave held
 	CritMax            float64 `json:"critMax"`
+	TotemPerBoss       float64 `json:"totemPerBoss"`     // lightning hits this much harder after every boss wave held
+	TotemBossMax       float64 `json:"totemBossMax"`     // up to this much
 	CritMult           float64 `json:"critMult"`         // a critical hit's damage multiplier
 	ClericShrineDmg    float64 `json:"clericShrineDmg"`  // the pillar of light hits this much harder per shrine of the cleric
 	ClericShrineStun   float64 `json:"clericShrineStun"` // and stuns this many seconds longer
@@ -436,6 +438,8 @@ func DefaultConfig() Config {
 		CritBase:             0.10,
 		CritPerBoss:          0.05,
 		CritMax:              0.70,
+		TotemPerBoss:         0.06,
+		TotemBossMax:         0.6,
 		CritMult:             2,
 		ClericShrineDmg:      0.25,
 		ClericShrineStun:     0.5,
@@ -592,7 +596,7 @@ func DefaultConfig() Config {
 			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
 			// The only real answer to ЭссДиЭф: shoots him anywhere on the map.
 			"curse": {Name: "Алтарь проклятий", Role: RoleCurse, Cost: 90, Range: 2.6, CurseEvery: 4, CurseSec: 6, CurseAmp: 0.25, UpgMult: 1.25, MaxLevel: 5},
-			"totem": {Name: "Тотем грозы", Role: RoleShooter, Cost: 85, Damage: 9, Range: 2.4, Rate: 0.8, Magic: true, Chain: 3, ChainRange: 1.6, ChainFalloff: 0.75, UpgMult: 1.52, MaxLevel: 5},
+			"totem": {Name: "Тотем грозы", Role: RoleShooter, Cost: 85, Damage: 10, Range: 2.4, Rate: 0.8, Magic: true, Chain: 3, ChainRange: 1.6, ChainFalloff: 0.75, UpgMult: 1.52, MaxLevel: 5},
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
 		WebcamFrom: "N1",
