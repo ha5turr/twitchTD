@@ -184,7 +184,7 @@ function renderChatters() {
   body.replaceChildren(...rows.map((c) => {
     const tr = document.createElement('tr');
     const cell = (text, cls) => { const td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; return td; };
-    tr.append(cell(c.name), cell(CLASSES[c.class] ?? ''), cell(c.gold, 'num'), cell(c.souls ?? 0, 'num'), cell(c.towers, 'num'), cell(c.kills, 'num'));
+    tr.append(cell(c.jail ? `⛓ ${c.name}` : c.name), cell(CLASSES[c.class] ?? ''), cell(c.gold, 'num'), cell(c.souls ?? 0, 'num'), cell(c.towers, 'num'), cell(c.kills, 'num'));
     const act = document.createElement('td');
     const gold = document.createElement('button');
     gold.textContent = '+100';
@@ -195,6 +195,13 @@ function renderChatters() {
     ban.className = c.banned ? 'on' : '';
     ban.onclick = () => say(`${c.banned ? '!tdunban' : '!tdban'} ${c.name}`);
     act.append(gold, ' ', ban);
+    if (c.jail) {
+      const free = document.createElement('button');
+      free.textContent = 'Освободить';
+      free.title = `За решёткой ещё ${c.jail} с`;
+      free.onclick = () => say(`!tdfree ${c.name}`);
+      act.append(' ', free);
+    }
     tr.append(act);
     return tr;
   }));

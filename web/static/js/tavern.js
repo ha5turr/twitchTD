@@ -2,6 +2,9 @@
 // at a long table with its nick and gold above it, walks to the bar to drink,
 // and disappears through the gate while it works on the field.
 //
+// The jail is set into the back wall left of the hearth: inmates stand
+// behind its bars.
+//
 // Layout, top to bottom: fireplace, tables with seats right under it, two
 // dice tables, the bar counter with the barkeeper, and the fame board in the
 // bottom left corner, clear of the default webcam (bottom right).
@@ -24,6 +27,10 @@ const SPEED = 170; // px per second
 const WOOD = 0xa89078; // tint for Kenney's light oak, so it sits in the gloom
 
 const DRINK_NAMES = { ale: 'эль', mead: 'медовуха', potion: 'зелье' };
+// The jail in the back wall, left of the hearth, where the red banner hung.
+const JAIL = { x: 6, y: TOP + 10, w: 112, h: 32 * PX - 10 };
+const TABLES_X = [128, 256]; // long tables, danced on by the seats either side
+const TABLE_TOP = 22; // a dancer stands this much higher, on the boards
 
 export class Tavern {
   constructor() {
@@ -32,8 +39,13 @@ export class Tavern {
     this.interior = new Graphics();
     this.world.addChild(this.interior);
     this.drawInterior();
+    this.cellFloor = new Graphics(); // the jail's dark inside, over the wall bricks
+    this.world.addChild(this.cellFloor);
     this.figures = new Container();
     this.world.addChild(this.figures);
+    this.bars = new Graphics(); // the jail's bars, over its inmates
+    this.world.addChild(this.bars);
+    this.drawJail();
     this.labels = new Container();
     this.ui.addChild(this.labels);
 
@@ -75,6 +87,32 @@ export class Tavern {
     this.ui.addChild(bob);
   }
 
+  // drawJail: a stone cell with an iron grate, its plaque on the bottom rail.
+  drawJail() {
+    const { x, y, w, h } = JAIL;
+    const f = this.cellFloor;
+    f.rect(x, y, w, h).fill(0x1c1916).stroke({ width: 3, color: 0x0c0a08 });
+    for (let yy = y + 14; yy < y + h; yy += 16) f.rect(x + 2, yy, w - 4, 2).fill(0x2a2622); // stone courses
+    const b = this.bars;
+    for (let xx = x + 8; xx < x + w - 4; xx += 13) {
+      b.rect(xx, y + 10, 4, h - 14).fill(0x50555c);
+      b.rect(xx, y + 10, 1.5, h - 14).fill(0x9aa0a8);
+    }
+    b.rect(x, y, w, 12).fill(0x34373c).stroke({ width: 2, color: 0x0c0a08 });
+    b.rect(x, y + h - 14, w, 14).fill(0x34373c).stroke({ width: 2, color: 0x0c0a08 });
+    const plaque = new Text({ text: 'ТЮРЬМА', style: label(11, 0xd9c49a) });
+    plaque.anchor.set(0.5);
+    plaque.position.set(x + w / 2, y + h - 7);
+    this.ui.addChild(plaque);
+  }
+
+  // jailSpot is where the i-th of n inmates stands behind the bars: one in
+  // the middle, more side by side.
+  jailSpot(i, n) {
+    const x = n < 2 ? JAIL.x + JAIL.w / 2 : JAIL.x + 28 + (i % 2) * 56;
+    return { x, y: JAIL.y + JAIL.h - 16 - Math.floor(i / 2) * 4 };
+  }
+
   // drawFurniture builds the hall from sprites: the 0x72 back wall with a
   // hearth, and Kenney's tables, chairs and bar counter, darkened to fit.
   drawFurniture() {
@@ -93,9 +131,7 @@ export class Tavern {
       put('wall_top_mid', x, TOP + T);
       put('wall_mid', x, TOP + 2 * T);
     }
-    put('wall_banner_red', T * 1.5, TOP + 2 * T);
     put('wall_banner_green', LEFT - T * 1.5, TOP + 2 * T);
-    put('k_shield', T / 2, TOP + 2 * T - 6, 2.5);
     put('k_shield', LEFT - T / 2, TOP + 2 * T - 6, 2.5);
     // Hearth: a stone surround with a mantel and a fire in a dark mouth.
     const hearth = new Graphics();
@@ -222,7 +258,11 @@ export class Tavern {
       }
     }
     this.overflow.text = hidden ? `и ещё ${hidden} в зале` : '';
-    this.board.update(active);
+    // Inmates stand in the cell in the order they came, a vote shows on the board.
+    let inmate = 0;
+    for (const m of [...this.mercs.values()].sort((a, b) => a.seat - b.seat)) m.cell = m.jail ? inmate++ : -1;
+    this.inmates = inmate;
+    this.board.update(active, st.jailVote);
     // Players at a dice table leave their seats for its stools.
     const spots = this.dice.update(st.dice ?? []);
     for (const m of this.mercs.values()) m.diceSpot = spots.get(m.name) ?? null;
@@ -235,6 +275,10 @@ export class Tavern {
     if (ev.kind === 'card') this.card.show(ev.user, this.mercs.get(ev.user), this.limits, ev.amount ?? 0);
     if (ev.kind === 'feast') this.feast.show(ev.amount ?? 20);
     if (ev.kind === 'class' && m) m.redraw = true;
+    if (ev.kind === 'say' && m) m.shout(ev.text, 5);
+    if (ev.kind === 'dance' && m) m.dance(ev.amount || 6);
+    if (ev.kind === 'jailed' && m) m.shout('за что?!', 4);
+    if (ev.kind === 'jailFree' && m) m.shout(ev.amount ? `выкуп ${ev.amount} з` : 'свобода!', 4);
     if (ev.kind === 'diceRoll') this.dice.result(ev);
     if (ev.kind === 'robbed' && m) m.shout(`−${ev.amount} з, ЭссДиЭф!`, 4);
     if (ev.kind === 'loot' && m) m.shout(`+${ev.amount} з вернулись`, 4);
@@ -306,10 +350,19 @@ class Merc {
       this.rank = c.rank ?? 0;
       this.nameText.style.fill = RANKS[this.rank]?.color ?? RANKS[0].color;
     }
-    if (c.gold !== this.gold) {
-      this.gold = c.gold;
-      this.goldText.text = `${c.gold} з`;
+    this.gold = c.gold;
+    this.jail = c.jail ?? 0; // seconds behind bars
+    if (this.jail) this.danceLeft = 0;
+    // Behind bars the gold line counts the term down instead, the nick
+    // shrinks so two inmates fit side by side.
+    const goldLine = this.jail ? `⛓${Math.floor(this.jail / 60)}:${String(this.jail % 60).padStart(2, '0')}` : `${c.gold} з`;
+    if (goldLine !== this.goldLine) {
+      this.goldLine = goldLine;
+      this.goldText.text = goldLine;
     }
+    this.nameText.text = this.jail ? short(c.name, 7) : short(c.name);
+    const size = this.jail ? 13 : 16;
+    if (this.nameText.style.fontSize !== size) this.nameText.style.fontSize = size;
     this.drunk = c.drunk;
     this.asleep = !!c.out; // passed out under the table (not the same as out on the field)
     this.kills = c.kills;
@@ -354,14 +407,29 @@ class Merc {
     this.shoutLeft = secs;
   }
 
+  // dance: up on the nearest long table, a little jig, and back down.
+  dance(secs) {
+    if (this.out || this.jail || this.diceSpot) return;
+    this.mode = 'seat';
+    this.danceLeft = secs;
+  }
+
   drink(what) {
-    if (this.out) return;
+    if (this.out || this.jail) return;
     this.mode = 'bar';
     this.drinkName = what;
   }
 
   target() {
+    if (this.jail && this.cell >= 0) return this.tavern.jailSpot(this.cell, this.tavern.inmates);
     if (this.diceSpot) return this.diceSpot; // at a dice table, nothing else
+    if (this.danceLeft > 0) {
+      // The table beside the seat; the middle column picks by row.
+      const p = seatPos(this.seat);
+      const col = this.seat % COLS_X.length;
+      const x = col === 0 ? TABLES_X[0] : col === 2 ? TABLES_X[1] : TABLES_X[Math.floor(this.seat / COLS_X.length) % 2];
+      return { x, y: p.y };
+    }
     if (this.mode === 'bar' || this.mode === 'drinking') {
       return { x: 40 + (this.seat % 6) * 52, y: BAR_Y - 6 };
     }
@@ -394,11 +462,17 @@ class Merc {
       this.drinkTime -= dt;
       if (this.drinkTime <= 0) this.mode = 'seat';
     }
+    // On the table: hop up, jig, flip from side to side; the time runs only
+    // once there, then the dancer hops down and walks back to the seat.
+    const dancing = this.danceLeft > 0 && !walking;
+    if (dancing) this.danceLeft -= dt;
+    const lift = dancing ? TABLE_TOP + Math.abs(Math.sin(this.t * 9)) * 10 : 0;
 
     // Drunk mercenaries sway, very drunk ones sing, the overdrunk lie
     // under the table snoring.
     const sway = Math.min(this.drunk, 6);
     if (this.asleep) this.body.rotation = -Math.PI / 2 + Math.sin(this.t * 1.2) * 0.04;
+    else if (dancing) this.body.rotation = Math.sin(this.t * 9) * 0.18;
     else this.body.rotation = sway ? Math.sin(this.t * 2.5) * 0.05 * sway : 0;
     if (this.idle) {
       const want = walking ? this.run : this.idle;
@@ -407,9 +481,11 @@ class Merc {
         this.body.play();
       }
       if (walking && Math.abs(dx) > 1) this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
+      this.body.y = -lift;
     } else {
-      this.body.y = walking ? -Math.abs(Math.sin(this.t * 10)) * 3 : Math.sin(this.t * 1.5) * 0.8;
+      this.body.y = walking ? -Math.abs(Math.sin(this.t * 10)) * 3 : dancing ? -lift : Math.sin(this.t * 1.5) * 0.8;
     }
+    if (dancing) this.body.scale.x = Math.abs(this.body.scale.x) * (Math.floor(this.t * 2.5) % 2 ? -1 : 1);
     this.mug.visible = this.mode === 'drinking';
     this.mug.rotation = this.mode === 'drinking' ? -0.4 - Math.abs(Math.sin(this.t * 4)) * 0.6 : 0;
 
@@ -417,13 +493,20 @@ class Merc {
     this.shoutLeft = Math.max(0, (this.shoutLeft ?? 0) - dt);
     if (this.shoutLeft > 0) bubble = this.shoutText;
     else if (this.asleep) bubble = ['z', 'zZ', 'zZz'][Math.floor(this.t * 1.5) % 3];
+    else if (dancing) bubble = Math.floor(this.t * 3) % 2 ? '🎉 ♪' : '♪ 🎉';
     else if (this.mode === 'drinking') bubble = `${this.drinkName}!`;
     else if (this.drunk >= 4) bubble = Math.floor(this.t * 2) % 2 ? '♪ ♫' : '♫ ♪';
     this.bubble.text = bubble;
     this.bubble.visible = !!bubble;
-    this.bubble.position.set(r.x, r.y - this.height - 32);
-    this.nameText.position.set(r.x, r.y - this.height - 14);
-    this.goldText.position.set(r.x, r.y - this.height);
+    // A long line stays inside the tavern instead of spilling onto the field;
+    // an inmate's shows under the cell, clear of the top bar.
+    const half = this.bubble.width / 2 + 4;
+    const bubbleY = this.jail ? JAIL.y + JAIL.h + 22 + (this.cell % 2) * 20 :r.y - lift - this.height - 32;
+    this.bubble.position.set(Math.min(Math.max(r.x, half), LEFT - 20 - half), bubbleY);
+    // An inmate's nick and term sit inside the cell, under the top bar.
+    const labelY = this.jail ? JAIL.y + 36 : r.y - lift - this.height;
+    this.nameText.position.set(r.x, labelY - 14);
+    this.goldText.position.set(r.x, labelY);
     this.playNotes(dt, r);
   }
 
@@ -461,8 +544,8 @@ class Merc {
   }
 }
 
-function short(name) {
-  return name.length > 13 ? name.slice(0, 12) + '…' : name;
+function short(name, max = 13) {
+  return name.length > max ? name.slice(0, max - 1) + '…' : name;
 }
 
 // HELP pages remind the chat of its commands between the lists.
@@ -485,6 +568,16 @@ const HELP = [
       ['!кости принять', 'сыграть'],
       ['!class', 'сменить класс'],
       ['!души', 'души и ачивки'],
+    ],
+  },
+  {
+    title: 'Команды: веселье',
+    rows: [
+      ['!s текст', 'сказать'],
+      ['!dance', 'сплясать'],
+      ['!тюрьма ник', 'суд таверны'],
+      ['!за / !против', 'голос'],
+      ['!выкуп', 'выйти на волю'],
     ],
   },
   {
@@ -535,12 +628,25 @@ class FameBoard {
     this.chatters = [];
   }
 
-  update(chatters) {
+  update(chatters, vote) {
     this.chatters = chatters;
+    this.vote = vote;
     this.render();
   }
 
   render() {
+    if (this.vote) {
+      // A vote to lock someone up takes the board while it runs.
+      const v = this.vote;
+      this.show('Суд таверны', [
+        [`В тюрьму: ${short(v.target)}?`, ''],
+        [`предлагает ${short(v.by)}`, ''],
+        ['!за', `${v.yes}`],
+        ['!против', `${v.no}`],
+        ['осталось', `${Math.max(0, Math.ceil(v.left))} с`],
+      ]);
+      return;
+    }
     if (this.onHelp) {
       this.show(HELP[this.help].title, HELP[this.help].rows);
       return;

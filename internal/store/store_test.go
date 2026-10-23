@@ -42,3 +42,52 @@ func TestSaveLoad(t *testing.T) {
 		t.Fatalf("progress %+v memes %+v", p, out.Memes)
 	}
 }
+
+// A restart mid-game (an update, say) goes through the database: whoever
+// already played this game is no newcomer after it and gets no grant.
+func TestRestartKeepsSession(t *testing.T) {
+	s, err := Open(filepath.Join(t.TempDir(), "td.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	g := game.New(game.DefaultConfig(), 7)
+	for _, n := range []string{"anna", "boris"} {
+		g.HandleChat(game.ChatMessage{User: n, Text: "!play"})
+	}
+	g.Wave = 8
+	g.HandleChat(game.ChatMessage{User: "anna", Text: "!class маг"})
+	placed := 0
+	for y := 0; y < game.GridH && placed < 2; y++ {
+		for x := 0; x < game.GridW && placed < 2; x++ {
+			if p := (game.Pos{X: x, Y: y}); g.Map.Grid.At(p) == game.CellBuild {
+				g.Towers[p] = &game.Tower{Kind: "arrow", Cell: p, Owner: []string{"anna", "boris"}[placed], Level: 3, Invested: 500, Built: true}
+				placed++
+			}
+		}
+	}
+	if err := s.Save(g.Export()); err != nil {
+		t.Fatal(err)
+	}
+
+	save, ok, err := s.Load()
+	if err != nil || !ok {
+		t.Fatalf("load: ok=%v err=%v", ok, err)
+	}
+	g2 := game.New(game.DefaultConfig(), 7)
+	g2.LoadChatters(save.Chatters)
+	g2.Restore(save)
+	g2.HandleChat(game.ChatMessage{User: "anna", Text: "!play"})
+	g2.HandleChat(game.ChatMessage{User: "boris", Text: "!b C4 arrow"})
+	if a, b := g2.Chatters["anna"], g2.Chatters["boris"]; a.Grant != 0 || b.Grant != 0 {
+		t.Fatalf("players back after a restart are no newcomers: grants %d, %d", a.Grant, b.Grant)
+	}
+	g2.HandleChat(game.ChatMessage{User: "anna", Text: "!class жрец"})
+	if c := g2.Chatters["anna"].Class; c != "mage" {
+		t.Fatalf("nor may they change class again: %s", c)
+	}
+	g2.HandleChat(game.ChatMessage{User: "vera", Text: "!play"})
+	if g2.Chatters["vera"].Grant <= 0 {
+		t.Fatal("a real newcomer still gets the grant")
+	}
+}
