@@ -194,13 +194,13 @@ func TestArtifactTotemObeliskShrineAltar(t *testing.T) {
 
 	g4, a := artGame(t, "warlock", "curse", g.Map.Path[2])
 	a.Cell = Pos{g4.Map.Path[2].X, 0}
-	b := placeAs(g4, "anna", "curse", Pos{g4.Map.Path[2].X, GridH - 1})
+	b := placeAs(g4, "anna", "curse", Pos{g4.Map.Path[2].X, 4})
 	b.Level = a.Level
 	if len(g4.soulLinks()) != 1 {
 		t.Fatal("two artifact altars of one owner are linked")
 	}
 	f := g4.spawnEnemy("skeleton", 1000, 0)
-	f.Pos = vec{float64(g4.Map.Path[2].X) + 0.5, float64(GridH) / 2}
+	f.Pos = vec{float64(g4.Map.Path[2].X) + 0.5, 2.5}
 	g4.tickSoulLinks()
 	hp := f.HP
 	g4.tickSoulLinks()
@@ -258,5 +258,20 @@ func TestArtifactTrapSnapsMilder(t *testing.T) {
 	}
 	if math.Abs(e.bleedDPS-full*g.Cfg.TrapBleed) > 1e-6 {
 		t.Fatal("and bleeds in full")
+	}
+}
+
+func TestSoulLinkRange(t *testing.T) {
+	g, _ := newTestGame(t)
+	g, a := artGame(t, "warlock", "curse", Pos{0, 0})
+	far := placeAs(g, "anna", "curse", Pos{5, 0})
+	far.Level = a.Level
+	if len(g.soulLinks()) != 0 {
+		t.Fatal("altars five cells apart are not linked")
+	}
+	near := placeAs(g, "anna", "curse", Pos{0, 4})
+	near.Level = a.Level
+	if len(g.soulLinks()) != 1 {
+		t.Fatal("four cells apart they are")
 	}
 }
