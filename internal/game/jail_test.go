@@ -3,6 +3,7 @@ package game
 import (
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -68,8 +69,8 @@ func TestJailVote(t *testing.T) {
 	if g.jailVote != nil || !b.jailed() {
 		t.Fatal("everyone voted for: boris is locked up at once")
 	}
-	if want := 150; b.ransom != want { // 15% of 400 gold and 600 in buildings
-		t.Fatalf("the ransom is a share of what he owns: %d, want %d", b.ransom, want)
+	if b.ransom != g.Cfg.JailRansomMin { // he built, the others nothing
+		t.Fatalf("whoever built his share pays the least: %d", b.ransom)
 	}
 
 	// Behind bars only !s and !выкуп work.
@@ -93,7 +94,7 @@ func TestJailVote(t *testing.T) {
 
 	treasury := g.Treasury
 	g.HandleChat(ChatMessage{User: "boris", Text: "!выкуп"})
-	if b.jailed() || b.Gold != gold-150 || g.Treasury != treasury+150 {
+	if b.jailed() || b.Gold != gold-b.ransom || g.Treasury != treasury+b.ransom {
 		t.Fatal("the ransom frees him and goes to the treasury")
 	}
 	g.HandleChat(ChatMessage{User: "anna", Text: "!тюрьма boris"})
@@ -170,5 +171,59 @@ func TestLegacySaveGivesNoGrants(t *testing.T) {
 	g2.HandleChat(ChatMessage{User: "anna", Text: "!play"})
 	if g2.Chatters["anna"].Grant != 0 {
 		t.Fatal("an old save hands out no grants to players already known")
+	}
+}
+
+func TestRansomByContribution(t *testing.T) {
+	g := jailParty(t)
+	for i, n := range []string{"anna", "vera"} {
+		placeAs(g, n, "arrow", freeCell(t, g)).Invested = 800 + 200*i
+	}
+	g.HandleChat(ChatMessage{User: "gleb", Text: "!play"})
+	placeAs(g, "boris", "arrow", freeCell(t, g)).Invested = 250 // half of a fair share (450)
+	idle := g.ransomOf("gleb", g.Chatters["gleb"])
+	half := g.ransomOf("boris", g.Chatters["boris"])
+	full := g.ransomOf("anna", g.Chatters["anna"])
+	if !(idle > half && half > full) || full != g.Cfg.JailRansomMin {
+		t.Fatalf("the less one gave, the dearer: idle %d, half %d, full %d", idle, half, full)
+	}
+	if idle > g.Cfg.WalletCap/2 {
+		t.Fatal("at most half a wallet")
+	}
+	b := g.Chatters["boris"]
+	g.lockUp("boris", b)
+	b.Gold, b.Grant = b.ransom-1, 1000
+	g.HandleChat(ChatMessage{User: "boris", Text: "!выкуп"})
+	if !b.jailed() || b.Grant != 1000 {
+		t.Fatal("the grant does not pay a ransom")
+	}
+}
+
+func TestKick(t *testing.T) {
+	g, now := newTestGame(t)
+	for _, n := range []string{"anna", "boris", "vera"} {
+		g.HandleChat(ChatMessage{User: n, Text: "!play"})
+	}
+	b := g.Chatters["boris"]
+	b.Gold = 300
+	placeAs(g, "boris", "arrow", freeCell(t, g))
+	g.lockUp("boris", b)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!tdkick boris"})
+	if !b.Joined {
+		t.Fatal("only a moderator kicks")
+	}
+	treasury := g.Treasury
+	g.HandleChat(ChatMessage{User: "anna", Text: "!tdkick @boris", Mod: true})
+	if b.Joined || b.jailed() || b.Gold != 0 || g.towersOf("boris") != 0 || g.Treasury <= treasury {
+		t.Fatal("a kicked player leaves as with !leave, out of jail too")
+	}
+	g.HandleChat(ChatMessage{User: "boris", Text: "!play"})
+	if b.Joined {
+		t.Fatal("and may not come back for a while")
+	}
+	*now = now.Add(11 * time.Minute)
+	g.HandleChat(ChatMessage{User: "boris", Text: "!play"})
+	if !b.Joined {
+		t.Fatal("until the time is up")
 	}
 }

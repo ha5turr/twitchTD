@@ -83,14 +83,20 @@ func (g *Game) difficultyChatters() float64 {
 		if k == StreamerName || !c.Joined || !c.LastSeen.After(cut) {
 			continue
 		}
-		need := g.othersMedian(inv, k) / 2
-		if need <= 0 {
-			n++
-			continue
-		}
-		n += min(1, float64(inv[k])/need)
+		n += g.contribution(inv, k)
 	}
 	return n
+}
+
+// contribution is how fully a player takes part, 0 to 1: what he has built
+// against half the others' median investment. With nobody else building
+// everyone counts in full.
+func (g *Game) contribution(inv map[string]int, key string) float64 {
+	need := g.othersMedian(inv, key) / 2
+	if need <= 0 {
+		return 1
+	}
+	return min(1, float64(inv[key])/need)
 }
 
 // arrive runs on a player's first join in a game and hands a late newcomer

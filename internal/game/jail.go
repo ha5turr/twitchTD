@@ -181,12 +181,16 @@ func (g *Game) lockUp(key string, c *Chatter) {
 	g.emit(Event{Kind: "jailed", User: c.Name, Amount: c.ransom})
 }
 
-// ransomOf is what freedom costs: a share of everything the player owns,
-// his wallet and his buildings, within the bounds a wallet can pay.
+// ransomOf is what freedom costs, and it is dearer the less the player has
+// given the game: whoever built his fair share (as the difficulty weighs it)
+// pays JailRansomMin, whoever built nothing JailRansomPct of the others'
+// median investment, at most half a wallet. Only the wallet pays, never
+// the grant.
 func (g *Game) ransomOf(key string, c *Chatter) int {
-	worth := float64(c.Gold + g.investedBy()[key])
-	r := int(math.Round(worth * g.Cfg.JailRansomPct))
-	return min(max(r, g.Cfg.JailRansomMin), max(g.Cfg.WalletCap/2, g.Cfg.JailRansomMin))
+	inv := g.investedBy()
+	freeloader := max(float64(g.Cfg.JailRansomMin), g.Cfg.JailRansomPct*g.othersMedian(inv, key))
+	r := float64(g.Cfg.JailRansomMin) + (freeloader-float64(g.Cfg.JailRansomMin))*(1-g.contribution(inv, key))
+	return min(int(math.Round(r)), max(g.Cfg.WalletCap/2, g.Cfg.JailRansomMin))
 }
 
 func (g *Game) cmdRansom(c *Chatter) {
