@@ -194,7 +194,11 @@ function renderChatters() {
     ban.textContent = c.banned ? 'Разрешить' : 'Запретить стройку';
     ban.className = c.banned ? 'on' : '';
     ban.onclick = () => say(`${c.banned ? '!tdunban' : '!tdban'} ${c.name}`);
-    act.append(gold, ' ', ban);
+    const kick = document.createElement('button');
+    kick.textContent = 'Выгнать';
+    kick.title = 'Выставить из таверны: постройки продаются, золото в казну, 10 минут без возврата';
+    kick.onclick = () => { if (confirm(`Выгнать ${c.name} из таверны?`)) say(`!tdkick ${c.name}`); };
+    act.append(gold, ' ', ban, ' ', kick);
     if (c.jail) {
       const free = document.createElement('button');
       free.textContent = 'Освободить';
