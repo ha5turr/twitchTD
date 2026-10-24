@@ -57,9 +57,9 @@ func (g *Game) tickBoss(e *Enemy, dt float64) {
 	}
 	ev := Event{Kind: "ability", Text: e.Kind, X: e.Pos.X, Y: e.Pos.Y}
 	switch e.Kind {
-	case "bone_knight": // raises the shield for 5 s, lowers it for 6 s
+	case "bone_knight": // raises the shield for 5 s, lowers it for 10 s
 		e.shieldUp = !e.shieldUp
-		e.ability = map[bool]float64{true: 5, false: 6}[e.shieldUp]
+		e.ability = map[bool]float64{true: 5, false: 10}[e.shieldUp]
 		if !e.shieldUp {
 			return // lowering the shield is not announced
 		}
