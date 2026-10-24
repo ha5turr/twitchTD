@@ -349,3 +349,43 @@ func TestClassChangeSurvivesRestart(t *testing.T) {
 		t.Fatal("a new game allows a change again")
 	}
 }
+
+func TestBuildToMax(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	c := g.Chatters["anna"]
+	cell := freeCell(t, g)
+	// Level 1 costs 60, levels 2 and 3 120 + 180; level 4 would need 240 more.
+	c.Gold = 60 + 120 + 180 + 50
+	g.HandleChat(ChatMessage{User: "anna", Text: "!b " + cell.Name() + " arrow max"})
+	tw := g.Towers[cell]
+	if tw == nil || c.Gold != 50 || tw.PendingUp != 2 || tw.Invested != 360 {
+		t.Fatalf("!b ... max builds and pays for as many levels as the wallet allows: gold %d, %+v", c.Gold, tw)
+	}
+	for i := 0; i < 900 && (tw.PendingCost > 0 || !tw.Built); i++ {
+		run(g, 0.1)
+	}
+	if tw.Level != 3 {
+		t.Fatalf("the mercenary builds it, then raises it: level %d", tw.Level)
+	}
+
+	c.Gold = 60
+	other := freeCell(t, g)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!b " + other.Name() + " макс"})
+	if o := g.Towers[other]; o == nil || o.Kind != "arrow" || o.PendingUp != 0 || c.Gold != 0 {
+		t.Fatal("with gold for level 1 only, it is just built")
+	}
+}
+
+func TestMeShowsDrunk(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!me"})
+	if !strings.Contains(lastReply(g), "трезв") {
+		t.Fatalf("!me tells a sober mercenary: %q", lastReply(g))
+	}
+	g.Chatters["anna"].Drunk = 2.4
+	g.HandleChat(ChatMessage{User: "anna", Text: "!я"})
+	if !strings.Contains(lastReply(g), "3 из") {
+		t.Fatalf("and how drunk he is: %q", lastReply(g))
+	}
+}

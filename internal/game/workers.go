@@ -37,6 +37,12 @@ func (g *Game) canQueue(owner string) bool {
 	return w == nil || len(w.Orders) < g.Cfg.MaxOrders
 }
 
+// canQueueTwo reports whether the owner's mercenary may take two more orders.
+func (g *Game) canQueueTwo(owner string) bool {
+	w := g.Workers[owner]
+	return w == nil && g.Cfg.MaxOrders >= 2 || w != nil && len(w.Orders) < g.Cfg.MaxOrders-1
+}
+
 func (g *Game) order(owner, name string, cell Pos) {
 	w := g.Workers[owner]
 	if w == nil {

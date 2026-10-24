@@ -89,8 +89,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		if c.Grant > 0 {
 			grant = fmt.Sprintf(" (+%d подъёмных)", c.Grant)
 		}
-		g.reply(c.Name, fmt.Sprintf("%s, %s, золото %d/%d%s, построек %d/%d, убийств %d, душ %d",
-			Ranks[c.rank()].Name, strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, grant, g.towersOf(key), g.TowerLimit(), c.Kills, c.Souls))
+		g.reply(c.Name, fmt.Sprintf("%s, %s, золото %d/%d%s, построек %d/%d, убийств %d, душ %d, %s",
+			Ranks[c.rank()].Name, strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, grant, g.towersOf(key), g.TowerLimit(), c.Kills, c.Souls, g.drunkStatus(c)))
 		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
 	case "!link", "!привязать":
 		g.cmdLink(c, key)
@@ -184,6 +184,10 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 		return
 	}
 	kind := "arrow"
+	toMax := len(rest) > 0 && upToMax[strings.ToLower(rest[len(rest)-1])] // !b C4 arrow max
+	if toMax {
+		rest = rest[:len(rest)-1]
+	}
 	if len(rest) > 0 {
 		k, ok := towerAliases[strings.ToLower(rest[0])]
 		if !ok || k == clownKind && !g.sdfOut() { // no hint that clowns exist
@@ -218,7 +222,7 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	}
 	cost := g.Cfg.TowerCost(kind, 1)
 	streamer := g.isStreamer(key)
-	if !streamer && !g.canQueue(key) {
+	if !streamer && (!g.canQueue(key) || toMax && !g.canQueueTwo(key)) {
 		g.reply(c.Name, fmt.Sprintf("у наёмника уже %d приказа, подожди", g.Cfg.MaxOrders))
 		return
 	}
@@ -241,6 +245,50 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	}
 	cp := center(p)
 	g.emit(Event{Kind: "build", User: c.Name, X: cp.X, Y: cp.Y, Amount: -cost, Text: kind})
+	if toMax {
+		g.buildUp(c, key, t)
+	}
+}
+
+// buildUp raises a building just ordered as far as the rest of the gold
+// goes: the mercenary builds it and then, on a second order, upgrades it.
+func (g *Game) buildUp(c *Chatter, key string, t *Tower) {
+	streamer := g.isStreamer(key)
+	cost, levels := g.affordable(t, c.Gold+c.Grant, streamer)
+	if levels == 0 {
+		g.reply(c.Name, fmt.Sprintf("%s: строю 1 ур., на 2-й не хватает золота (нужно %d)", t.Cell.Name(), g.Cfg.TowerCost(t.Kind, 2)))
+		return
+	}
+	if !streamer {
+		granted, _ := g.spend(c, cost)
+		t.Granted += granted
+	}
+	t.Invested += cost
+	if streamer {
+		t.Level += levels
+		g.readyTower(t)
+		g.announceArtifact(t, c.Name)
+	} else {
+		t.PendingCost, t.PendingUp = cost, levels
+		g.order(key, c.Name, t.Cell) // a second visit: the upgrade
+	}
+	g.reply(c.Name, fmt.Sprintf("%s: строю сразу до %d ур., всего %d золота", t.Cell.Name(), t.Level+levels, t.Invested))
+	cp := center(t.Cell)
+	g.emit(Event{Kind: "upgrade", User: c.Name, X: cp.X, Y: cp.Y, Amount: -cost})
+}
+
+// affordable is how many levels above its current one t can rise for at
+// most budget gold (any number for the streamer), and what they cost.
+func (g *Game) affordable(t *Tower, budget int, streamer bool) (cost, levels int) {
+	for lvl := t.Level + 1; lvl <= g.maxLevel(t); lvl++ {
+		next := g.Cfg.TowerCost(t.Kind, lvl)
+		if !streamer && cost+next > budget {
+			break
+		}
+		cost += next
+		levels++
+	}
+	return cost, levels
 }
 
 func (g *Game) ownTower(c *Chatter, key string, args []string) *Tower {
@@ -291,15 +339,7 @@ func (g *Game) cmdUpgrade(c *Chatter, key string, args []string) {
 	if len(args) > 1 && upToMax[strings.ToLower(args[1])] {
 		// As many levels as the wallet (and a grant) pays for, at once.
 		budget := c.Gold + c.Grant
-		cost, levels = 0, 0
-		for lvl := t.Level + 1; lvl <= g.maxLevel(t); lvl++ {
-			next := g.Cfg.TowerCost(t.Kind, lvl)
-			if !streamer && cost+next > budget {
-				break
-			}
-			cost += next
-			levels++
-		}
+		cost, levels = g.affordable(t, budget, streamer)
 		if levels == 0 {
 			g.reply(c.Name, fmt.Sprintf("на следующий уровень нужно %d золота, у тебя %d", g.Cfg.TowerCost(t.Kind, t.Level+1), budget))
 			return
