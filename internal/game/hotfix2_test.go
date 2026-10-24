@@ -53,27 +53,30 @@ func TestTrapsBleedAndShareKills(t *testing.T) {
 	}
 }
 
-func TestMagicCallsLightning(t *testing.T) {
+func TestArtifactTotemCallsLightning(t *testing.T) {
 	g, _ := newTestGame(t)
 	g.Phase = PhaseWave
-	a, _, i := pathNeighbours(t, g)
-	m := place(g, "magic", a)
-	m.cooldown = 1e9 // only the bolt
+	g.Cfg.EnemyRegen = 0
+	a, b, i := pathNeighbours(t, g)
+	plain := place(g, "totem", a)
+	obelisk := place(g, "magic", b)
+	plain.cooldown, obelisk.cooldown = 1e9, 1e9 // only bolts
 	es := []*Enemy{enemyAt(g, "skeleton", i, 1e6), enemyAt(g, "skeleton", i, 1e6)}
 	g.tickTowers(0.05)
 	for _, e := range es {
-		if e.HP >= 1e6 {
-			t.Fatal("the bolt hits everyone around its mark")
+		if e.HP < 1e6 {
+			t.Fatal("neither an obelisk nor a plain totem calls lightning")
 		}
 	}
-	every := g.Cfg.Towers["magic"].StrikeEvery
-	if m.strikeCD != every {
-		t.Fatalf("then recharges: %.1f", m.strikeCD)
-	}
-	m.Level, m.strikeCD = 5, 0
+	plain.Level = g.Cfg.Towers["totem"].MaxLevel + 1
 	g.tickTowers(0.05)
-	if m.strikeCD >= every {
-		t.Fatal("a better obelisk strikes more often")
+	for _, e := range es {
+		if e.HP >= 1e6 {
+			t.Fatal("an artifact totem's bolt hits everyone around its mark")
+		}
+	}
+	if plain.strikeCD <= 0 || plain.strikeCD >= g.Cfg.Towers["totem"].StrikeEvery {
+		t.Fatalf("then recharges, quicker for its level: %.1f", plain.strikeCD)
 	}
 }
 

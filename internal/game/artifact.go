@@ -128,7 +128,7 @@ func (g *Game) arm(t *Tower, p *Projectile) {
 	case "magic":
 		if g.rng.Float64() < g.Cfg.MageArtChance {
 			p.Damage *= g.Cfg.MageArtMult
-			p.SlowHit = true
+			p.SlowHit, p.Arcane = true, true
 		}
 	case "fire":
 		p.BurnStack = true
@@ -201,25 +201,10 @@ func (g *Game) tickArtifact(t *Tower, spec TowerSpec, dt float64) {
 		if shoved {
 			t.artCD = g.Cfg.WallShoveEvery
 		}
-	case "totem":
-		if t.artCD > 0 || g.Phase != PhaseWave {
-			return
-		}
-		t.artCD = g.Cfg.StormEvery
-		tc := center(t.Cell)
-		best, bestD := Pos{}, math.Inf(1)
-		for _, p := range g.Map.Path {
-			if d := center(p).sub(tc).len(); d < bestD {
-				best, bestD = p, d
-			}
-		}
-		cp := center(best)
-		g.storms = append(g.storms, &Storm{Pos: cp, left: g.Cfg.StormSec})
-		g.emit(Event{Kind: "storm", X: cp.X, Y: cp.Y})
 	}
 }
 
-// Storm is a charge of lightning an artifact totem laid on the path.
+// Storm is a charge of lightning an artifact totem's bolt left behind.
 type Storm struct {
 	Pos  vec
 	left float64

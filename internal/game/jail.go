@@ -88,6 +88,10 @@ func (g *Game) cmdJail(c *Chatter, key string, args []string) {
 		g.reply(c.Name, fmt.Sprintf("уже голосуем за %s: !за или !против", g.jailVote.TargetName))
 		return
 	}
+	if g.mapVote != nil {
+		g.reply(c.Name, "сначала дождись конца голосования за новую карту")
+		return
+	}
 	who := strings.ToLower(strings.TrimPrefix(args[0], "@"))
 	t := g.Chatters[who]
 	switch {
@@ -110,6 +114,10 @@ func (g *Game) cmdJail(c *Chatter, key string, args []string) {
 }
 
 func (g *Game) cmdVote(c *Chatter, key string, yes bool) {
+	if g.mapVote != nil {
+		g.voteNewMap(c, key, yes)
+		return
+	}
 	v := g.jailVote
 	if v == nil || !c.Joined || key == v.Target {
 		return

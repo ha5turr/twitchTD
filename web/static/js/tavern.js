@@ -262,7 +262,7 @@ export class Tavern {
     let inmate = 0;
     for (const m of [...this.mercs.values()].sort((a, b) => a.seat - b.seat)) m.cell = m.jail ? inmate++ : -1;
     this.inmates = inmate;
-    this.board.update(active, st.jailVote);
+    this.board.update(active, st.jailVote, st.mapVote);
     // Players at a dice table leave their seats for its stools.
     const spots = this.dice.update(st.dice ?? []);
     for (const m of this.mercs.values()) m.diceSpot = spots.get(m.name) ?? null;
@@ -564,8 +564,8 @@ const HELP = [
     title: 'Команды: таверна',
     rows: [
       ['!drink', 'выпить эля'],
-      ['!кости 50', 'ставка в кости'],
-      ['!кости принять', 'сыграть'],
+      ['!к 50', 'ставка в кости'],
+      ['!к п', 'принять ставку'],
       ['!class', 'сменить класс'],
       ['!души', 'души и ачивки'],
     ],
@@ -628,13 +628,26 @@ class FameBoard {
     this.chatters = [];
   }
 
-  update(chatters, vote) {
+  update(chatters, vote, mapVote) {
     this.chatters = chatters;
     this.vote = vote;
+    this.mapVote = mapVote;
     this.render();
   }
 
   render() {
+    if (this.mapVote) {
+      // A vote for a new map: silence counts as yes, so only "no" is counted.
+      const v = this.mapVote;
+      this.show('Новая карта?', [
+        [`предлагает ${short(v.by)}`, ''],
+        [v.target ? `биом: ${v.target}` : 'биом: любой', ''],
+        ['!против', `${v.no}`],
+        ['молчание — «за»', ''],
+        ['осталось', `${Math.max(0, Math.ceil(v.left))} с`],
+      ]);
+      return;
+    }
     if (this.vote) {
       // A vote to lock someone up takes the board while it runs.
       const v = this.vote;

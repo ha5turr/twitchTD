@@ -37,7 +37,7 @@ func TestOnlyClassBuildingsReachArtifact(t *testing.T) {
 	for i := 0; i < 300 && mine.PendingCost > 0; i++ {
 		run(g, 0.1)
 	}
-	if mine.Level != 6 || !g.artifact(mine) || g.levelMult(mine) <= g.Cfg.Towers["arrow"].UpgMult*4 {
+	if mine.Level != 6 || !g.artifact(mine) || g.levelMult(mine) <= math.Pow(g.Cfg.Towers["arrow"].UpgMult, 4) {
 		t.Fatal("and grows stronger at the artifact level")
 	}
 }
@@ -148,11 +148,13 @@ func TestArtifactDrumsAndWall(t *testing.T) {
 
 func TestArtifactTotemObeliskShrineAltar(t *testing.T) {
 	g, _ := newTestGame(t)
-	g, totem := artGame(t, "shaman", "totem", freeCell(t, g))
-	totem.artCD = 0
-	g.tickArtifact(totem, g.Cfg.Towers["totem"], 0.1)
+	cell, _, i := pathNeighbours(t, g)
+	g, totem := artGame(t, "shaman", "totem", cell)
+	totem.cooldown = 1e9 // only the bolt
+	enemyAt(g, "skeleton", i, 1e6)
+	g.tickStrike(totem, g.Cfg.Towers["totem"], 0.1)
 	if len(g.storms) != 1 {
-		t.Fatal("an artifact totem lays a charge of lightning on the path")
+		t.Fatal("an artifact totem's bolt leaves a charge of lightning where it struck")
 	}
 	e := g.spawnEnemy("skeleton", 1000, 0)
 	e.Pos = g.storms[0].Pos

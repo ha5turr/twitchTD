@@ -48,7 +48,7 @@ func (g *Game) tickRogues(dt float64) {
 		if c.passiveCD == 0 { // a rogue just sat down: the first theft comes later
 			c.passiveCD = g.Cfg.RogueEverySec
 		}
-		c.passiveCD -= dt
+		c.passiveCD -= dt * g.skillHaste()
 		if c.passiveCD > 0 {
 			continue
 		}
@@ -88,8 +88,8 @@ func (g *Game) tickDruids(dt float64) {
 			if c.Class != "druid" {
 				continue
 			}
-			c.passiveCD -= dt
-			if c.passiveCD > 0 || len(g.Enemies) == 0 {
+			c.passiveCD -= dt * g.skillHaste()
+			if c.passiveCD > 0 || !g.skillsWorthIt() {
 				continue
 			}
 			c.passiveCD = g.Cfg.DruidEverySec
