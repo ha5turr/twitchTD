@@ -114,8 +114,8 @@ func TestBossTweaks(t *testing.T) {
 	k := g.spawnBoss("bone_knight", 1000)
 	k.shieldUp, k.ability = true, 0
 	g.tickBoss(k, 0.1)
-	if k.shieldUp || k.ability != 6 {
-		t.Fatalf("the bone knight's shield takes 6 s to come back: %.1f", k.ability)
+	if k.shieldUp || k.ability != 10 {
+		t.Fatalf("the bone knight's shield takes 10 s to come back: %.1f", k.ability)
 	}
 
 	g.Wave = 10
