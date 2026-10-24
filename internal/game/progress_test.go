@@ -29,7 +29,7 @@ func TestHelpCooldown(t *testing.T) {
 		t.Fatal("a minute of silence after an answer")
 	}
 	say("!помощь таверна")
-	if r := replies(g); len(r) != 1 || !strings.Contains(r[0], "!кости") {
+	if r := replies(g); len(r) != 1 || !strings.Contains(r[0], "!к 50") {
 		t.Fatalf("each topic has its own cooldown: %q", r)
 	}
 	say("!помощь клоун")

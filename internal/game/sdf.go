@@ -5,6 +5,12 @@ import (
 	"slices"
 )
 
+// sdfHaste is how much faster the guest walks: SdfHaste more for every 5th
+// wave, up to SdfHasteMax.
+func (g *Game) sdfHaste() float64 {
+	return 1 + math.Min(g.Cfg.SdfHasteMax, g.Cfg.SdfHaste*float64(g.Wave/5))
+}
+
 // ЭссДиЭф is a guest boss of any biome (SdfChance per boss wave) and is
 // unfair on purpose: very slow, a huge pool of hit points, and every few
 // seconds he stops to burp or fart (taking turns) and plays a random trick:

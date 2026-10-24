@@ -57,7 +57,7 @@ func (g *Game) stormGrowth() float64 {
 // tickSecond runs a class's second skill on its own timer, the first use
 // halfway through like every skill. fire reports whether it went off; if
 // not, it tries again in a few seconds.
-func (g *Game) tickSecond(c *Chatter, every, dt float64, fire func() bool) {
+func (g *Game) tickSecond(c *Chatter, every, dt float64, worth bool, fire func() bool) {
 	if every <= 0 {
 		return
 	}
@@ -65,7 +65,7 @@ func (g *Game) tickSecond(c *Chatter, every, dt float64, fire func() bool) {
 		c.skill2CD = every / 2
 	}
 	c.skill2CD -= dt
-	if c.skill2CD > 0 {
+	if c.skill2CD > 0 || !worth {
 		return
 	}
 	if fire() {

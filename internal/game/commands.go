@@ -85,7 +85,7 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
 	case "!link", "!привязать":
 		g.cmdLink(c, key)
-	case "!dice", "!кости":
+	case "!dice", "!кости", "!к":
 		g.cmdDice(c, key, args)
 	case "!class", "!класс":
 		g.cmdClass(c, args)
@@ -107,6 +107,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdDance(c, key)
 	case "!тюрьма", "!jail", "!посадить":
 		g.cmdJail(c, key, args)
+	case "!новаякарта", "!нк", "!newmap":
+		g.cmdNewMap(c, key, m.Mod || m.Broadcaster, args)
 	case "!за", "!yes":
 		g.cmdVote(c, key, true)
 	case "!против", "!no":
@@ -388,10 +390,7 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 	case "!tdnew":
 		biome := Biome("")
 		if len(args) > 0 {
-			biome = Biome(strings.ToLower(args[0]))
-			if b, ok := biomeAliases[string(biome)]; ok {
-				biome = b
-			}
+			biome, _ = parseBiome(args[0]) // an unknown one: random
 			if _, ok := profiles[biome]; !ok {
 				biome = ""
 			}
@@ -493,7 +492,7 @@ var gameCommands = map[string]bool{
 	"!repair": true, "!чинить": true, "!починить": true,
 	"!me": true, "!я": true,
 	"!стрелы": true, "!arrows": true, "!ammo": true,
-	"!dice": true, "!кости": true,
+	"!dice": true, "!кости": true, "!к": true,
 	"!class": true, "!класс": true,
 	"!drink": true, "!d": true, "!выпить": true, "!пить": true,
 	"!towers": true, "!башни": true,
@@ -501,6 +500,7 @@ var gameCommands = map[string]bool{
 	"!мемы": true, "!memes": true, "!link": true, "!привязать": true,
 	"!dance": true, "!танец": true, "!пляс": true, "!танцевать": true,
 	"!тюрьма": true, "!jail": true, "!посадить": true,
+	"!новаякарта": true, "!нк": true, "!newmap": true,
 }
 
 // join seats a chatter in the tavern for this session.

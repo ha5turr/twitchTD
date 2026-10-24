@@ -119,7 +119,8 @@ type Projectile struct {
 	Assist    []string // owners of the drums that sped this shot up
 	Crit      bool     // a ranger's critical hit
 	Poison    bool     // an artifact ballista's poison arrow
-	SlowHit   bool     // an artifact obelisk's empowered hit slows
+	SlowHit   bool     // the hit slows: a mage's obelisk, now and then
+	Arcane    bool     // an artifact obelisk's empowered hit
 	BurnStack bool     // an artifact brazier's burn stacks
 	SplashPct float64  // a blast arrow: share of the damage to those around the target
 }
@@ -337,6 +338,9 @@ func (g *Game) tickEnemies(dt float64) {
 			e.slowMult = 1
 		}
 		speed, blows := e.fury()
+		if e.Kind == sdfKind {
+			speed *= g.sdfHaste()
+		}
 		switch {
 		case e.AtGate && isGuest(e.Kind):
 			g.guestAtGate(e)
@@ -537,7 +541,7 @@ func (g *Game) tickTowers(dt float64) {
 		if spec.NetEvery > 0 {
 			g.tickNet(t, spec, dt)
 		}
-		if spec.StrikeEvery > 0 {
+		if spec.StrikeEvery > 0 && (!spec.StrikeArt || g.artifact(t)) {
 			g.tickStrike(t, spec, dt)
 		}
 		g.shoot(t, spec, dt)
@@ -590,6 +594,10 @@ func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
 		Splash: spec.Splash, BurnDPS: spec.BurnDPS * mult, BurnSec: spec.BurnSec,
 		Assist: g.drummers(t), Crit: crit,
 	}
+	if t.Kind == "magic" && g.classBonus(t.Owner, t.Kind) > 1 {
+		// A mage's obelisk slows now and then, more often the better it is.
+		p.SlowHit = g.rng.Float64() < g.Cfg.MageSlowBase+g.Cfg.MageSlowPerLevel*float64(t.Level-1)
+	}
 	g.arm(t, p)
 	g.Projectiles = append(g.Projectiles, p)
 }
@@ -640,7 +648,9 @@ func (g *Game) tickProjectiles(dt float64) {
 				if !g.Cfg.Enemies[target.Kind].SlowImmune {
 					target.slowMult, target.slowLeft = g.Cfg.MageArtSlow, g.Cfg.MageArtSlowSec
 				}
-				g.emit(Event{Kind: "arcane", X: target.Pos.X, Y: target.Pos.Y})
+				if p.Arcane {
+					g.emit(Event{Kind: "arcane", X: target.Pos.X, Y: target.Pos.Y})
+				}
 			}
 			g.damage(target, p.Damage, p.Owner, p.Magic)
 			if p.Crit {
@@ -836,8 +846,9 @@ func (g *Game) heal(e *Enemy, hp float64) {
 	e.HP = min(e.MaxHP, e.HP+hp)
 }
 
-// tickStrike lets a magic tower call lightning on the thickest crowd in its
-// range. The bolt comes more often and hits harder with every level.
+// tickStrike lets an artifact totem call lightning on the thickest crowd in
+// its range. The bolt comes more often and hits harder with every level,
+// and leaves a charge of lightning where it struck.
 func (g *Game) tickStrike(t *Tower, spec TowerSpec, dt float64) {
 	t.strikeCD -= dt
 	if t.strikeCD > 0 {
@@ -866,6 +877,9 @@ func (g *Game) tickStrike(t *Tower, spec TowerSpec, dt float64) {
 	t.strikeCD = spec.StrikeEvery / (1 + 0.25*float64(t.Level-1))
 	dmgAura, _ := g.auras(t)
 	dmg := spec.Damage * spec.StrikeDmg * g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * dmgAura * g.drinkMult(t)
+	if spec.Chain > 0 {
+		dmg *= g.stormGrowth()
+	}
 	p := at.Pos
 	g.assist = g.drummers(t)
 	for _, e := range g.Enemies {
@@ -875,6 +889,10 @@ func (g *Game) tickStrike(t *Tower, spec TowerSpec, dt float64) {
 	}
 	g.assist = nil
 	g.emit(Event{Kind: "lightning", X: p.X, Y: p.Y, Text: t.Owner})
+	if spec.StrikeArt {
+		g.storms = append(g.storms, &Storm{Pos: p, left: g.Cfg.StormSec})
+		g.emit(Event{Kind: "storm", X: p.X, Y: p.Y})
+	}
 }
 
 // tickNet lets a ballista throw a net at the enemy furthest along in range:

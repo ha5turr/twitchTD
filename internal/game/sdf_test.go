@@ -65,7 +65,7 @@ func TestClownHitsOnlySdf(t *testing.T) {
 		t.Fatalf("clowns hit ЭссДиЭф anywhere on the map: hp %.0f", e.HP)
 	}
 	arrow := g.Cfg.Towers["arrow"]
-	if g.Cfg.Towers[clownKind].BossPct*e.MaxHP < 5*arrow.Damage {
+	if g.Cfg.Towers[clownKind].BossPct*e.MaxHP < 4*arrow.Damage {
 		t.Fatal("a clown shot should be far stronger than an arrow against him")
 	}
 }

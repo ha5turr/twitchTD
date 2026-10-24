@@ -154,6 +154,8 @@ type Game struct {
 	afkCheck   float64              // seconds to the next AFK sweep
 	helpAt     map[string]time.Time // last !помощь answer per topic
 	jailVote   *JailVote            // the tavern voting to lock someone up
+	mapVote    *MapVote             // the tavern voting for a new map (newmap.go)
+	mapVoteAt  time.Time            // a failed vote: no new one until then
 	nextMeme   int
 }
 
@@ -214,7 +216,7 @@ func (g *Game) NewGame(biome Biome) {
 		g.refundDice(d)
 	}
 	g.Dice = nil
-	g.jailVote = nil
+	g.jailVote, g.mapVote = nil, nil
 	for _, c := range g.Chatters {
 		if !g.Cfg.KeepGold {
 			c.Gold = g.Cfg.StartGold
@@ -306,6 +308,7 @@ func (g *Game) Tick(dt float64) {
 	g.tickTreasury(dt)
 	g.tickDice(dt)
 	g.tickJail(dt)
+	g.tickMapVote(dt)
 	switch g.Phase {
 	case PhaseBuild:
 		g.Timer -= dt

@@ -64,7 +64,8 @@ type StateMsg struct {
 	Summary   *Summary       `json:"summary,omitempty"` // only on the game over screen
 	Dice      []DiceView     `json:"dice"`
 	JailVote  *JailVoteView  `json:"jailVote,omitempty"`
-	Memes     []*MemeRequest `json:"memes,omitempty"` // memecoin requests for the panel
+	MapVote   *JailVoteView  `json:"mapVote,omitempty"` // Target is the biome's name, "" for a random one
+	Memes     []*MemeRequest `json:"memes,omitempty"`   // memecoin requests for the panel
 	Panthers  []PantherView  `json:"panthers,omitempty"`
 	Runs      []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
 	Reward    float64        `json:"reward,omitempty"` // reward multiplier, above 1 after boss waves
@@ -207,6 +208,9 @@ func (g *Game) StateMessage() StateMsg {
 		s.Chatters = append(s.Chatters, ChatterView{
 			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(), c.musicLeft > 0, c.out > 0, int(math.Ceil(c.jailLeft)), c.ransom,
 		})
+	}
+	if v := g.mapVote; v != nil {
+		s.MapVote = &JailVoteView{biomeName(v.Biome), v.ByName, math.Ceil(v.left), len(v.yes), len(v.no)}
 	}
 	if v := g.jailVote; v != nil {
 		s.JailVote = &JailVoteView{v.TargetName, v.ByName, math.Ceil(v.left), len(v.yes), len(v.no)}
