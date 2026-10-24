@@ -51,12 +51,13 @@ type Chatter struct {
 	// The jail (jail.go): seconds left behind bars, the ransom that frees
 	// earlier, whether this game already locked him up once, and until when
 	// a failed vote shields him from the next one.
-	jailLeft   float64
-	jailedOnce bool
-	ransom     int
-	jailVoteAt time.Time
-	saidAt     time.Time // last !s line
-	dancedAt   time.Time // last dance on the table
+	jailLeft    float64
+	jailedOnce  bool
+	ransom      int
+	jailVoteAt  time.Time
+	saidAt      time.Time // last !s line
+	kickedUntil time.Time // thrown out of the tavern by a moderator: no way back till then
+	dancedAt    time.Time // last dance on the table
 
 	// Kept between games (progress.go).
 	Souls      int

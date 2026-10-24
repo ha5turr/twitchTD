@@ -2,8 +2,10 @@ package game
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ChatMessage is one line from chat (or the streamer panel).
@@ -59,6 +61,13 @@ func (g *Game) HandleChat(m ChatMessage) {
 		return
 	}
 	if gameCommands[cmd] && key != StreamerName {
+		if wait := c.kickedUntil.Sub(g.Now()); wait > 0 && !c.Joined {
+			if c.snored <= 0 {
+				c.snored = 20
+				g.reply(c.Name, fmt.Sprintf("тебя выставили из таверны, вернуться можно через %d мин", int(math.Ceil(wait.Minutes()))))
+			}
+			return
+		}
 		g.join(key, c, cmd)
 	}
 	switch cmd {
@@ -355,19 +364,51 @@ func (g *Game) cmdLeave(c *Chatter, key string) {
 	case g.busyAtDice(c, key):
 		return
 	}
-	towers := 0
+	towers, gold := g.leaveTavern(key, c)
+	g.reply(c.Name, fmt.Sprintf("ты покинул таверну: продано построек %d, %d золота ушло в казну. Вернуться: !play", towers, gold))
+}
+
+// leaveTavern takes a player out of the game: his buildings are sold, his
+// gold goes to the treasury.
+func (g *Game) leaveTavern(key string, c *Chatter) (towers, gold int) {
 	for _, t := range g.Towers {
 		if t.Owner == key {
 			g.sellTower(t, c.Name)
 			towers++
 		}
 	}
-	gold := c.Gold
+	gold = c.Gold
 	c.Gold, c.Grant = 0, 0
 	g.toTreasury(gold)
 	c.Joined, c.wasActive = false, false
 	g.emit(Event{Kind: "leave", User: c.Name, Amount: gold})
-	g.reply(c.Name, fmt.Sprintf("ты покинул таверну: продано построек %d, %d золота ушло в казну. Вернуться: !play", towers, gold))
+	return towers, gold
+}
+
+// cmdKick is the streamer's or a moderator's !tdkick nick: the player leaves
+// the tavern as with !leave, out of jail and away from the dice, and may
+// not come back for KickSec.
+func (g *Game) cmdKick(c *Chatter, args []string) {
+	if len(args) == 0 {
+		g.reply(c.Name, "кого выгнать? !tdkick ник")
+		return
+	}
+	key := strings.ToLower(strings.TrimPrefix(args[0], "@"))
+	t := g.Chatters[key]
+	if t == nil || !t.Joined || key == StreamerName {
+		g.reply(c.Name, "такого наёмника в таверне нет")
+		return
+	}
+	if d := g.atDice(key); d != nil {
+		g.endDice(d)
+		g.refundDice(d)
+		g.emit(Event{Kind: "diceCancel", User: d.HostName})
+	}
+	t.jailLeft = 0
+	towers, gold := g.leaveTavern(key, t)
+	t.kickedUntil = g.Now().Add(time.Duration(g.Cfg.KickSec * float64(time.Second)))
+	g.emit(Event{Kind: "kicked", User: t.Name})
+	g.reply("", fmt.Sprintf("%s выставлен из таверны: продано построек %d, %d золота ушло в казну. Вернуться можно через %d мин", t.Name, towers, gold, int(g.Cfg.KickSec/60)))
 }
 
 // cmdAdmin handles !td* commands for the streamer and moderators.
@@ -428,6 +469,8 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 				g.spawnEnemy(args[0], hp*spec.HPMult, 0.4*float64(i))
 			}
 		}
+	case "!tdkick", "!tdвыгнать": // throw a player out of the tavern
+		g.cmdKick(c, args)
 	case "!tdfree", "!tdосвободить": // let an inmate out of the jail
 		g.cmdFree(c, args)
 	case "!tdban", "!tdunban": // forbid or allow building for a chatter

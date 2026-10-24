@@ -200,12 +200,13 @@ type Config struct {
 	DanceCdSec     float64 `json:"danceCdSec"`     // and comes again after this long
 	JailVoteSec    float64 `json:"jailVoteSec"`    // a vote to lock someone up runs this long
 	NewMapVoteSec  float64 `json:"newMapVoteSec"`  // a vote for a new map runs this long
+	KickSec        float64 `json:"kickSec"`        // a player thrown out by !tdkick may not come back for this long
 	NewMapRetrySec float64 `json:"newMapRetrySec"` // after a failed one, the next waits this long
 	JailMinYes     int     `json:"jailMinYes"`     // and needs this many for, and more for than against
 	JailRetrySec   float64 `json:"jailRetrySec"`   // a player spared by a vote is safe from the next for this long
 	JailSec        float64 `json:"jailSec"`        // the term behind bars
-	JailRansomPct  float64 `json:"jailRansomPct"`  // ransom as a share of the wallet and the buildings
-	JailRansomMin  int     `json:"jailRansomMin"`  // at least this; at most half a wallet
+	JailRansomPct  float64 `json:"jailRansomPct"`  // ransom of one who built nothing: this share of the others' median investment
+	JailRansomMin  int     `json:"jailRansomMin"`  // ransom of one who built his share; at most half a wallet either way
 
 	DiceTables   int     `json:"diceTables"`   // games of dice that can run at once
 	DiceMinStake int     `json:"diceMinStake"` // smallest stake in gold
@@ -526,11 +527,12 @@ func DefaultConfig() Config {
 		DanceCdSec:       60,
 		JailVoteSec:      45,
 		NewMapVoteSec:    30,
+		KickSec:          600,
 		NewMapRetrySec:   180,
 		JailMinYes:       2,
 		JailRetrySec:     300,
 		JailSec:          180,
-		JailRansomPct:    0.15,
+		JailRansomPct:    0.5,
 		JailRansomMin:    30,
 		DiceMinStake:     10,
 		DiceWaitSec:      120,
