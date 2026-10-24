@@ -149,7 +149,6 @@ type Config struct {
 	WallShoveEvery   float64 `json:"wallShoveEvery"`  // an artifact barricade shoves its attackers a cell back
 	WallSpikeDPS     float64 `json:"wallSpikeDps"`    // its spikes, share of the wave's base HP per second
 	TotemArtFalloff  float64 `json:"totemArtFalloff"` // an artifact totem's chain keeps this much per jump
-	StormEvery       float64 `json:"stormEvery"`      // it lays a charge of lightning on the path
 	StormSec         float64 `json:"stormSec"`
 	StormSlow        float64 `json:"stormSlow"` // speed multiplier inside it
 	StormRadius      float64 `json:"stormRadius"`
@@ -157,8 +156,13 @@ type Config struct {
 	MageArtMult      float64 `json:"mageArtMult"`
 	MageArtSlow      float64 `json:"mageArtSlow"`
 	MageArtSlowSec   float64 `json:"mageArtSlowSec"`
-	ShrineShieldPct  float64 `json:"shrineShieldPct"` // each artifact shrine shields the walls with this share of their strength
-	SoulLinkDmg      float64 `json:"soulLinkDmg"`     // crossing a soul link: share of the wave's base HP
+	MageSlowBase     float64 `json:"mageSlowBase"`     // a mage's obelisk: chance of a slowing shot at level 1
+	MageSlowPerLevel float64 `json:"mageSlowPerLevel"` // and more with every level
+	DrumArtHaste     float64 `json:"drumArtHaste"`     // every artifact drum on the map cuts all class skills' cooldowns by this share
+	DrumArtHasteMax  float64 `json:"drumArtHasteMax"`  // up to this much
+	SkillMinEnemies  int     `json:"skillMinEnemies"`  // a ready class skill waits for this many enemies (or the wave's last ones)
+	ShrineShieldPct  float64 `json:"shrineShieldPct"`  // each artifact shrine shields the walls with this share of their strength
+	SoulLinkDmg      float64 `json:"soulLinkDmg"`      // crossing a soul link: share of the wave's base HP
 	SoulLinkSlow     float64 `json:"soulLinkSlow"`
 	SoulLinkSlowSec  float64 `json:"soulLinkSlowSec"`
 	SoulLinkWidth    float64 `json:"soulLinkWidth"`
@@ -191,15 +195,17 @@ type Config struct {
 	PassOutSec    float64              `json:"passOutSec"`    // and ignores his owner's commands this long
 
 	// The tavern's emotes and the jail (jail.go).
-	SayCdSec      float64 `json:"sayCdSec"`      // a player's lines over the head at most this often
-	DanceSec      float64 `json:"danceSec"`      // a dance on the table lasts this long
-	DanceCdSec    float64 `json:"danceCdSec"`    // and comes again after this long
-	JailVoteSec   float64 `json:"jailVoteSec"`   // a vote to lock someone up runs this long
-	JailMinYes    int     `json:"jailMinYes"`    // and needs this many for, and more for than against
-	JailRetrySec  float64 `json:"jailRetrySec"`  // a player spared by a vote is safe from the next for this long
-	JailSec       float64 `json:"jailSec"`       // the term behind bars
-	JailRansomPct float64 `json:"jailRansomPct"` // ransom as a share of the wallet and the buildings
-	JailRansomMin int     `json:"jailRansomMin"` // at least this; at most half a wallet
+	SayCdSec       float64 `json:"sayCdSec"`       // a player's lines over the head at most this often
+	DanceSec       float64 `json:"danceSec"`       // a dance on the table lasts this long
+	DanceCdSec     float64 `json:"danceCdSec"`     // and comes again after this long
+	JailVoteSec    float64 `json:"jailVoteSec"`    // a vote to lock someone up runs this long
+	NewMapVoteSec  float64 `json:"newMapVoteSec"`  // a vote for a new map runs this long
+	NewMapRetrySec float64 `json:"newMapRetrySec"` // after a failed one, the next waits this long
+	JailMinYes     int     `json:"jailMinYes"`     // and needs this many for, and more for than against
+	JailRetrySec   float64 `json:"jailRetrySec"`   // a player spared by a vote is safe from the next for this long
+	JailSec        float64 `json:"jailSec"`        // the term behind bars
+	JailRansomPct  float64 `json:"jailRansomPct"`  // ransom as a share of the wallet and the buildings
+	JailRansomMin  int     `json:"jailRansomMin"`  // at least this; at most half a wallet
 
 	DiceTables   int     `json:"diceTables"`   // games of dice that can run at once
 	DiceMinStake int     `json:"diceMinStake"` // smallest stake in gold
@@ -240,6 +246,8 @@ type Config struct {
 	EventChance   float64 `json:"eventChance"`   // chance an ordinary wave brings a guest (tax collector or golden golem)
 	EventFromWave int     `json:"eventFromWave"` // not before this wave
 	SdfFromWave   int     `json:"sdfFromWave"`
+	SdfHaste      float64 `json:"sdfHaste"`    // the guest walks this much faster for every 5th wave
+	SdfHasteMax   float64 `json:"sdfHasteMax"` // up to this much
 
 	Enemies map[string]EnemySpec `json:"enemies"`
 	Towers  map[string]TowerSpec `json:"towers"`
@@ -302,6 +310,7 @@ type TowerSpec struct {
 	StrikeEvery  float64 `json:"strikeEvery"`
 	StrikeDmg    float64 `json:"strikeDmg"`
 	StrikeRadius float64 `json:"strikeRadius"`
+	StrikeArt    bool    `json:"strikeArt,omitempty"` // the bolt comes only at the artifact level, and leaves a lightning charge
 	// Nets (ballista): every NetEvery seconds, more often with each level, a
 	// net holds every enemy within NetRadius of one in range for NetSec,
 	// without damage.
@@ -381,7 +390,7 @@ func DefaultConfig() Config {
 		MaxOrders:            3,
 		StunRadius:           0.45,
 		StunRestSec:          2,
-		ClassBonus:           0.2,
+		ClassBonus:           0.3,
 		ShrineLimit:          2,
 		ShrineLimitCleric:    4,
 		ShrineAssistPct:      0.5,
@@ -426,8 +435,8 @@ func DefaultConfig() Config {
 		PillarStunSec:        2,
 		PillarRadius:         0.7,
 		PyroEverySec:         75,
-		PathFireDmg:          0.25,
-		PathFireBurn:         0.04,
+		PathFireDmg:          0.35,
+		PathFireBurn:         0.055,
 		PathFireBurnSec:      4,
 		BossNetImmuneSec:     6,
 		RangerEverySec:       30,
@@ -467,7 +476,6 @@ func DefaultConfig() Config {
 		WallShoveEvery:       8,
 		WallSpikeDPS:         0.04,
 		TotemArtFalloff:      0.95,
-		StormEvery:           30,
 		StormSec:             20,
 		StormSlow:            0.8,
 		StormRadius:          0.55,
@@ -475,6 +483,11 @@ func DefaultConfig() Config {
 		MageArtMult:          1.5,
 		MageArtSlow:          0.5,
 		MageArtSlowSec:       2,
+		MageSlowBase:         0.10,
+		MageSlowPerLevel:     0.05,
+		DrumArtHaste:         0.05,
+		DrumArtHasteMax:      0.4,
+		SkillMinEnemies:      3,
 		ShrineShieldPct:      0.1,
 		SoulLinkDmg:          0.4,
 		SoulLinkSlow:         0.8,
@@ -512,6 +525,8 @@ func DefaultConfig() Config {
 		DanceSec:         6,
 		DanceCdSec:       60,
 		JailVoteSec:      45,
+		NewMapVoteSec:    30,
+		NewMapRetrySec:   180,
 		JailMinYes:       2,
 		JailRetrySec:     300,
 		JailSec:          180,
@@ -549,6 +564,8 @@ func DefaultConfig() Config {
 		EnemyRegen:         0.002,
 		SdfChance:          0.2,
 		SdfFromWave:        10,
+		SdfHaste:           0.1,
+		SdfHasteMax:        1,
 		PathCurve:          0.5,
 		EventChance:        0.15,
 		EventFromWave:      3,
@@ -587,16 +604,17 @@ func DefaultConfig() Config {
 			"sdf": {Name: "ЭссДиЭф", HPMult: 15, Speed: 0.22, Armor: 0.3, WallDPS: 150, Bounty: 300, SlowImmune: true, Boss: true},
 		},
 		Towers: map[string]TowerSpec{
-			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 50, Damage: 10, Range: 2.6, Rate: 1.4, ProjSpd: 10, NetEvery: 20, NetSec: 2, NetRadius: 0.7, UpgMult: 1.45, MaxLevel: 5},
-			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 80, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, StrikeEvery: 8, StrikeDmg: 1.5, StrikeRadius: 1, UpgMult: 1.45, MaxLevel: 5},
-			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 90, Damage: 14, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 5, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
-			"shrine": {Name: "Святилище", Role: RoleAura, Cost: 100, AuraRange: 1.6, AuraDmg: 0.15, WallHeal: 1.5, UpgMult: 1.5, MaxLevel: 5},
-			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 40, Damage: 30, Slow: 0.5, SlowSec: 2, Charges: 9, UpgMult: 1.55, MaxLevel: 5},
-			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 90, AuraRange: 3, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
-			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 60, HP: 250, UpgMult: 1.5, MaxLevel: 5},
+			"arrow":  {Name: "Пост лучников", Role: RoleShooter, Cost: 60, Damage: 12, Range: 2.6, Rate: 1.4, ProjSpd: 10, NetEvery: 20, NetSec: 2, NetRadius: 0.7, UpgMult: 1.40, MaxLevel: 5},
+			"magic":  {Name: "Тёмный обелиск", Role: RoleShooter, Cost: 70, Damage: 22, Range: 2.2, Rate: 0.6, ProjSpd: 7, Magic: true, UpgMult: 1.45, MaxLevel: 5},
+			"fire":   {Name: "Жаровня", Role: RoleShooter, Cost: 70, Damage: 14, Range: 2.0, Rate: 0.7, ProjSpd: 6, Splash: 0.9, BurnDPS: 5, BurnSec: 3, UpgMult: 1.45, MaxLevel: 5},
+			"shrine": {Name: "Святилище", Role: RoleAura, Cost: 75, AuraRange: 1.6, AuraDmg: 0.15, WallHeal: 1.5, UpgMult: 1.5, MaxLevel: 5},
+			"trap":   {Name: "Капканы", Role: RoleTrap, Cost: 50, Damage: 30, Slow: 0.5, SlowSec: 2, Charges: 9, UpgMult: 1.55, MaxLevel: 5},
+			"drums":  {Name: "Барабаны войны", Role: RoleAura, Cost: 70, AuraRange: 3, AuraRate: 0.2, UpgMult: 1.5, MaxLevel: 5},
+			"wall":   {Name: "Баррикада", Role: RoleWall, Cost: 55, HP: 250, UpgMult: 1.5, MaxLevel: 5},
 			// The only real answer to ЭссДиЭф: shoots him anywhere on the map.
-			"curse": {Name: "Алтарь проклятий", Role: RoleCurse, Cost: 90, Range: 2.6, CurseEvery: 4, CurseSec: 6, CurseAmp: 0.25, UpgMult: 1.25, MaxLevel: 5},
-			"totem": {Name: "Тотем грозы", Role: RoleShooter, Cost: 85, Damage: 10, Range: 2.4, Rate: 0.8, Magic: true, Chain: 3, ChainRange: 1.6, ChainFalloff: 0.75, UpgMult: 1.52, MaxLevel: 5},
+			"curse": {Name: "Алтарь проклятий", Role: RoleCurse, Cost: 70, Range: 2.6, CurseEvery: 4, CurseSec: 6, CurseAmp: 0.25, UpgMult: 1.25, MaxLevel: 5},
+			"totem": {Name: "Тотем грозы", Role: RoleShooter, Cost: 70, Damage: 12, Range: 2.4, Rate: 0.8, Magic: true, Chain: 3, ChainRange: 1.6, ChainFalloff: 0.75,
+				StrikeEvery: 8, StrikeDmg: 2.5, StrikeRadius: 1, StrikeArt: true, UpgMult: 1.48, MaxLevel: 5},
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
 		WebcamFrom: "N1",

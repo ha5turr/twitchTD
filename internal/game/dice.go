@@ -62,7 +62,7 @@ func (g *Game) freeDiceTable() int {
 	return -1
 }
 
-var diceHelp = "кости: !кости 100 — сесть со ставкой, !кости принять [@ник], !кости перебить 150 [@ник], !кости отмена"
+var diceHelp = "кости (коротко !к): !к 100 — сесть со ставкой, !к п [@ник] — принять, !к пб 150 [@ник] — перебить, !к о — встать из-за стола"
 
 func (g *Game) cmdDice(c *Chatter, key string, args []string) {
 	if len(args) == 0 {
@@ -70,11 +70,11 @@ func (g *Game) cmdDice(c *Chatter, key string, args []string) {
 		return
 	}
 	switch strings.ToLower(args[0]) {
-	case "отмена", "cancel", "отменить":
+	case "отмена", "cancel", "отменить", "о", "отм":
 		g.diceCancel(c, key)
-	case "принять", "accept", "да":
+	case "принять", "accept", "да", "п", "пр":
 		g.diceJoin(c, key, args[1:], 0)
-	case "перебить", "raise":
+	case "перебить", "raise", "пб", "пер":
 		if len(args) < 2 {
 			g.reply(c.Name, "формат: !кости перебить 150 [@ник]")
 			return

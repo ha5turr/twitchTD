@@ -54,18 +54,20 @@ func (g *Game) tickHeroes(dt float64) {
 		c.musicLeft = max(0, c.musicLeft-dt)
 	}
 	if g.Phase == PhaseWave && len(g.Enemies) > 0 {
+		worth := g.skillsWorthIt()
+		dt := dt * g.skillHaste()
 		for _, key := range g.tavernMates() {
 			c := g.Chatters[key]
 			// Second skills keep their own time.
 			switch c.Class {
 			case "warlock":
-				g.tickSecond(c, g.Cfg.PactEverySec, dt, func() bool { return g.bloodPact(c) })
+				g.tickSecond(c, g.Cfg.PactEverySec, dt, worth, func() bool { return g.bloodPact(c) })
 			case "pyro":
-				g.tickSecond(c, g.Cfg.PyroGateEverySec, dt, func() bool { return g.manGate(key, c) })
+				g.tickSecond(c, g.Cfg.PyroGateEverySec, dt, worth, func() bool { return g.manGate(key, c) })
 			case "mage":
-				g.tickSecond(c, g.Cfg.MageFeastEverySec, dt, func() bool { return g.feast(c) })
+				g.tickSecond(c, g.Cfg.MageFeastEverySec, dt, worth, func() bool { return g.feast(c) })
 			case "shaman":
-				g.tickSecond(c, g.Cfg.ShamanWolfEverySec, dt, func() bool { return g.spiritWolves(key, c) })
+				g.tickSecond(c, g.Cfg.ShamanWolfEverySec, dt, worth, func() bool { return g.spiritWolves(key, c) })
 			}
 			every := map[string]float64{
 				"warrior": g.Cfg.WarriorEverySec, "mage": g.Cfg.MageEverySec,
@@ -80,8 +82,8 @@ func (g *Game) tickHeroes(dt float64) {
 				c.skillCD = every / 2
 			}
 			c.skillCD -= dt
-			if c.skillCD > 0 {
-				continue
+			if c.skillCD > 0 || !worth {
+				continue // a ready skill waits for enemies worth it
 			}
 			c.skillCD = every
 			switch c.Class {
@@ -113,6 +115,31 @@ func (g *Game) tickHeroes(dt float64) {
 	g.pactLeft = max(0, g.pactLeft-dt)
 	g.tickRuns(dt)
 	g.tickMeteors(dt)
+}
+
+// skillsWorthIt reports whether a ready class skill should go off now: not
+// on the first enemies trickling in at the start of a wave, but once a few
+// are on the field or the wave's last ones are out.
+func (g *Game) skillsWorthIt() bool {
+	alive := 0
+	for _, e := range g.Enemies {
+		if !e.dead {
+			alive++
+		}
+	}
+	return alive >= g.Cfg.SkillMinEnemies || len(g.queue) == 0 && alive > 0
+}
+
+// skillHaste is how much faster class skills recharge: every artifact drum
+// on the map cuts their cooldowns by DrumArtHaste, up to DrumArtHasteMax.
+func (g *Game) skillHaste() float64 {
+	n := 0
+	for _, t := range g.Towers {
+		if t.Kind == "drums" && t.Built && g.artifact(t) {
+			n++
+		}
+	}
+	return 1 / (1 - math.Min(g.Cfg.DrumArtHasteMax, g.Cfg.DrumArtHaste*float64(n)))
 }
 
 // tickRuns moves charging warriors and ends shadow-steps.
