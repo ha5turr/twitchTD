@@ -70,6 +70,20 @@ func (g *Game) serve(key string, c *Chatter, kind string) string {
 	return effect
 }
 
+// drunkStatus tells !me how drunk the mercenary is.
+func (g *Game) drunkStatus(c *Chatter) string {
+	mugs := int(math.Ceil(c.Drunk))
+	switch {
+	case c.out > 0:
+		return fmt.Sprintf("храпит под столом ещё %d с", int(math.Ceil(c.out)))
+	case mugs == 0:
+		return "трезв"
+	case g.Cfg.PassOutMugs > 0:
+		return fmt.Sprintf("пьян: %d из %d кружек до отключки", mugs, int(g.Cfg.PassOutMugs))
+	}
+	return fmt.Sprintf("пьян: %d кружек", mugs)
+}
+
 // passOut puts an overdrunk mercenary under the table: he hears no
 // commands until he sleeps it off.
 func (g *Game) passOut(key string, c *Chatter) {
