@@ -224,6 +224,20 @@ type Storm struct {
 	left float64
 }
 
+// layStorm leaves a lightning charge where a bolt struck. A bolt near a
+// charge still crackling recharges that one instead, so a totem striking the
+// same crowd keeps one charge there rather than piling them up.
+func (g *Game) layStorm(p vec) {
+	for _, s := range g.storms {
+		if s.Pos.sub(p).len() < 2*g.Cfg.StormRadius {
+			s.left = g.Cfg.StormSec
+			return
+		}
+	}
+	g.storms = append(g.storms, &Storm{Pos: p, left: g.Cfg.StormSec})
+	g.emit(Event{Kind: "storm", X: p.X, Y: p.Y})
+}
+
 // tickStorms slows whoever walks through a lightning charge.
 func (g *Game) tickStorms(dt float64) {
 	alive := g.storms[:0]

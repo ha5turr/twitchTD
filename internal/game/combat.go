@@ -788,8 +788,9 @@ func (g *Game) payAssists(killer string, e *Enemy) {
 	for _, key := range slices.Sorted(maps.Keys(pct)) {
 		share := int(math.Round(bounty * pct[key]))
 		if c := g.Chatters[key]; c != nil && key != killer && key != StreamerName && share > 0 {
-			got := g.addGold(c, share)
-			g.emit(Event{Kind: "assist", User: c.Name, X: e.Pos.X, Y: e.Pos.Y, Amount: got})
+			if got := g.addGold(c, share); got > 0 { // a full wallet takes nothing
+				g.emit(Event{Kind: "assist", User: c.Name, X: e.Pos.X, Y: e.Pos.Y, Amount: got})
+			}
 		}
 	}
 }
@@ -902,8 +903,7 @@ func (g *Game) tickStrike(t *Tower, spec TowerSpec, dt float64) {
 	g.assist = nil
 	g.emit(Event{Kind: "lightning", X: p.X, Y: p.Y, Text: t.Owner})
 	if spec.StrikeArt {
-		g.storms = append(g.storms, &Storm{Pos: p, left: g.Cfg.StormSec})
-		g.emit(Event{Kind: "storm", X: p.X, Y: p.Y})
+		g.layStorm(p)
 	}
 }
 
