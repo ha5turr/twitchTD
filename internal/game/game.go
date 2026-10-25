@@ -79,14 +79,15 @@ type Chatter struct {
 
 // Event is a one-off happening the overlay animates (floating text, sounds).
 type Event struct {
-	Kind   string  `json:"kind"`
-	User   string  `json:"user,omitempty"`
-	Text   string  `json:"text,omitempty"`
-	X      float64 `json:"x,omitempty"`
-	Y      float64 `json:"y,omitempty"`
-	Amount int     `json:"amount,omitempty"`
-	X2     float64 `json:"x2,omitempty"` // the far end of a beam (zap, curse)
-	Y2     float64 `json:"y2,omitempty"`
+	Kind   string            `json:"kind"`
+	User   string            `json:"user,omitempty"`
+	Text   string            `json:"text,omitempty"`
+	Emotes map[string]string `json:"emotes,omitempty"` // a !s line's emotes: name -> image URL
+	X      float64           `json:"x,omitempty"`
+	Y      float64           `json:"y,omitempty"`
+	Amount int               `json:"amount,omitempty"`
+	X2     float64           `json:"x2,omitempty"` // the far end of a beam (zap, curse)
+	Y2     float64           `json:"y2,omitempty"`
 }
 
 type spawn struct {

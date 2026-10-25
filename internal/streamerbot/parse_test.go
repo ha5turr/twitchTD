@@ -68,3 +68,21 @@ func TestParseSupportEvents(t *testing.T) {
 		t.Fatal("gift sub")
 	}
 }
+
+func TestParseChatEmotes(t *testing.T) {
+	data := []byte(`{"user":{"login":"vasya","name":"Вася"},"text":"!s KEKW hi catJAM",
+		"emotes":[{"type":"Twitch","name":"KEKW","startIndex":3,"endIndex":6,"imageUrl":"https://static-cdn.jtvnw.net/emoticons/v2/1/default/dark/2.0"}],
+		"parts":[{"type":"text","text":"!s "},{"type":"emote","text":"catJAM","source":"SevenTV","imageUrl":"https://cdn.7tv.app/emote/x/2x.webp"},
+			{"type":"emote","text":"evil","imageUrl":"javascript:alert(1)"}]}`)
+	c, ok := ParseChat(data)
+	if !ok || c.Emotes["KEKW"] == "" || c.Emotes["catJAM"] != "https://cdn.7tv.app/emote/x/2x.webp" {
+		t.Fatalf("emotes come from both the list and the parts: %+v", c.Emotes)
+	}
+	if _, bad := c.Emotes["evil"]; bad {
+		t.Fatal("only https images pass")
+	}
+	legacy := []byte(`{"message":{"username":"vasya","displayName":"Вася","message":"!s Kappa","emotes":[{"name":"Kappa","imageUrl":"https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/2.0"}]}}`)
+	if c, _ := ParseChat(legacy); c.Emotes["Kappa"] == "" {
+		t.Fatal("and from the older payload")
+	}
+}

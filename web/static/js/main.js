@@ -8,6 +8,8 @@ import { connect } from './net.js';
 import { Sound, EVENT_SOUNDS } from './audio.js';
 import { Particles } from './particles.js';
 import { loadTileset } from './tileset.js';
+import { Bubbles } from './bubbles.js';
+import { loadEmotes } from './emotes.js';
 
 const { Application, Container } = PIXI;
 
@@ -39,7 +41,9 @@ async function start() {
   ui.addChild(buildLabels(), fx.g, ents.labels, tavern.ui, hud.ui);
   app.stage.addChild(world, lighting.sprite, ui);
 
-  window.td = { app, hud, ents, tavern, lighting }; // for poking at the overlay from devtools
+  const bubbles = new Bubbles(app.canvas);
+  tavern.bubbles = ents.bubbles = bubbles;
+  window.td = { app, hud, ents, tavern, lighting, bubbles }; // for poking at the overlay from devtools
   const sound = new Sound();
   window.td.sound = sound;
   let bossAlive = false;
@@ -54,6 +58,7 @@ async function start() {
       tavern.setMap(m);
       lighting.setMap(m, BIOMES[m.biome] ?? BIOMES.ruins);
       sound.setBiome(m.biome);
+      loadEmotes(m.channel);
     },
     state(s) {
       ents.update(s);
@@ -93,6 +98,7 @@ async function start() {
     hud.frame(dt);
     tavern.frame(dt);
     fx.frame(dt);
+    bubbles.frame(dt);
     lighting.alarm += ((bossAlive ? 0.55 : 0) - lighting.alarm) * Math.min(1, dt * 2);
     lighting.render(dt, [...ents.lights(), ...hud.lights()]);
   });

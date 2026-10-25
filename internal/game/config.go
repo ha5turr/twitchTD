@@ -38,9 +38,13 @@ type Config struct {
 	// StreamerPlays makes the broadcaster's own chat lines play by the
 	// viewers' rules (gold, limits, a mercenary in the tavern). The panel
 	// keeps its free, instant building either way.
-	StreamerPlays  bool `json:"streamerPlays"`
-	SellRefundPct  int  `json:"sellRefundPct"`
-	ActiveWindowMn int  `json:"activeWindowMin"`
+	StreamerPlays bool `json:"streamerPlays"`
+	// TwitchChannelID, the channel's numeric Twitch ID, lets the overlay load
+	// its 7TV, BTTV and FFZ emotes itself for !s lines, on top of those
+	// Streamer.bot resolves.
+	TwitchChannelID string `json:"twitchChannelId,omitempty"`
+	SellRefundPct   int    `json:"sellRefundPct"`
+	ActiveWindowMn  int    `json:"activeWindowMin"`
 
 	ChatGold        int     `json:"chatGold"`
 	ChatCooldownSec float64 `json:"chatCooldownSec"`

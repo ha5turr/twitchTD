@@ -1,6 +1,6 @@
 // Dynamic entities. The server sends positions 20 times a second; sprites
 // glide toward the latest position so motion stays smooth at 60 fps.
-import { CELL, LEFT, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
+import { W, CELL, LEFT, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
 import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
 import { hasTileset, sprite, frames, texture } from './tileset.js';
@@ -50,7 +50,7 @@ export class Entities {
     // not at the gate, even while enemies batter the gate till the wave ends.
     const workers = (state.workers ?? []).filter((w) => w.state !== 'rest').map((w) => ({ ...w, id: w.name }));
     sync(this.workers, workers, (w) => new WorkerView(w, this), (v, w) => v.set(w));
-    for (const ev of state.events ?? []) if (ev.kind === 'say') this.workers.get(ev.user)?.say(ev.text);
+    for (const ev of state.events ?? []) if (ev.kind === 'say' && this.workers.has(ev.user)) this.bubbles?.show(`field:${ev.user}`, ev.text, ev.emotes, 5);
     const panthers = (state.panthers ?? []).map((p) => ({ ...p, id: p.name }));
     sync(this.panthers, panthers, (p) => new PantherView(p, this), (v, p) => v.set(p));
     // Two wolves share their shaman's name: key by name, kind and order.
@@ -498,10 +498,9 @@ class WorkerView {
       style: { fontFamily: FONT_UI, fontSize: 16, fontWeight: '700', fill: color, stroke: { color: 0x000000, width: 4 } },
     });
     this.name.anchor.set(0.5, 1);
-    this.said = new Text({ text: '', style: { fontFamily: FONT_UI, fontSize: 15, fontWeight: '700', fill: 0xfff1c2, stroke: { color: 0x000000, width: 4 } } });
-    this.said.anchor.set(0.5, 1);
-    this.saidLeft = 0;
-    layer.labels.addChild(this.name, this.stars, this.said);
+    this.layer = layer;
+    this.bubbleId = `field:${w.name}`;
+    layer.labels.addChild(this.name, this.stars);
 
     const p = toPx(w.x, w.y);
     this.root.position.set(p.x, p.y);
@@ -537,21 +536,14 @@ class WorkerView {
     this.stars.position.set(r.x, r.y - this.height - 24);
     this.stars.rotation = Math.sin(this.t * 6) * 0.3;
     this.name.position.set(r.x, r.y - this.height - 2);
-    this.saidLeft = Math.max(0, this.saidLeft - dt);
-    this.said.visible = this.saidLeft > 0;
-    this.said.position.set(r.x, r.y - this.height - 20);
-  }
-
-  say(text) {
-    this.said.text = text;
-    this.saidLeft = 5;
+    this.layer.bubbles?.place(this.bubbleId, r.x, r.y - this.height - 22, LEFT, W);
   }
 
   destroy() {
     this.root.destroy({ children: true });
+    this.layer.bubbles?.hide(this.bubbleId);
     this.name.destroy();
     this.stars.destroy();
-    this.said.destroy();
   }
 }
 

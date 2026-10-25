@@ -1,6 +1,9 @@
 package streamerbot
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // Streamer.bot changed the Twitch payloads between versions, so both shapes
 // are accepted:
@@ -15,14 +18,54 @@ type chatPayload struct {
 	} `json:"user"`
 	Text    string          `json:"text"`
 	Message json.RawMessage `json:"message"`
+	Emotes  []emote         `json:"emotes"`
+	Parts   []part          `json:"parts"`
 }
 
 type legacyMessage struct {
-	Username    string `json:"username"`
-	DisplayName string `json:"displayName"`
-	Role        int    `json:"role"`
-	Message     string `json:"message"`
-	Internal    bool   `json:"internal"`
+	Username    string  `json:"username"`
+	DisplayName string  `json:"displayName"`
+	Role        int     `json:"role"`
+	Message     string  `json:"message"`
+	Internal    bool    `json:"internal"`
+	Emotes      []emote `json:"emotes"`
+}
+
+// emote is an emote in a chat line: Twitch's own, and BTTV, FFZ or 7TV ones
+// when Streamer.bot has those enabled.
+type emote struct {
+	Name     string `json:"name"`
+	ImageURL string `json:"imageUrl"`
+}
+
+// part is a piece of a 1.x chat line; emote parts carry their image.
+type part struct {
+	Type     string `json:"type"`
+	Text     string `json:"text"`
+	ImageURL string `json:"imageUrl"`
+}
+
+// emoteMap gathers the emotes of a line by name. Only https images pass, so
+// a line cannot point the overlay anywhere else.
+func emoteMap(es []emote, ps []part) map[string]string {
+	m := map[string]string{}
+	add := func(name, url string) {
+		if name != "" && strings.HasPrefix(url, "https://") {
+			m[name] = url
+		}
+	}
+	for _, e := range es {
+		add(e.Name, e.ImageURL)
+	}
+	for _, p := range ps {
+		if strings.EqualFold(p.Type, "emote") {
+			add(p.Text, p.ImageURL)
+		}
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
 }
 
 func ParseChat(data []byte) (Chat, bool) {
@@ -35,11 +78,11 @@ func ParseChat(data []byte) (Chat, bool) {
 		if text == "" {
 			_ = json.Unmarshal(p.Message, &text) // "message" as a plain string
 		}
-		return Chat{Login: p.User.Login, Name: p.User.Name, Text: text, Role: p.User.Role}, text != ""
+		return Chat{Login: p.User.Login, Name: p.User.Name, Text: text, Role: p.User.Role, Emotes: emoteMap(p.Emotes, p.Parts)}, text != ""
 	}
 	var m legacyMessage
 	if len(p.Message) > 0 && json.Unmarshal(p.Message, &m) == nil && m.Username != "" && !m.Internal {
-		return Chat{Login: m.Username, Name: m.DisplayName, Text: m.Message, Role: m.Role}, m.Message != ""
+		return Chat{Login: m.Username, Name: m.DisplayName, Text: m.Message, Role: m.Role, Emotes: emoteMap(m.Emotes, nil)}, m.Message != ""
 	}
 	return Chat{}, false
 }
@@ -56,11 +99,11 @@ type eventPayload struct {
 		ID    string `json:"id"`
 		Title string `json:"title"`
 	} `json:"reward"`
-	ID           string `json:"id"` // the redemption itself
-	RewardID     string `json:"rewardId"`
-	RedemptionID string `json:"redemptionId"`
-	Bits    int             `json:"bits"`
-	Message json.RawMessage `json:"message"`
+	ID           string          `json:"id"` // the redemption itself
+	RewardID     string          `json:"rewardId"`
+	RedemptionID string          `json:"redemptionId"`
+	Bits         int             `json:"bits"`
+	Message      json.RawMessage `json:"message"`
 
 	UserName             string `json:"userName"`
 	DisplayName          string `json:"displayName"`
