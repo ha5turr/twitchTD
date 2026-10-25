@@ -324,3 +324,18 @@ func TestBlastArrowCritShows(t *testing.T) {
 		t.Fatal("a blast arrow's crit shows")
 	}
 }
+
+func TestBoltRechargesNearbyStorm(t *testing.T) {
+	g, _ := newTestGame(t)
+	p := center(g.Map.Path[5])
+	g.layStorm(p)
+	g.storms[0].left = 1
+	g.layStorm(vec{p.X + 0.3, p.Y})
+	if len(g.storms) != 1 || g.storms[0].left != g.Cfg.StormSec {
+		t.Fatal("a bolt near a live charge recharges it instead of laying another")
+	}
+	g.layStorm(vec{p.X + 3, p.Y})
+	if len(g.storms) != 2 {
+		t.Fatal("further away it lays a new one")
+	}
+}

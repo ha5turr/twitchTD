@@ -41,6 +41,9 @@ const FIELD_CY = TOP + (ROWS * CELL) / 2;
 export class Hud {
   constructor() {
     this.world = new Container(); // the wall, lit by the lightmap
+    // Lightning charges on the ground: over the map, under the enemies, and
+    // lit like the world, so a field of them never glares.
+    this.ground = new Graphics();
     this.ui = new Container(); // everything that must stay readable
     this.floaters = [];
 
@@ -249,7 +252,7 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.4, ev.amount ? `баррикада пала, +${ev.amount} назад` : 'баррикада пала', 0xff9a6a, FONT_UI, 22);
         break;
       case 'assist':
-        this.floatAt(ev.x, ev.y + 0.3, `+${ev.amount} барабанщику`, 0xffd24a, FONT_UI, 16);
+        if (ev.amount) this.floatAt(ev.x, ev.y + 0.3, `+${ev.amount} за помощь`, 0xffd24a, FONT_UI, 16);
         break;
       case 'lightning': {
         const p = toPx(ev.x, ev.y);
@@ -552,12 +555,7 @@ export class Hud {
       this.curseFlash -= dt;
       this.blasts.rect(LEFT, TOP, COLS * CELL, ROWS * CELL).fill({ color: 0x8a3aff, alpha: 0.18 * Math.max(0, this.curseFlash / 0.6) });
     }
-    // Artifact totems' lightning charges on the path: a crackling ring.
-    for (const [sx, sy] of this.storms ?? []) {
-      const p = toPx(sx, sy);
-      const a = 0.5 + 0.3 * Math.sin(this.t * 14 + sx);
-      this.blasts.circle(p.x, p.y, 0.55 * CELL).fill({ color: 0x7ae0ff, alpha: 0.12 }).stroke({ width: 3, color: 0x9ef0ff, alpha: a });
-    }
+    this.drawStorms();
     // Warlocks' soul links stay hidden: a faint violet thread shows for a
     // moment when an enemy crosses one, and all of a warlock's while his !me
     // card is up. No bright core, so a web of them never glares.
@@ -659,6 +657,36 @@ export class Hud {
   }
 
   // Below a quarter of its hit points the wall burns: flames grow as it drops.
+  // drawStorms: an artifact totem's lightning charge is a faint wet stain on
+  // the path with a thin rim and a couple of small sparks skittering over
+  // it, fading out over its last seconds.
+  drawStorms() {
+    const g = this.ground;
+    g.clear();
+    const r = 0.45 * CELL;
+    for (const [sx, sy, left] of this.storms ?? []) {
+      const k = Math.min(1, (left ?? 1) / 0.1); // the last tenth of its time fades it
+      const p = toPx(sx, sy);
+      g.circle(p.x, p.y, r).fill({ color: 0x5ac8ff, alpha: 0.1 * k }).stroke({ width: 1.5, color: 0x9ef0ff, alpha: 0.25 * k });
+      // Sparks jump to a new spot a few times a second.
+      const tick = Math.floor(this.t * 6);
+      for (let i = 0; i < 2; i++) {
+        const seed = Math.sin((tick + i * 7.3) * 12.9898 + sx * 78.233 + sy * 37.719) * 43758.5453;
+        const a = (seed - Math.floor(seed)) * Math.PI * 2;
+        const d = r * (0.2 + 0.5 * ((seed * 7) % 1 + 1) % 1);
+        let x = p.x + Math.cos(a) * d;
+        let y = p.y + Math.sin(a) * d * 0.6;
+        g.moveTo(x, y);
+        for (let j = 0; j < 3; j++) {
+          x += 5 + j * 2;
+          y += j % 2 ? 4 : -4;
+          g.lineTo(x, y);
+        }
+        g.stroke({ width: 1.5, color: 0xbff4ff, alpha: 0.45 * k });
+      }
+    }
+  }
+
   drawFire() {
     const g = this.fire;
     g.clear();
