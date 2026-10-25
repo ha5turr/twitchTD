@@ -209,7 +209,7 @@ func (g *Game) tickMeteors(dt float64) {
 		}
 		for _, e := range g.Enemies {
 			if !e.dead && e.Pos.sub(m.pos).len() <= g.Cfg.MeteorRadius {
-				e.burnLeft, e.burnDPS, e.burnOwner = g.Cfg.MeteorBurnSec, g.skillHP()*g.Cfg.MeteorBurn, m.owner
+				g.ignite(e, g.skillHP()*g.Cfg.MeteorBurn, g.Cfg.MeteorBurnSec, m.owner)
 				g.damage(e, g.skillHP()*g.Cfg.MeteorDmg, m.owner, true)
 			}
 		}
@@ -367,7 +367,7 @@ func (g *Game) setPathAlight(key string, c *Chatter) {
 		if e.dead || e.tavernLeft > 0 || e.offAmt > 0.5 {
 			continue // only those on the path
 		}
-		e.burnLeft, e.burnDPS, e.burnOwner = g.Cfg.PathFireBurnSec, g.skillHP()*g.Cfg.PathFireBurn, key
+		g.ignite(e, g.skillHP()*g.Cfg.PathFireBurn, g.Cfg.PathFireBurnSec, key)
 		g.damage(e, g.skillHP()*g.Cfg.PathFireDmg, key, true)
 	}
 	g.emit(Event{Kind: "pathFire", User: c.Name})

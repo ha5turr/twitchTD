@@ -639,6 +639,9 @@ func (g *Game) tickProjectiles(dt float64) {
 				}
 			}
 			g.emit(Event{Kind: "blast", X: p.Aim.X, Y: p.Aim.Y})
+			if p.Crit && target != nil {
+				g.emit(Event{Kind: "crit", X: target.Pos.X, Y: target.Pos.Y, Amount: int(math.Round(p.Damage))}) // a blast arrow crits too
+			}
 		case target != nil:
 			g.burn(target, p) // fire arrows
 			if p.Poison {
@@ -670,7 +673,16 @@ func (g *Game) burn(e *Enemy, p *Projectile) {
 		g.stackBurn(e, p) // an artifact brazier's burn piles up
 		return
 	}
-	e.burnLeft, e.burnDPS, e.burnOwner = p.BurnSec, p.BurnDPS, p.Owner
+	g.ignite(e, p.BurnDPS, p.BurnSec, p.Owner)
+}
+
+// ignite sets e alight. Burns do not stack, but a weaker one never puts out
+// a stronger one still burning: a fire arrow does not cool a brazier's burn.
+func (g *Game) ignite(e *Enemy, dps, sec float64, owner string) {
+	if e.burnLeft > 0 && e.burnDPS > dps {
+		return
+	}
+	e.burnLeft, e.burnDPS, e.burnOwner = sec, dps, owner
 }
 
 // damage hurts an enemy, credits the owner and handles the kill. Dead
