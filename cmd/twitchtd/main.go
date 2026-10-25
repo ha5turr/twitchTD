@@ -84,7 +84,7 @@ func main() {
 		sb = streamerbot.New(cfg.StreamerBot, streamerbot.Handlers{
 			Chat: func(m streamerbot.Chat) {
 				srv.Chat(game.ChatMessage{
-					Login: m.Login, User: m.Name, Text: m.Text,
+					Login: m.Login, User: m.Name, Text: m.Text, Emotes: m.Emotes,
 					Mod:         m.Role >= streamerbot.RoleModerator,
 					Broadcaster: m.Role == streamerbot.RoleBroadcaster,
 				})
