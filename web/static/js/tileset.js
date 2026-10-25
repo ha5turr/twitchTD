@@ -81,6 +81,12 @@ const EXTRA = [
     defs: { panther_run: [[2, 34, 22, 16], [24, 34, 22, 16], [47, 34, 22, 16], [69, 34, 22, 16], [92, 34, 22, 16], [116, 34, 21, 16]] },
   },
   {
+    // alizard's pixel wolf, the shaman's spirit wolves: the run cycle,
+    // facing left, trimmed to the rows the wolf fills.
+    file: 'assets/wolf/wolf_run.png',
+    defs: { wolf_run: row(0, 22, 66, 28, 5) },
+  },
+  {
     // ЭссДиЭф: 56x75 cells, feet centred on the bottom edge; walks facing
     // right, toward the viewer and away from him, then the burp and the fart.
     file: 'assets/sdf/sdf.png',

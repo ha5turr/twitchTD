@@ -1,0 +1,4 @@
+Pixel wolf by alizard
+https://opengameart.org/content/pixel-wolf
+License: CC0 1.0 Universal (public domain). Credit not required.
+wolf_run.png is the run cycle (5 frames of 66x66, facing left) with its teal background made transparent.

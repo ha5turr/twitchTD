@@ -105,7 +105,7 @@ func (g *Game) asleep(c *Chatter) bool {
 	return true
 }
 
-func (g *Game) cmdClass(c *Chatter, args []string) {
+func (g *Game) cmdClass(c *Chatter, key string, args []string) {
 	cur, _ := classByKey(c.Class)
 	if len(args) == 0 {
 		names := make([]string, len(Classes))
@@ -123,6 +123,8 @@ func (g *Game) cmdClass(c *Chatter, args []string) {
 		g.reply(c.Name, "ты уже "+strings.ToLower(next.Name))
 	case c.classLocked:
 		g.reply(c.Name, "класс можно сменить один раз за игру")
+	case g.hasArtifact(key):
+		g.reply(c.Name, "у тебя есть артефактная постройка: пока она стоит, класс не сменить")
 	default:
 		c.Class = next.Key
 		c.classLocked = true

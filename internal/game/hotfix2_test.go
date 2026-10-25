@@ -57,8 +57,10 @@ func TestArtifactTotemCallsLightning(t *testing.T) {
 	g, _ := newTestGame(t)
 	g.Phase = PhaseWave
 	g.Cfg.EnemyRegen = 0
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	g.Chatters["anna"].Class = "shaman"
 	a, b, i := pathNeighbours(t, g)
-	plain := place(g, "totem", a)
+	plain := placeAs(g, "anna", "totem", a)
 	obelisk := place(g, "magic", b)
 	plain.cooldown, obelisk.cooldown = 1e9, 1e9 // only bolts
 	es := []*Enemy{enemyAt(g, "skeleton", i, 1e6), enemyAt(g, "skeleton", i, 1e6)}
