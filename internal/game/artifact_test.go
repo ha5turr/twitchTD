@@ -277,3 +277,21 @@ func TestSoulLinkRange(t *testing.T) {
 		t.Fatal("four cells apart they are")
 	}
 }
+
+func TestNoClassSwapWithArtifacts(t *testing.T) {
+	g, _ := newTestGame(t)
+	g, tw := artGame(t, "ranger", "arrow", freeCell(t, g))
+	g.HandleChat(ChatMessage{User: "anna", Text: "!класс маг"})
+	if c := g.Chatters["anna"]; c.Class != "ranger" || c.classLocked || !strings.Contains(lastReply(g), "артефакт") {
+		t.Fatalf("an artifact building holds the class: %s, %q", c.Class, lastReply(g))
+	}
+	g.Chatters["anna"].Class = "mage" // a swap some other way
+	if g.artifact(tw) {
+		t.Fatal("an artifact works only for its owner's class")
+	}
+	tw.Level = 5
+	g.HandleChat(ChatMessage{User: "anna", Text: "!класс жрец"})
+	if g.Chatters["anna"].Class != "cleric" {
+		t.Fatal("with no artifact the class changes as before")
+	}
+}
