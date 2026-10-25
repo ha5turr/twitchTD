@@ -97,7 +97,7 @@ func (g *Game) HandleChat(m ChatMessage) {
 	case "!dice", "!кости", "!к":
 		g.cmdDice(c, key, args)
 	case "!class", "!класс":
-		g.cmdClass(c, args)
+		g.cmdClass(c, key, args)
 	case "!drink", "!d", "!выпить", "!пить":
 		g.cmdDrink(c, key, args)
 	case "!помощь", "!help", "!команды", "!h":

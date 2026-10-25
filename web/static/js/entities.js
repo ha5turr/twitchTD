@@ -92,6 +92,8 @@ export class Entities {
     // Each mercenary carries a lantern, so it is visible on dark ground.
     for (const w of this.workers.values()) out.push({ x: w.root.x, y: w.root.y - 10, r: 80, color: 0xffcf8a, a: 0.7 });
     for (const p of this.panthers.values()) out.push({ x: p.root.x, y: p.root.y - 10, r: 70, color: 0xb0ff8a, a: 0.6 });
+    // Spirit wolves give off a faint cold glow of their own.
+    for (const r of this.runs.values()) if (r.kind === 'wolf') out.push({ x: r.root.x, y: r.root.y - 14, r: 60, color: 0x9ef0ff, a: 0.5 });
     for (const p of this.proj.values()) {
       if (p.kind === 'magic') out.push({ x: p.root.x, y: p.root.y, r: 70, color: 0xb58cff, a: 0.8 });
       if (p.kind === 'fire') out.push({ x: p.root.x, y: p.root.y, r: 90, color: 0xff7a2a, a: 0.9 });
@@ -636,8 +638,8 @@ class RunView {
     const charge = r.kind === 'charge';
     if (r.kind === 'bear') this.body = hasTileset() && sprite('tc_bear', 4.2);
     else if (r.kind === 'wolf') {
-      // A spectral wolf: the panther's run, pale blue and see-through.
-      this.body = hasTileset() && sprite('panther_run', 2.8, 0.35);
+      // A spectral wolf: a wolf's run, pale blue and see-through.
+      this.body = hasTileset() && sprite('wolf_run', 1.3, 0.3);
       if (this.body) {
         this.body.tint = 0x9ef0ff;
         this.body.alpha = 0.7;
@@ -670,7 +672,7 @@ class RunView {
     const dx = this.target.x - this.root.x;
     this.root.x += dx * k;
     this.root.y += (this.target.y - this.root.y) * k;
-    // The cat sheet runs left, the heroes right: mirror whichever way it goes.
+    // The wolf sheet runs left, the heroes right: mirror whichever way it goes.
     const faceLeft = this.kind === 'wolf' ? dx > 0 : dx < 0;
     if (Math.abs(dx) > 0.5 && this.body.anchor) this.body.scale.x = Math.abs(this.body.scale.x) * (faceLeft ? -1 : 1);
     if (this.kind === 'step') this.body.alpha = 0.55 + 0.35 * Math.sin(t * 30); // a shadow, not quite there

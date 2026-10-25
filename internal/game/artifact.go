@@ -58,8 +58,22 @@ func (g *Game) maxLevel(t *Tower) int {
 	return spec.MaxLevel
 }
 
-// artifact reports whether t is at the artifact level.
-func (g *Game) artifact(t *Tower) bool { return t.Level > g.Cfg.Towers[t.Kind].MaxLevel }
+// artifact reports whether t is at the artifact level and its powers work:
+// only while it is its owner's class building, so no class change, a
+// restart or the panel lends a second class's artifacts.
+func (g *Game) artifact(t *Tower) bool {
+	return t.Level > g.Cfg.Towers[t.Kind].MaxLevel && g.classBonus(t.Owner, t.Kind) > 1
+}
+
+// hasArtifact reports whether key owns a building at the artifact level.
+func (g *Game) hasArtifact(key string) bool {
+	for _, t := range g.Towers {
+		if t.Owner == key && t.Level > g.Cfg.Towers[t.Kind].MaxLevel {
+			return true
+		}
+	}
+	return false
+}
 
 // poison adds a stack of poison to e.
 func (g *Game) poison(e *Enemy, owner string) {
