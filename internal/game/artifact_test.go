@@ -295,3 +295,32 @@ func TestNoClassSwapWithArtifacts(t *testing.T) {
 		t.Fatal("with no artifact the class changes as before")
 	}
 }
+
+func TestWeakBurnKeepsStrongOne(t *testing.T) {
+	g, _ := newTestGame(t)
+	e := enemyAt(g, "skeleton", 5, 1000)
+	g.burn(e, &Projectile{BurnDPS: 50, BurnSec: 3, Owner: "anna"})
+	g.burn(e, &Projectile{BurnDPS: 10, BurnSec: 3, Owner: "boris"})
+	if e.burnDPS != 50 || e.burnOwner != "anna" {
+		t.Fatal("a weaker burn does not put out a stronger one")
+	}
+	g.burn(e, &Projectile{BurnDPS: 80, BurnSec: 3, Owner: "boris"})
+	if e.burnDPS != 80 || e.burnOwner != "boris" {
+		t.Fatal("a stronger one takes over")
+	}
+	e.burnLeft = 0
+	g.burn(e, &Projectile{BurnDPS: 10, BurnSec: 3, Owner: "anna"})
+	if e.burnDPS != 10 {
+		t.Fatal("once out, any burn lights it again")
+	}
+}
+
+func TestBlastArrowCritShows(t *testing.T) {
+	g, _ := newTestGame(t)
+	e := enemyAt(g, "skeleton", 5, 1e6)
+	g.Projectiles = []*Projectile{{ID: g.id(), Target: e.ID, Pos: e.Pos, Aim: e.Pos, Speed: 10, Damage: 100, Splash: 0.8, SplashPct: 0.6, Crit: true, Owner: "anna"}}
+	g.tickProjectiles(0.05)
+	if lastEvent(g, "crit") == nil {
+		t.Fatal("a blast arrow's crit shows")
+	}
+}
