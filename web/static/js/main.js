@@ -32,7 +32,7 @@ async function start() {
   const hud = new Hud();
   const ents = new Entities();
   const tavern = new Tavern();
-  world.addChild(tavern.world, hud.world, mapLayer, ents.world);
+  world.addChild(tavern.world, hud.world, mapLayer, hud.ground, ents.world);
   const lighting = new Lighting(app.renderer);
   const ui = new Container();
   const fx = new Particles();

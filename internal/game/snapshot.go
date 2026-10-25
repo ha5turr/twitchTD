@@ -73,7 +73,7 @@ type StateMsg struct {
 	GateFires []GateFireView `json:"gateFires,omitempty"` // pyromancers' braziers on the tavern wall
 	Shield    float64        `json:"shield,omitempty"`    // artifact shrines' shield over the walls
 	ShieldMax float64        `json:"shieldMax,omitempty"`
-	Storms    [][2]float64   `json:"storms,omitempty"` // artifact totems' lightning charges
+	Storms    [][3]float64   `json:"storms,omitempty"` // artifact totems' lightning charges: x, y, share of their time left
 	Links     []LinkView     `json:"links,omitempty"`  // warlocks' soul links, hidden until crossed or shown by !me   // seconds a warlock's blood pact still powers every building
 }
 
@@ -238,7 +238,7 @@ func (g *Game) StateMessage() StateMsg {
 	s.Pact = math.Ceil(g.pactLeft)
 	s.Shield, s.ShieldMax = math.Ceil(g.wallShield), g.wallShieldMax()
 	for _, st := range g.storms {
-		s.Storms = append(s.Storms, [2]float64{round2(st.Pos.X), round2(st.Pos.Y)})
+		s.Storms = append(s.Storms, [3]float64{round2(st.Pos.X), round2(st.Pos.Y), round2(st.left / g.Cfg.StormSec)})
 	}
 	for _, l := range g.soulLinks() {
 		name := l.Owner
