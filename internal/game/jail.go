@@ -34,9 +34,11 @@ var jailFree = map[string]bool{
 	"!выкуп": true, "!ransom": true, "!bail": true,
 }
 
-func (g *Game) cmdSay(c *Chatter, args []string) {
-	text := strings.Join(args, " ")
-	if text == "" || !c.Joined || c.out > 0 {
+// cmdSay shows a line over the mercenary's head, with its emotes as
+// pictures. An emote counts as two letters toward the limit, so a line of
+// emotes stays short too.
+func (g *Game) cmdSay(c *Chatter, args []string, emotes map[string]string) {
+	if len(args) == 0 || !c.Joined || c.out > 0 {
 		return
 	}
 	now := g.Now()
@@ -44,10 +46,31 @@ func (g *Game) cmdSay(c *Chatter, args []string) {
 		return
 	}
 	c.saidAt = now
-	if utf8.RuneCountInString(text) > sayMax {
-		text = string([]rune(text)[:sayMax-1]) + "…"
+	var words []string
+	used := map[string]string{}
+	room := sayMax
+	for _, w := range args {
+		cost := utf8.RuneCountInString(w) + 1
+		if url, ok := emotes[w]; ok {
+			cost = 3
+			if room >= cost {
+				used[w] = url
+			}
+		}
+		if room < cost {
+			if _, emote := emotes[w]; !emote && room > 2 {
+				words = append(words, string([]rune(w)[:room-2])) // a long word is cut
+			}
+			words = append(words, "…")
+			break
+		}
+		words = append(words, w)
+		room -= cost
 	}
-	g.emit(Event{Kind: "say", User: c.Name, Text: text})
+	if len(used) == 0 {
+		used = nil
+	}
+	g.emit(Event{Kind: "say", User: c.Name, Text: strings.Join(words, " "), Emotes: used})
 }
 
 func (g *Game) cmdDance(c *Chatter, key string) {

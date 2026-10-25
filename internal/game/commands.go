@@ -13,8 +13,9 @@ type ChatMessage struct {
 	Login       string // stable Twitch login; falls back to User when empty
 	User        string // display name, may contain any script
 	Text        string
-	Mod         bool // moderator or broadcaster: may run !td* admin commands
-	Broadcaster bool // the streamer: builds instantly and without limits, unless StreamerPlays
+	Mod         bool              // moderator or broadcaster: may run !td* admin commands
+	Broadcaster bool              // the streamer: builds instantly and without limits, unless StreamerPlays
+	Emotes      map[string]string // emote name -> image URL, for lines shown on the overlay (!s)
 }
 
 var towerAliases = map[string]string{
@@ -111,7 +112,7 @@ func (g *Game) HandleChat(m ChatMessage) {
 	case "!стрелы", "!arrows", "!ammo":
 		g.cmdAmmo(c, key, args)
 	case "!s", "!say", "!скажи":
-		g.cmdSay(c, args)
+		g.cmdSay(c, args, m.Emotes)
 	case "!dance", "!танец", "!пляс", "!танцевать":
 		g.cmdDance(c, key)
 	case "!тюрьма", "!jail", "!посадить":

@@ -16,14 +16,15 @@ type MapMsg struct {
 	Path    [][2]int     `json:"path"`
 	Route   [][2]float64 `json:"route"`
 	Torches [][2]int     `json:"torches"`
-	Version string       `json:"version"` // the release the server runs
+	Version string       `json:"version"`           // the release the server runs
+	Channel string       `json:"channel,omitempty"` // the Twitch channel ID, for the overlay's emotes
 }
 
 // One character per cell keeps the message small and readable in devtools.
 var cellChars = map[CellKind]byte{CellBuild: '.', CellPath: '#', CellObstacle: 'o', CellWebcam: 'w'}
 
 func (g *Game) MapMessage() MapMsg {
-	m := MapMsg{T: "map", Seed: g.Map.Seed, Biome: g.Map.Biome, W: GridW, H: GridH, Version: Version}
+	m := MapMsg{T: "map", Seed: g.Map.Seed, Biome: g.Map.Biome, W: GridW, H: GridH, Version: Version, Channel: g.Cfg.TwitchChannelID}
 	for y := 0; y < GridH; y++ {
 		row := make([]byte, GridW)
 		for x := 0; x < GridW; x++ {

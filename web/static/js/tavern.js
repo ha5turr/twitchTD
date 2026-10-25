@@ -275,7 +275,7 @@ export class Tavern {
     if (ev.kind === 'card') this.card.show(ev.user, this.mercs.get(ev.user), this.limits, ev.amount ?? 0);
     if (ev.kind === 'feast') this.feast.show(ev.amount ?? 20);
     if (ev.kind === 'class' && m) m.redraw = true;
-    if (ev.kind === 'say' && m) m.shout(ev.text, 5);
+    if (ev.kind === 'say' && m && !m.out) this.bubbles?.show(m.bubbleId, ev.text, ev.emotes, 5);
     if (ev.kind === 'dance' && m) m.dance(ev.amount || 6);
     if (ev.kind === 'jailed' && m) m.shout('за что?!', 4);
     if (ev.kind === 'jailFree' && m) m.shout(ev.amount ? `выкуп ${ev.amount} з` : 'свобода!', 4);
@@ -313,6 +313,7 @@ class Merc {
     this.tavern = tavern;
     this.seat = seat;
     this.name = c.name;
+    this.bubbleId = `tavern:${c.name}`;
     this.cls = c.class;
     this.color = nickColor(c.name);
     this.root = new Container();
@@ -443,6 +444,7 @@ class Merc {
     r.visible = this.nameText.visible = this.goldText.visible = visible;
     if (!visible) {
       this.bubble.visible = false;
+      this.tavern.bubbles?.hide(this.bubbleId);
       return;
     }
     const tgt = this.target();
@@ -499,10 +501,13 @@ class Merc {
     this.bubble.text = bubble;
     this.bubble.visible = !!bubble;
     // A long line stays inside the tavern instead of spilling onto the field;
-    // an inmate's shows under the cell, clear of the top bar.
+    // an inmate's shows under the cell, clear of the top bar. A !s line has
+    // its own bubble, which hides the plain one while it is up.
     const half = this.bubble.width / 2 + 4;
-    const bubbleY = this.jail ? JAIL.y + JAIL.h + 22 + (this.cell % 2) * 20 :r.y - lift - this.height - 32;
+    const bubbleY = this.jail ? JAIL.y + JAIL.h + 22 + (this.cell % 2) * 20 : r.y - lift - this.height - 32;
     this.bubble.position.set(Math.min(Math.max(r.x, half), LEFT - 20 - half), bubbleY);
+    const sayY = this.jail ? JAIL.y + JAIL.h + 44 + (this.cell % 2) * 34 : bubbleY + 4;
+    if (this.tavern.bubbles?.place(this.bubbleId, r.x, sayY, 0, LEFT - 20)) this.bubble.visible = false;
     // An inmate's nick and term sit inside the cell, under the top bar.
     const labelY = this.jail ? JAIL.y + 36 : r.y - lift - this.height;
     this.nameText.position.set(r.x, labelY - 14);
@@ -536,6 +541,7 @@ class Merc {
   }
 
   destroy() {
+    this.tavern.bubbles?.hide(this.bubbleId);
     this.root.destroy({ children: true });
     this.nameText.destroy();
     this.goldText.destroy();

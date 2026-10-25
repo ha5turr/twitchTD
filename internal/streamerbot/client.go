@@ -50,6 +50,7 @@ const (
 type Chat struct {
 	Login, Name, Text string
 	Role              int
+	Emotes            map[string]string // emote name -> image URL, as Streamer.bot resolved them
 }
 
 type Handlers struct {

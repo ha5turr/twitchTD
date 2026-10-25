@@ -227,3 +227,13 @@ func TestKick(t *testing.T) {
 		t.Fatal("until the time is up")
 	}
 }
+
+func TestSayEmotes(t *testing.T) {
+	g := jailParty(t)
+	url := "https://cdn.7tv.app/emote/x/2x.webp"
+	g.HandleChat(ChatMessage{User: "anna", Text: "!s привет catJAM", Emotes: map[string]string{"catJAM": url, "Kappa": url}})
+	ev := lastEvent(g, "say")
+	if ev == nil || ev.Text != "привет catJAM" || ev.Emotes["catJAM"] != url || len(ev.Emotes) != 1 {
+		t.Fatalf("a line carries the emotes it uses: %+v", ev)
+	}
+}
