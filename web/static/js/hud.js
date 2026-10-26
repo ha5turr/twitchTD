@@ -338,6 +338,9 @@ export class Hud {
         this.bolts.push({ x: b.x, y: b.y, pts: jagged(a, b, 4, 6), life: 0.4, color: 0xb05aff, width: 2, ring: 0x8a3aff });
         break;
       }
+      case 'veil':
+        this.floatAt(ev.x, ev.y - 0.6, 'в тени', 0xb9a6ff, FONT_UI, 16);
+        break;
       case 'mapVote':
         this.toasts.push({ text: `🗺 ${ev.user}: новая карта? Против — !против`, color: 0xd9c49a });
         break;

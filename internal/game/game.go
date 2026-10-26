@@ -72,6 +72,7 @@ type Chatter struct {
 	passiveCD         float64 // rogue and druid: seconds to the next trick (rogues.go)
 	skillCD           float64 // class skill (heroes.go): seconds to the next use
 	skill2CD          float64 // a class's second skill (blood pact, gate brazier, feast, wolves)
+	veilWave          int     // rogue: the wave his veil was spent in (workers.go)
 	musicLeft         float64 // bard: seconds of music left
 	wasActive         bool    // chatted since the last AFK sweep (economy.go)
 	Joined            bool    // took part this session: !play or any game command (commands.go)
@@ -146,6 +147,7 @@ type Game struct {
 	rng        *rand.Rand
 	events     []Event
 	mapChanged bool
+	emoteIDs   []string // channels whose emotes the overlay loads (SetEmoteChannels)
 	summary    *Summary
 	cellDist   []float64            // route distance to the centre of each path cell
 	waveHP     float64              // base enemy HP of the current wave
@@ -225,7 +227,7 @@ func (g *Game) NewGame(biome Biome) {
 		}
 		c.GameDamage, c.GameKills, c.GameDrinks, c.classLocked = 0, 0, 0, false
 		c.Grant, c.arrived = 0, c.Joined // those still in the tavern start this game with it
-		c.out = 0
+		c.out, c.veilWave = 0, 0
 		c.jailLeft, c.jailedOnce, c.ransom, c.jailVoteAt = 0, false, 0, time.Time{}
 	}
 	g.mapChanged = true
@@ -274,6 +276,13 @@ func (g *Game) TakeEvents() []Event {
 	ev := g.events
 	g.events = nil
 	return ev
+}
+
+// SetEmoteChannels sets the channels whose emotes the overlay loads and
+// sends them out with the map.
+func (g *Game) SetEmoteChannels(ids []string) {
+	g.emoteIDs = ids
+	g.mapChanged = true
 }
 
 // TakeMapChanged reports whether the map changed since the last call.

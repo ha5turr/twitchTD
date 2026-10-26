@@ -43,8 +43,11 @@ type Config struct {
 	// its 7TV, BTTV and FFZ emotes itself for !s lines, on top of those
 	// Streamer.bot resolves.
 	TwitchChannelID string `json:"twitchChannelId,omitempty"`
-	SellRefundPct   int    `json:"sellRefundPct"`
-	ActiveWindowMn  int    `json:"activeWindowMin"`
+	// EmoteChannels are more channels, by nick or numeric ID, whose 7TV,
+	// BTTV and FFZ emotes !s lines show; earlier ones win a shared name.
+	EmoteChannels  []string `json:"emoteChannels,omitempty"`
+	SellRefundPct  int      `json:"sellRefundPct"`
+	ActiveWindowMn int      `json:"activeWindowMin"`
 
 	ChatGold        int     `json:"chatGold"`
 	ChatCooldownSec float64 `json:"chatCooldownSec"`
