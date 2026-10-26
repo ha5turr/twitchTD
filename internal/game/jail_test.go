@@ -237,3 +237,18 @@ func TestSayEmotes(t *testing.T) {
 		t.Fatalf("a line carries the emotes it uses: %+v", ev)
 	}
 }
+
+func TestSayAfterRestart(t *testing.T) {
+	g := jailParty(t)
+	g2, _ := newTestGame(t)
+	g2.LoadChatters(g.Export().Chatters)
+	g2.Restore(g.Export())
+	g2.HandleChat(ChatMessage{User: "anna", Text: "!s я вернулась"})
+	if ev := lastEvent(g2, "say"); ev == nil || !g2.Chatters["anna"].Joined {
+		t.Fatal("a player of this game speaks after a restart, back in the tavern")
+	}
+	g2.HandleChat(ChatMessage{User: "gleb", Text: "!s привет"})
+	if g2.Chatters["gleb"].Joined || !strings.Contains(lastReply(g2), "!play") {
+		t.Fatal("a newcomer is told to come in first")
+	}
+}

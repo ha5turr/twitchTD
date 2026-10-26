@@ -41,6 +41,7 @@ func soundGroup(s string) (SoundGroup, bool) {
 type Operator interface {
 	Update(by string)
 	Rollback(by string)
+	Restart(by string) // the same build, started afresh (config.json read again)
 }
 
 // Announce says something to the whole chat.
