@@ -966,6 +966,12 @@ func (g *Game) TowerLimit() int {
 	return n
 }
 
+// overLimit is how many buildings a player owns past the limit, kept from
+// when the party was small enough for the bonus. Clowns do not count.
+func (g *Game) overLimit(key string) int {
+	return max(0, g.towersOf(key)-g.clownsOf(key)-g.TowerLimit())
+}
+
 // limitAfter is the base limit once this many waves are held: one more
 // after every boss wave, up to TowerLimitMax.
 func (g *Game) limitAfter(held int) int {

@@ -272,7 +272,7 @@ export class Tavern {
   onEvent(ev) {
     const m = this.mercs.get(ev.user);
     if (ev.kind === 'drink' && m) m.drink(DRINK_NAMES[ev.text] ?? ev.text);
-    if (ev.kind === 'card') this.card.show(ev.user, this.mercs.get(ev.user), this.limits, ev.amount ?? 0);
+    if (ev.kind === 'card') this.card.show(ev.user, this.mercs.get(ev.user), this.limits, ev.amount ?? 0, ev.text ?? '');
     if (ev.kind === 'feast') this.feast.show(ev.amount ?? 20);
     if (ev.kind === 'class' && m) m.redraw = true;
     if (ev.kind === 'say' && m && !m.out) this.bubbles?.show(m.bubbleId, ev.text, ev.emotes, 5);
@@ -711,7 +711,7 @@ class Card {
     this.root = new Container();
     this.root.visible = false;
     const bg = new Graphics();
-    bg.roundRect(0, 0, 250, 132, 8).fill(0xe6d3a8).stroke({ width: 4, color: 0x5a3a1f });
+    bg.roundRect(0, 0, 290, 132, 8).fill(0xe6d3a8).stroke({ width: 4, color: 0x5a3a1f });
     this.root.addChild(bg);
     const st = (size, fill = 0x2a1a0c) => ({ fontFamily: FONT_UI, fontSize: size, fontWeight: '700', fill });
     this.name = new Text({ text: '', style: st(22) });
@@ -720,7 +720,7 @@ class Card {
     // The rank, in its colour, on the class line at the right.
     this.rank = new Text({ text: '', style: { ...st(15), stroke: { color: 0x1a0f08, width: 4 } } });
     this.rank.anchor.set(1, 0);
-    this.rank.position.set(238, 37);
+    this.rank.position.set(278, 37);
     this.name.position.set(14, 8);
     this.cls.position.set(14, 36);
     this.lines.position.set(14, 60);
@@ -728,13 +728,13 @@ class Card {
     this.time = 0;
   }
 
-  show(user, merc, limits, towers) {
+  show(user, merc, limits, towers, over = '') {
     this.name.text = short(user);
     const rank = RANKS[merc?.rank ?? 0] ?? RANKS[0];
     this.rank.text = rank.name;
     this.rank.style.fill = rank.color;
     this.cls.text = CLASSES[merc?.classKey]?.name ?? '';
-    this.lines.text = `золото ${merc?.gold ?? '?'} / ${limits.cap}\nпостроек ${towers} / ${limits.towers} · убийств ${merc?.kills ?? 0}`;
+    this.lines.text = `золото ${merc?.gold ?? '?'} / ${limits.cap}\nпостроек ${over ? `${towers}/${limits.towers} (${over})` : `${towers} / ${limits.towers}`} · убийств ${merc?.kills ?? 0}`;
     const x = merc && !merc.out ? merc.root.x : LEFT / 2;
     const y = merc && !merc.out ? merc.root.y : TOP + 360;
     this.root.position.set(Math.max(8, Math.min(LEFT + 120, x + 24)), Math.max(TOP + 8, y - 150));
