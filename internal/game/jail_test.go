@@ -252,3 +252,14 @@ func TestSayAfterRestart(t *testing.T) {
 		t.Fatal("a newcomer is told to come in first")
 	}
 }
+
+func TestKickQuietPlayerByName(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{Login: "nekro123", User: "Некромантик", Text: "!play"})
+	placeAs(g, "nekro123", "arrow", freeCell(t, g))
+	g.Chatters["nekro123"].Joined = false // gone quiet, as after a restart
+	g.HandleChat(ChatMessage{User: "streamer", Text: "!tdkick Некромантик", Mod: true})
+	if g.towersOf("nekro123") != 0 || g.Chatters["nekro123"].kickedUntil.IsZero() {
+		t.Fatalf("a player the tavern still shows is kicked by his display name: %q", lastReply(g))
+	}
+}

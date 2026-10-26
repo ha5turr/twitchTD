@@ -127,8 +127,7 @@ func (g *Game) cmdJail(c *Chatter, key string, args []string) {
 		g.reply(c.Name, "сначала дождись конца голосования за новую карту")
 		return
 	}
-	who := strings.ToLower(strings.TrimPrefix(args[0], "@"))
-	t := g.Chatters[who]
+	who, t := g.findChatter(args[0])
 	switch {
 	case t == nil || !t.Joined || who == StreamerName:
 		g.reply(c.Name, "такого наёмника в таверне нет")
@@ -276,7 +275,7 @@ func (g *Game) cmdFree(c *Chatter, args []string) {
 	if len(args) == 0 {
 		return
 	}
-	t := g.Chatters[strings.ToLower(strings.TrimPrefix(args[0], "@"))]
+	_, t := g.findChatter(args[0])
 	if t == nil || !t.jailed() {
 		g.reply(c.Name, "этот наёмник не за решёткой")
 		return

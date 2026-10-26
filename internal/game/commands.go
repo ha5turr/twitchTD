@@ -2,7 +2,9 @@ package game
 
 import (
 	"fmt"
+	"maps"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -426,6 +428,21 @@ func (g *Game) leaveTavern(key string, c *Chatter) (towers, gold int) {
 	return towers, gold
 }
 
+// findChatter finds a chatter by login or by the name chat shows, which
+// differs from the login for, say, a Cyrillic display name.
+func (g *Game) findChatter(name string) (string, *Chatter) {
+	name = strings.TrimPrefix(strings.TrimSpace(name), "@")
+	if c := g.Chatters[strings.ToLower(name)]; c != nil {
+		return strings.ToLower(name), c
+	}
+	for _, key := range slices.Sorted(maps.Keys(g.Chatters)) {
+		if c := g.Chatters[key]; strings.EqualFold(c.Name, name) {
+			return key, c
+		}
+	}
+	return "", nil
+}
+
 // cmdKick is the streamer's or a moderator's !tdkick nick: the player leaves
 // the tavern as with !leave, out of jail and away from the dice, and may
 // not come back for KickSec.
@@ -434,9 +451,10 @@ func (g *Game) cmdKick(c *Chatter, args []string) {
 		g.reply(c.Name, "кого выгнать? !tdkick ник")
 		return
 	}
-	key := strings.ToLower(strings.TrimPrefix(args[0], "@"))
-	t := g.Chatters[key]
-	if t == nil || !t.Joined || key == StreamerName {
+	key, t := g.findChatter(args[0])
+	// Whoever the tavern shows: in it, out building, or owning buildings,
+	// as one gone quiet after a restart may be.
+	if t == nil || key == StreamerName || !t.Joined && g.towersOf(key) == 0 && g.Workers[key] == nil {
 		g.reply(c.Name, "такого наёмника в таверне нет")
 		return
 	}
