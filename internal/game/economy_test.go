@@ -74,6 +74,13 @@ func TestRewards(t *testing.T) {
 	if c := g.Chatters["lurker"]; c == nil || c.Gold != g.Cfg.StartGold+300 {
 		t.Fatal("gold reward creates the wallet and pays it")
 	}
+	full := g.Chatters["lurker"]
+	full.Gold = g.Cfg.WalletCap
+	treasury := g.Treasury
+	g.Reward("lurker", "Lurker", "HTD: Мешок золота")
+	if full.Gold != g.Cfg.WalletCap+300 || g.Treasury != treasury {
+		t.Fatalf("a bag of gold reaches the buyer past the wallet cap: %d, treasury +%d", full.Gold, g.Treasury-treasury)
+	}
 	g.Walls = 100
 	g.Reward("lurker", "Lurker", "Починить стены")
 	if g.Walls != 300 {
@@ -90,6 +97,23 @@ func TestRewards(t *testing.T) {
 		if ev.Kind == "reward" && strings.Contains(ev.Text, "Чужая") {
 			t.Fatal("unknown rewards are ignored")
 		}
+	}
+}
+
+func TestStreamerRewardsReachTheirWallet(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{Login: "ha5turr", User: "ha5turr", Text: "привет", Broadcaster: true})
+	s := g.Chatters[StreamerName]
+	s.Gold = 152
+	g.Reward("ha5turr", "ha5turr", "HTD: Мешок золота")
+	g.Bits("ha5turr", "ha5turr", 10)
+	if g.Chatters["ha5turr"] != nil || s.Gold != 152+300+80 {
+		t.Fatalf("the streamer's own redemption and cheer pay the wallet they play with: %d", s.Gold)
+	}
+	g.Restore(g.Export())
+	g.Reward("ha5turr", "ha5turr", "HTD: Мешок золота")
+	if g.Chatters["ha5turr"] != nil || g.Chatters[StreamerName].Gold != 152+600+80 {
+		t.Fatal("the streamer's login survives a restart")
 	}
 }
 
