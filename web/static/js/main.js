@@ -58,7 +58,7 @@ async function start() {
       tavern.setMap(m);
       lighting.setMap(m, BIOMES[m.biome] ?? BIOMES.ruins);
       sound.setBiome(m.biome);
-      loadEmotes(m.channel);
+      loadEmotes(m.channels ?? []);
     },
     state(s) {
       ents.update(s);

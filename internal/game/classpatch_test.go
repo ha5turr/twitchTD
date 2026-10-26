@@ -176,3 +176,48 @@ func TestTotemGrowsWithBosses(t *testing.T) {
 		t.Fatal("and no more than the cap")
 	}
 }
+
+func TestRogueVeil(t *testing.T) {
+	g, c := classGame(t, "rogue")
+	g.Wave = 1 // waves count from 1
+	cell := freeCell(t, g)
+	placeAs(g, "anna", "arrow", cell).Built = false
+	g.order("anna", c.Name, cell)
+	w := g.Workers["anna"]
+	e := enemyAt(g, "skeleton", 3, 1e6)
+	w.Pos = e.Pos
+	g.tickWorkers(0.05)
+	if !w.Veiled || w.State == WorkerFlee || c.veilWave != g.Wave {
+		t.Fatalf("a rogue out in a wave walks veiled: enemies do not stun him (%s)", w.State)
+	}
+	delete(g.Workers, "anna")
+	g.order("anna", c.Name, cell)
+	w = g.Workers["anna"]
+	w.Pos = e.Pos
+	g.tickWorkers(0.05)
+	if w.Veiled || w.State != WorkerFlee {
+		t.Fatal("once a wave only")
+	}
+	g.Wave++
+	delete(g.Workers, "anna")
+	g.order("anna", c.Name, cell)
+	g.tickWorkers(0.05)
+	if !g.Workers["anna"].Veiled {
+		t.Fatal("and again the next wave")
+	}
+
+	g2, c2 := classGame(t, "rogue")
+	enemyAt(g2, "skeleton", 3, 1e6)
+	g2.shadowStep("anna", c2)
+	if c2.veilWave != 0 {
+		t.Fatal("a shadow-step does not spend the veil")
+	}
+
+	g3, _ := classGame(t, "mage")
+	g3.Wave = 1
+	g3.order("anna", "anna", freeCell(t, g3))
+	g3.tickWorkers(0.05)
+	if g3.Workers["anna"].Veiled {
+		t.Fatal("only rogues veil")
+	}
+}
