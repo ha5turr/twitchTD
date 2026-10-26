@@ -20,7 +20,8 @@ import (
 // next to the running exe as twitchtd.next.exe, waits for the build phase,
 // leaves a marker and exits with exitUpdate; run.ps1 swaps the files and
 // starts the new build, which reads the marker and tells the chat how it
-// went. !tdrollback does the same with the previous build run.ps1 kept.
+// went. !tdrollback does the same with the previous build run.ps1 kept, and
+// !tdrestart with the same build, at once.
 
 const (
 	exitUpdate = 3 // run.ps1: swap in twitchtd.next.exe and start again
@@ -35,8 +36,9 @@ type updateConfig struct {
 }
 
 type marker struct {
-	From string `json:"from"`
-	To   string `json:"to"` // empty for a rollback
+	From    string `json:"from"`
+	To      string `json:"to"`                // empty for a rollback
+	Restart bool   `json:"restart,omitempty"` // !tdrestart: the same build again
 }
 
 // ops runs the release commands chat sends through the game.
@@ -118,6 +120,30 @@ func (o *ops) Rollback(by string) {
 	}()
 }
 
+// Restart starts the same build afresh, at once: config.json is read again,
+// the game saves on its way out and resumes, an interrupted wave replayed.
+func (o *ops) Restart(by string) {
+	if !supervised() {
+		o.say("перезапуск работает, только когда сервер запущен через run.cmd")
+		return
+	}
+	if !o.busy.CompareAndSwap(false, true) {
+		o.say("уже идёт обновление или перезапуск")
+		return
+	}
+	go func() {
+		data, _ := json.Marshal(marker{From: game.Version, To: game.Version, Restart: true})
+		if err := os.WriteFile(filepath.Join(o.dir, markerFile), data, 0o644); err != nil {
+			o.fail("не удалось записать отметку перезапуска", err)
+			return
+		}
+		o.say(by + " перезапускает таверну, вернусь через пару секунд")
+		time.Sleep(2 * time.Second) // let the line reach the chat
+		o.code.Store(exitUpdate)    // run.ps1 starts us again; with no next exe nothing is swapped
+		o.stop()
+	}()
+}
+
 func (o *ops) fail(what string, err error) {
 	log.Printf("update: %s: %v", what, err)
 	o.say(what + ", играем дальше на v" + game.Version)
@@ -161,6 +187,8 @@ func (o *ops) reportUpdate() {
 		return
 	}
 	switch {
+	case m.Restart:
+		o.say(fmt.Sprintf("таверна перезапущена, v%s", game.Version))
 	case m.To == "":
 		o.say(fmt.Sprintf("откат выполнен: таверна снова на v%s", game.Version))
 	case m.To == game.Version:

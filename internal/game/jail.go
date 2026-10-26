@@ -37,9 +37,21 @@ var jailFree = map[string]bool{
 // cmdSay shows a line over the mercenary's head, with its emotes as
 // pictures. An emote counts as two letters toward the limit, so a line of
 // emotes stays short too.
-func (g *Game) cmdSay(c *Chatter, args []string, emotes map[string]string) {
-	if len(args) == 0 || !c.Joined || c.out > 0 {
+func (g *Game) cmdSay(c *Chatter, key string, args []string, emotes map[string]string) {
+	if len(args) == 0 || c.out > 0 {
 		return
+	}
+	if !c.Joined {
+		if !c.arrived {
+			if c.snored <= 0 {
+				c.snored = 20
+				g.reply(c.Name, "реплика появится над твоим наёмником: сначала зайди в таверну, !play")
+			}
+			return
+		}
+		// Played this game already (a restart forgets who sits in the
+		// tavern): back to the seat, quietly, and the line goes up.
+		g.join(key, c, "!s")
 	}
 	now := g.Now()
 	if now.Sub(c.saidAt) < time.Duration(g.Cfg.SayCdSec*float64(time.Second)) {
