@@ -71,7 +71,7 @@ func (g *Game) sdfPlay(e *Enemy, trick string) Event {
 				}
 			}
 			cp := center(t.Cell)
-			g.emit(Event{Kind: "destroyed", Text: g.Cfg.Towers[t.Kind].Name, X: cp.X, Y: cp.Y})
+			g.emit(Event{Kind: "destroyed", Text: g.towerName(t.Kind), X: cp.X, Y: cp.Y})
 		}
 	case "offroad":
 		a := g.rng.Float64() * 2 * math.Pi

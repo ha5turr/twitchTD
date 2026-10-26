@@ -25,6 +25,7 @@ const BOSSES = [
   ['cave_troll', 'Пещерный Тролль'], ['lich', 'Лич'], ['ghost_king', 'Призрачный Король'],
   ['ice_golem', 'Ледяной Голем'], ['frost_demon', 'Демон Стужи'],
   ['swamp_witch', 'Болотная Ведьма'], ['hydra', 'Гидра'],
+  ['octopus', 'Мрачный Осьминог'], ['leviathan', 'Левиафан'],
   ['tax_collector', 'Сборщик податей'], ['golden_golem', 'Золотой голем'], ['sdf', 'ЭссДиЭф'],
 ];
 const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель', druid: 'Друид', warlock: 'Чернокнижник', shaman: 'Шаман' };

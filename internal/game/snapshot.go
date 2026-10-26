@@ -96,6 +96,13 @@ type EnemyView struct {
 	Stun   bool    `json:"stun,omitempty"`  // stunned by a pillar of light
 	Rage   bool    `json:"rage,omitempty"`  // held too long by a barricade
 	Curse  bool    `json:"curse,omitempty"` // cursed by a warlock's altar
+	// The river: a pirate's boat (share of it left, sunk once it is gone),
+	// a diver under water, a swimmer, an octopling on a building.
+	Boat  float64 `json:"boat,omitempty"`
+	Sunk  bool    `json:"sunk,omitempty"`
+	Dive  bool    `json:"dive,omitempty"`
+	Swim  bool    `json:"swim,omitempty"`
+	Cling bool    `json:"cling,omitempty"`
 }
 
 type TowerView struct {
@@ -113,8 +120,9 @@ type TowerView struct {
 	Disabled bool    `json:"disabled,omitempty"`
 	Hex      bool    `json:"hex,omitempty"` // a frog for now (the swamp witch)
 	Artifact bool    `json:"artifact,omitempty"`
-	Ammo     string  `json:"ammo,omitempty"` // an artifact ballista's arrows
-	War      bool    `json:"war,omitempty"`  // powered by an artifact drum's war beat
+	Ammo     string  `json:"ammo,omitempty"`  // an artifact ballista's arrows
+	War      bool    `json:"war,omitempty"`   // powered by an artifact drum's war beat
+	Flood    bool    `json:"flood,omitempty"` // under the leviathan's tide
 }
 
 type WorkerView struct {
@@ -190,6 +198,7 @@ func (g *Game) StateMessage() StateMsg {
 		s.Enemies = append(s.Enemies, EnemyView{
 			e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP),
 			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0, e.stunLeft > 0, e.rage, e.curseLeft > 0,
+			round2(boatLeft(e)), e.boatMax > 0 && e.boatHP <= 0, e.submerged(), g.swimming(e), e.cling != nil,
 		})
 	}
 	owners := map[string]int{}
@@ -201,7 +210,7 @@ func (g *Game) StateMessage() StateMsg {
 		}
 		s.Towers = append(s.Towers, TowerView{
 			t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress),
-			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0, g.artifact(t), t.Ammo, t.warLeft > 0,
+			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0, g.artifact(t), t.Ammo, t.warLeft > 0, t.floodLeft > 0,
 		})
 	}
 	sort.Slice(s.Towers, func(i, j int) bool { return s.Towers[i].ID < s.Towers[j].ID })

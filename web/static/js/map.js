@@ -4,8 +4,16 @@ import { hasTileset, texture, sprite, PX } from './tileset.js';
 
 const { Container, Graphics, Text, Sprite } = PIXI;
 
+// The river camp's water: every path cell but the last PIER ones, which are
+// the shore and the pier (river.go). isWater tells the buildings drawn on it.
+const PIER = 2;
+let water = new Set();
+export const isWater = (x, y) => water.has(`${x},${y}`);
+
 export function buildMap(map) {
   const pal = BIOMES[map.biome] ?? BIOMES.ruins;
+  const river = map.biome === 'river';
+  water = new Set(river ? map.path.slice(0, -PIER).map(([x, y]) => `${x},${y}`) : []);
   const root = new Container();
   const tiles = new Container();
   root.addChild(tiles);
@@ -25,7 +33,8 @@ export function buildMap(map) {
       }
     }
   }
-  if (pixel) drawTrench(g, tiles, map, pal);
+  if (river) drawRiver(g, tiles, map, pal, pixel);
+  else if (pixel) drawTrench(g, tiles, map, pal);
   else drawPathEdges(g, map, pal);
   // Faint grid so the chess coordinates are easy to follow.
   for (let x = 0; x <= COLS; x++) g.moveTo(LEFT + x * CELL, TOP).lineTo(LEFT + x * CELL, TOP + ROWS * CELL);
@@ -103,6 +112,7 @@ function drawObstacles(layer, map, pal) {
       const cells = new Set(group.map(([gx, gy]) => `${gx},${gy}`));
       const block = group.some(([gx, gy]) => cells.has(`${gx + 1},${gy}`) && cells.has(`${gx},${gy + 1}`) && cells.has(`${gx + 1},${gy + 1}`));
       if (map.biome === 'swamp') for (const [gx, gy] of group) bog(layer, cells, gx, gy);
+      else if (map.biome === 'river') for (const [gx, gy] of group) grove(layer, gx, gy);
       else if (map.biome === 'crypt' || (group.length >= 4 && block)) graveyard(layer, group, cells, map.biome);
       else for (const [gx, gy] of group) ruin(layer, map.biome, pal, gx, gy);
     }
@@ -289,6 +299,60 @@ function drawTrench(g, layer, map, pal) {
       g.rect(p.x, p.y + CELL - 6, CELL, 6).fill({ color: 0x000000, alpha: 0.55 }); // ground rises again
     }
   }
+}
+
+// drawRiver fills the path with flowing water between sandy banks, and lays
+// a plank pier over the last cells before the tavern.
+function drawRiver(g, layer, map, pal, pixel) {
+  const isPath = (x, y) => y >= 0 && y < ROWS && x >= 0 && x < COLS && map.cells[y][x] === '#';
+  const half = CELL / 2;
+  for (const [x, y] of map.path) {
+    const p = toPx(x, y);
+    if (!isWater(x, y)) continue;
+    if (pixel && texture('water')) {
+      for (let j = 0; j < 2; j++) {
+        for (let i = 0; i < 2; i++) {
+          const s = sprite('water', PX, 0.12);
+          s.anchor.set(0, 0);
+          s.position.set(p.x + i * half, p.y + j * half);
+          s.tint = pal.waterTint;
+          layer.addChild(s);
+        }
+      }
+    } else {
+      g.rect(p.x, p.y, CELL, CELL).fill(pal.path);
+    }
+  }
+  // Banks: a sandy lip wherever the water meets dry ground.
+  for (const [x, y] of map.path) {
+    if (!isWater(x, y)) continue;
+    const p = toPx(x, y);
+    const e = 7;
+    if (!isPath(x, y - 1)) g.rect(p.x, p.y, CELL, e);
+    if (!isPath(x, y + 1)) g.rect(p.x, p.y + CELL - e, CELL, e);
+    if (!isPath(x - 1, y) && x > 0) g.rect(p.x, p.y, e, CELL);
+    if (!isPath(x + 1, y) && x < COLS - 1) g.rect(p.x + CELL - e, p.y, e, CELL);
+  }
+  g.fill({ color: pal.pathEdge, alpha: 0.9 });
+  // The pier: planks across the last cells, posts at the corners.
+  for (const [x, y] of map.path.slice(-PIER)) {
+    const p = toPx(x, y);
+    for (let i = 0; i < 6; i++) {
+      g.rect(p.x + 2, p.y + 4 + i * 15, CELL - 4, 12).fill(i % 2 ? 0x5a3e24 : 0x6a4a2c).stroke({ width: 2, color: 0x2a1b0f });
+    }
+    for (const [cx, cy] of [[6, 6], [CELL - 6, 6], [6, CELL - 6], [CELL - 6, CELL - 6]]) g.circle(p.x + cx, p.y + cy, 5).fill(0x3a2614);
+  }
+}
+
+// grove fills an obstacle cell on the river's banks with trees and stones.
+function grove(layer, x, y) {
+  const put = putter(layer);
+  const p = toPx(x, y);
+  const h = cellHash(x, y);
+  const bottom = p.y + CELL - 8;
+  put(h % 3 ? 'tc_tree' : 'tc_bush', p.x + 30 + (h % 20), bottom - 10, 3.4, 0x9ab89a);
+  put(`rock_${1 + (h % 2)}`, p.x + CELL - 22, bottom + 2, 2.2, 0xa8b0a0);
+  if (h % 2) put('tc_bush', p.x + 18, bottom + 4, 2.4, 0x8aa88a);
 }
 
 function drawPathEdges(g, map, pal) {

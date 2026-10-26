@@ -23,6 +23,10 @@ export const ENEMIES = {
   slimelet: { name: 'Слизнёнок', color: 0x6ad08a, r: 0.16 },
   bat: { name: 'Летучая мышь', color: 0x5a4a5a, r: 0.18 },
   goblin_shaman: { name: 'Гоблин-шаман', color: 0x6aa04a, r: 0.2 },
+  pirate: { name: 'Пират', color: 0xc84a3a, r: 0.22 },
+  deep_one: { name: 'Глубоководный', color: 0x3a9a7a, r: 0.22 },
+  drowned: { name: 'Утопленник', color: 0x6a9a8a, r: 0.22 },
+  octopling: { name: 'Осьминожек', color: 0x8a4ab0, r: 0.16 },
 
   bone_knight: { name: 'Костяной Рыцарь', color: 0xd8d2c0, r: 0.42, boss: true },
   cult_leader: { name: 'Вожак Культа', color: 0xa8202a, r: 0.42, boss: true },
@@ -36,6 +40,8 @@ export const ENEMIES = {
   tax_collector: { name: 'Сборщик податей', color: 0x4a7a3a, r: 0.32, boss: true },
   golden_golem: { name: 'Золотой голем', color: 0xffd24a, r: 0.4, boss: true },
   hydra: { name: 'Гидра', color: 0x3a8a4a, r: 0.48, boss: true },
+  octopus: { name: 'Мрачный Осьминог', color: 0x6a2a8a, r: 0.46, boss: true },
+  leviathan: { name: 'Левиафан', color: 0x2a7a6a, r: 0.5, boss: true },
   sdf: { name: 'ЭссДиЭф', color: 0x8a9a3a, r: 0.5, boss: true },
 };
 
@@ -145,7 +151,12 @@ export function qualityDots(g, rarity, level) {
 // drawTower draws a building centred on (0, 0). pixel: the tileset is
 // loaded, so buildings stand on the floor with no stone plate behind them;
 // art: the building has sprites, and this only adds the quality dots.
-export function drawTower(g, kind, rarity, level, { pixel = false, art = false } = {}) {
+export function drawTower(g, kind, rarity, level, { pixel = false, art = false, water = false } = {}) {
+  if (water && (kind === 'trap' || kind === 'wall')) {
+    drawWaterWork(g, kind);
+    qualityDots(g, rarity, level);
+    return;
+  }
   if (art) {
     if (kind === 'drums') {
       // A war drum at the bard's side, in the pack's dark outline style.
@@ -208,6 +219,25 @@ export function drawTower(g, kind, rarity, level, { pixel = false, art = false }
   qualityDots(g, rarity, level);
 }
 
+// drawWaterWork draws what traps and barricades are on the river: an anchor
+// net on its floats, and a boom of logs chained across the water.
+function drawWaterWork(g, kind) {
+  if (kind === 'trap') {
+    const n = 30;
+    for (let d = -n; d <= n; d += 10) g.moveTo(d, -n * 0.6).lineTo(d, n * 0.6).moveTo(-n, d * 0.6).lineTo(n, d * 0.6);
+    g.stroke({ width: 2, color: 0xd8c08a, alpha: 0.85 });
+    g.rect(-n, -n * 0.6, n * 2, n * 1.2).stroke({ width: 3, color: 0x8a6a3a });
+    for (const [x, y] of [[-n, -n * 0.6], [n, -n * 0.6], [-n, n * 0.6], [n, n * 0.6]]) g.circle(x, y, 5).fill(0xe8e0d0).stroke({ width: 2, color: 0x3a2a1a });
+    g.moveTo(n - 6, n * 0.6).lineTo(n + 4, n * 0.6 + 14).stroke({ width: 3, color: 0x4a4a52 }); // the anchor rope
+    return;
+  }
+  for (let i = -1; i <= 1; i++) {
+    g.roundRect(-34, i * 14 - 6, 68, 12, 6).fill(0x6a4626).stroke({ width: 2, color: 0x2a1b0f });
+    g.circle(-28, i * 14, 3).circle(28, i * 14, 3).fill(0x8a6a4a); // the cut ends
+  }
+  g.moveTo(-36, -22).lineTo(-36, 22).moveTo(36, -22).lineTo(36, 22).stroke({ width: 4, color: 0x3a3a42 }); // posts and chain
+}
+
 // drawProjectile draws a shot of the given building kind.
 export function drawProjectile(g, kind) {
   if (kind === 'magic') g.circle(0, 0, 8).fill(0xc9a6ff).circle(0, 0, 4).fill(0xffffff);
@@ -247,6 +277,13 @@ export const ENEMY_ART = {
   golden_golem: { name: 'ogre_run', scale: 3.4, tint: 0xffd24a },
   hydra: { name: 'tc_wyrm', scale: 6, hop: true },
   rat: { name: 'tc_rat', scale: 2.2, hop: true },
+  // The river. boat: rows in a rowboat that shows its wounds (entities.js).
+  pirate: { name: 'pirate', scale: 2.6, speed: 0.1, boat: true },
+  deep_one: { name: 'tc_fishman', scale: 2.8, hop: true },
+  drowned: { name: 'tc_drowned', scale: 2.8, hop: true, tint: 0xa8d0c8 },
+  octopling: { name: 'tc_octopus', scale: 2, float: true },
+  octopus: { name: 'tc_octopus', scale: 5.5, float: true },
+  leviathan: { name: 'tc_serpent', scale: 6.4, float: true, tint: 0x9ae0d0 },
   spider: { name: 'spider_dark', scale: 3.6 },
   spider_queen: { name: 'spider_purple', scale: 5.5 },
   // dirs: walk cycles by heading (side ones face right); acts: the burp

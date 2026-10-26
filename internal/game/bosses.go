@@ -18,6 +18,7 @@ var biomeEnemies = map[Biome][]weighted{
 	BiomeCrypt:   {{"skeleton", 1, 3}, {"mummy", 1, 3}, {"ghost", 2, 3}, {"necromancer", 4, 2}, {"shieldbearer", 6, 2}},
 	BiomeSwamp:   {{"slime", 1, 4}, {"ghoul", 1, 2}, {"bat", 2, 4}, {"bomber", 4, 2}, {"goblin_shaman", 4, 3}},
 	BiomeIce:     {{"skeleton", 1, 2}, {"iceskel", 1, 5}, {"frostspirit", 2, 3}, {"shieldbearer", 6, 1}, {"bomber", 8, 1}},
+	BiomeRiver:   {{"pirate", 1, 5}, {"drowned", 1, 3}, {"deep_one", 2, 3}, {"bomber", 5, 2}},
 }
 
 // Each biome has two bosses that take turns every BossEvery waves.
@@ -27,6 +28,7 @@ var biomeBosses = map[Biome][]string{
 	BiomeCrypt:   {"lich", "ghost_king"},
 	BiomeIce:     {"ice_golem", "frost_demon"},
 	BiomeSwamp:   {"swamp_witch", "hydra"},
+	BiomeRiver:   {"octopus", "leviathan"},
 }
 
 func pickEnemy(roll float64, pool []weighted, wave int) string {
@@ -94,6 +96,12 @@ func (g *Game) tickBoss(e *Enemy, dt float64) {
 	case "hydra": // its heads grow with its wounds (tickHydra), nothing on a timer
 		e.ability = 1e9
 		return
+	case "octopus": // sets an octopling on a building
+		e.ability = clingEvery
+		g.cling(e)
+	case "leviathan": // raises the tide and swims deep
+		e.ability = tideEvery
+		g.tide(e)
 	case "frost_demon": // ices the path: everyone runs faster for a while
 		e.ability = 10
 		g.rushLeft = 5
