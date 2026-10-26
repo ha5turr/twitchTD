@@ -5,10 +5,11 @@ import (
 	"testing"
 )
 
-type fakeOps struct{ updates, rollbacks []string }
+type fakeOps struct{ updates, rollbacks, restarts []string }
 
 func (f *fakeOps) Update(by string)   { f.updates = append(f.updates, by) }
 func (f *fakeOps) Rollback(by string) { f.rollbacks = append(f.rollbacks, by) }
+func (f *fakeOps) Restart(by string)  { f.restarts = append(f.restarts, by) }
 
 func TestReleaseCommands(t *testing.T) {
 	g, _ := newTestGame(t)
@@ -26,6 +27,11 @@ func TestReleaseCommands(t *testing.T) {
 	g.HandleChat(ChatMessage{User: "modder", Mod: true, Text: "!tdrollback"})
 	if len(ops.updates) != 1 || len(ops.rollbacks) != 1 || ops.updates[0] != "modder" {
 		t.Fatalf("mods update and roll back: %+v", ops)
+	}
+	g.HandleChat(ChatMessage{User: "viewer", Text: "!tdrestart"})
+	g.HandleChat(ChatMessage{User: "modder", Mod: true, Text: "!tdперезапуск"})
+	if len(ops.restarts) != 1 || ops.restarts[0] != "modder" {
+		t.Fatalf("only mods restart the server: %+v", ops.restarts)
 	}
 	g.HandleChat(ChatMessage{User: "modder", Mod: true, Text: "!tdversion"})
 	if r := lastReply(g); !strings.Contains(r, "v"+Version) {

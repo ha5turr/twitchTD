@@ -112,7 +112,7 @@ func (g *Game) HandleChat(m ChatMessage) {
 	case "!стрелы", "!arrows", "!ammo":
 		g.cmdAmmo(c, key, args)
 	case "!s", "!say", "!скажи":
-		g.cmdSay(c, args, m.Emotes)
+		g.cmdSay(c, key, args, m.Emotes)
 	case "!dance", "!танец", "!пляс", "!танцевать":
 		g.cmdDance(c, key)
 	case "!тюрьма", "!jail", "!посадить":
@@ -459,9 +459,11 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		g.cmdMemeAdmin(c, args)
 	case "!tdversion", "!tdверсия":
 		g.reply(c.Name, "версия v"+Version)
-	case "!tdupdate", "!tdобновить", "!tdrollback", "!tdоткат":
+	case "!tdupdate", "!tdобновить", "!tdrollback", "!tdоткат", "!tdrestart", "!tdперезапуск":
 		if g.Ops == nil {
 			g.reply(c.Name, "обновления не настроены")
+		} else if cmd == "!tdrestart" || cmd == "!tdперезапуск" {
+			g.Ops.Restart(c.Name)
 		} else if cmd == "!tdupdate" || cmd == "!tdобновить" {
 			g.Ops.Update(c.Name)
 		} else {
