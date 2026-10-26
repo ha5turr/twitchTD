@@ -65,6 +65,7 @@ type StateMsg struct {
 	Summary   *Summary       `json:"summary,omitempty"` // only on the game over screen
 	Dice      []DiceView     `json:"dice"`
 	JailVote  *JailVoteView  `json:"jailVote,omitempty"`
+	Match     *MatchView     `json:"match,omitempty"`
 	MapVote   *JailVoteView  `json:"mapVote,omitempty"` // Target is the biome's name, "" for a random one
 	Memes     []*MemeRequest `json:"memes,omitempty"`   // memecoin requests for the panel
 	Panthers  []PantherView  `json:"panthers,omitempty"`
@@ -150,6 +151,14 @@ type ChatterView struct {
 	Ransom int    `json:"ransom,omitempty"`
 }
 
+// MatchView is the match clock and the ready vote for the top bar.
+type MatchView struct {
+	Left  float64 `json:"left"`  // seconds of the match left
+	Final bool    `json:"final"` // the time is up or the final is on
+	Ready int     `json:"ready"` // players ready this build phase
+	Need  int     `json:"need"`  // ready players that start the wave
+}
+
 // LinkView is a soul link between two artifact altars.
 type LinkView struct {
 	ID    int        `json:"id"`
@@ -210,6 +219,9 @@ func (g *Game) StateMessage() StateMsg {
 		s.Chatters = append(s.Chatters, ChatterView{
 			c.Name, c.Gold, owners[key], c.Kills, c.Drinks, c.Class, int(math.Ceil(c.Drunk)), active, g.Banned[key], c.Souls, c.rank(), c.musicLeft > 0, c.out > 0, int(math.Ceil(c.jailLeft)), c.ransom,
 		})
+	}
+	if g.Cfg.MatchMinutes > 0 {
+		s.Match = &MatchView{math.Ceil(g.matchLeft()), g.finalDue || g.finalWave, len(g.ready), g.readyNeed()}
 	}
 	if v := g.mapVote; v != nil {
 		s.MapVote = &JailVoteView{biomeName(v.Biome), v.ByName, math.Ceil(v.left), len(v.yes), len(v.no)}

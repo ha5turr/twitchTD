@@ -153,6 +153,8 @@ func (g *Game) StartWave() {
 	if g.Phase != PhaseBuild {
 		return
 	}
+	g.payTempo(g.tempoSaved + max(0, g.Timer)) // the build phase cut short
+	g.ready, g.readyGo, g.tempoSaved = nil, false, 0
 	g.Wave++
 	g.Phase = PhaseWave
 	for _, t := range g.Towers {
@@ -172,6 +174,12 @@ func (g *Game) StartWave() {
 		g.queue = append(g.queue, spawn{kind, g.waveHP * g.Cfg.Enemies[kind].HPMult})
 	}
 	boss := ""
+	if g.finalDue {
+		g.finalQueue(sq)
+		g.spawnTimer = 0
+		g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: "final"})
+		return
+	}
 	bossWave := g.Cfg.BossEvery > 0 && g.Wave%g.Cfg.BossEvery == 0
 	guest := g.rollGuest(bossWave)
 	if bossWave {
@@ -214,6 +222,10 @@ func (g *Game) endWave() {
 		if c := g.Chatters[name]; c != nil {
 			g.addGold(c, bonus)
 		}
+	}
+	if g.finalWave {
+		g.endMatch(true) // the final held: the tavern wins, no "wave cleared" over its summary
+		return
 	}
 	cleared := Event{Kind: "waveCleared", Amount: g.Wave}
 	if boost > 1 {

@@ -17,7 +17,7 @@ import (
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
 	"towerLimit", "towerLimitMax", "smallTeamBonus", "smallRewardSize", "smallWaveMult", "smallKillMult", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "shrineLimit", "shrineLimitCleric", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
-	"donationGoldPerRub", "buildPhaseSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
+	"donationGoldPerRub", "buildPhaseSec", "matchMinutes", "finalWave", "finalBossMult", "tempoGoldPerSec", "tempoGoldMax", "gameOverSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
 
@@ -143,6 +143,8 @@ func validate(cfg appConfig) error {
 	switch {
 	case cfg.TowerLimit < 1, cfg.WalletCap < 1, cfg.BuildPhaseSec < 5, cfg.BossEvery < 1:
 		return fmt.Errorf("лимит построек, потолок кошелька, фаза стройки (от 5 с) и частота боссов должны быть положительными")
+	case cfg.MatchMinutes < 0, cfg.FinalWave < 1, cfg.FinalBossMult <= 0, cfg.TempoGoldPerSec < 0, cfg.TempoGoldMax < 0, cfg.GameOverSec < 0:
+		return fmt.Errorf("партия: минуты, награда за темп и автозапуск не могут быть отрицательными, волна финала — от 1, сила боссов — больше 0")
 	case cfg.TowerLimitMax < 0, cfg.SmallTeamBonus < 0, cfg.WallHoldMax < 0, cfg.SiegeRageSec < 0:
 		return fmt.Errorf("потолок лимита, бонус малой команды, золото за удержание и время до ярости не могут быть отрицательными")
 	case cfg.SmallRewardSize < 0, cfg.SmallWaveMult < 0 || cfg.SmallWaveMult > 10, cfg.SmallKillMult < 0 || cfg.SmallKillMult > 10:
