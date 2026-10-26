@@ -422,6 +422,28 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.8, `+голова! (${ev.amount})`, 0xff6a5a, FONT_UI, 22);
         this.toasts.push({ text: `🐍 У гидры отросла голова: их уже ${ev.amount}! Поджигайте раны`, color: 0xff8a7a });
         break;
+      case 'sink':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
+        this.floatAt(ev.x, ev.y - 0.6, 'лодка тонет!', 0x8ad8ff, FONT_UI, 20);
+        break;
+      case 'dive':
+        this.floatAt(ev.x, ev.y - 0.5, 'буль', 0x8ad8ff, FONT_UI, 16);
+        break;
+      case 'rise':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
+        this.floatAt(ev.x, ev.y - 0.6, 'из воды!', 0x9ae0c8, FONT_UI, 18);
+        break;
+      case 'cling':
+        this.floatAt(ev.x, ev.y - 0.7, 'облеплено!', 0xc08aff, FONT_UI, 20);
+        this.toasts.push({ text: `🐙 Осьминожек облепил постройку «${ev.text}»: сбейте его соседними башнями`, color: 0xc08aff });
+        break;
+      case 'unclung':
+        this.floatAt(ev.x, ev.y - 0.7, 'свободна!', 0xb0ff8a, FONT_UI, 18);
+        break;
+      case 'tide':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.6 });
+        this.toasts.push({ text: `🌊 Левиафан поднимает прилив: построек под водой — ${ev.amount ?? 0}`, color: 0x8ad8ff });
+        break;
       case 'cauterize':
         this.floatAt(ev.x, ev.y - 0.8, 'прижжено!', 0xffb36b, FONT_UI, 22);
         break;

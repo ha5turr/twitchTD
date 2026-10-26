@@ -114,6 +114,9 @@ func (e *Enemy) burning() bool { return e.burnLeft > 0 || e.sburnLeft > 0 }
 
 // stackBurn adds a stack of an artifact brazier's burn.
 func (g *Game) stackBurn(e *Enemy, p *Projectile) {
+	if g.swimming(e) {
+		return // fire goes out in the water
+	}
 	if e.sburnLeft <= 0 {
 		e.sburnN, e.sburnDPS = 0, 0
 	}
@@ -370,7 +373,7 @@ func (g *Game) announceArtifact(t *Tower, by string) {
 	if t.Kind == "arrow" {
 		hint = " Стрелы: !стрелы " + t.Cell.Name() + " огонь|яд|взрыв"
 	}
-	g.reply(by, fmt.Sprintf("%s: %s стал артефактом!%s", t.Cell.Name(), g.Cfg.Towers[t.Kind].Name, hint))
+	g.reply(by, fmt.Sprintf("%s: %s стал артефактом!%s", t.Cell.Name(), g.towerName(t.Kind), hint))
 }
 
 // TowerMaxLevel is how far a player can raise t (the balance simulator asks).

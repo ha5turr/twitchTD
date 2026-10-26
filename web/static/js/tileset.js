@@ -36,7 +36,7 @@ export async function loadTileset(base = 'assets/0x72/') {
     console.warn('tileset not loaded, using vector art:', err);
     return;
   }
-  await Promise.all(EXTRA.map(loadExtra));
+  await Promise.all([...EXTRA.map(loadExtra), ...LAYERED.map(loadLayered)]);
 }
 
 // row lists n frames of w x h laid out left to right from (x, y).
@@ -107,7 +107,21 @@ const EXTRA = [
       tc_hag: kt(0, 10), tc_wyrm: kt(0, 11), tc_frog: kt(7, 14),
       tc_collector: kt(9, 0), // the guest who comes for the treasury
       tc_bear: kt(3, 16), // the druid's bear form
+      // The river: a fish-man (deep one), a ghoul (the drowned), the purple
+      // ring-mouthed horror (grim octopus and its young), a sea serpent.
+      tc_fishman: kt(5, 2), tc_drowned: kt(8, 9), tc_octopus: kt(5, 7), tc_serpent: kt(6, 7),
+      tc_tree: kt(3, 11), tc_bush: kt(4, 11), // the trees on its banks
     },
+  },
+  {
+    // InThePixel's flowing water: 13 frames of a 16 px tile, flowing left.
+    file: 'assets/river/water.png',
+    defs: { water: row(0, 0, 16, 16, 13) },
+  },
+  {
+    // Foozle's Scallywag ships: a rowboat whole, battered and breaking up.
+    file: 'assets/river/ships.png',
+    defs: { boat_0: [[1, 0, 30, 64]], boat_1: [[1, 64, 30, 64]], boat_2: [[1, 128, 30, 64]] },
   },
   { file: 'assets/miniworld/Mausoleum.png', defs: { mausoleum: [[0, 0, 32, 32]], mausoleum_pale: [[32, 0, 32, 32]] } },
   {
@@ -171,6 +185,43 @@ export function frames(name) {
   if (anims.has(name)) return anims.get(name);
   const t = tex.get(name);
   return t ? [t] : null;
+}
+
+// Sheets drawn in layers, put together once on load: Foozle's Scallywag
+// pirates are a bare body with the clothes on a separate column, so each
+// frame is the body with an outfit drawn over it.
+const LAYERED = [
+  {
+    file: 'assets/river/pirates_red.png',
+    defs: {
+      pirate: { frames: row(0, 0, 16, 16, 3), over: 64 }, // a red bandana
+      pirate_captain: { frames: row(0, 0, 16, 16, 3), over: 128 }, // the captain's hat and coat
+    },
+  },
+];
+
+async function loadLayered({ file, defs }) {
+  try {
+    const sheet = await Assets.load(file);
+    const img = sheet.source.resource;
+    for (const [name, { frames, over }] of Object.entries(defs)) {
+      const out = frames.map(([x, y, w, h]) => {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext('2d');
+        ctx.drawImage(img, x, y, w, h, 0, 0, w, h);
+        ctx.drawImage(img, x + over, y, w, h, 0, 0, w, h);
+        const t = Texture.from(c);
+        t.source.scaleMode = 'nearest';
+        return t;
+      });
+      tex.set(name, out[0]);
+      if (out.length > 1) anims.set(name, out);
+    }
+  } catch (err) {
+    console.warn(`layered sheet ${file} not loaded:`, err);
+  }
 }
 
 // sprite makes a (possibly animated) sprite standing on its bottom centre.

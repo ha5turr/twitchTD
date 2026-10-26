@@ -1,0 +1,10 @@
+River biome assets. All CC0 1.0 (public domain), attribution not required.
+
+ships.png              Scallywag - Ships (1.0), Pixel Carvel / Foozle
+                       https://foozlecc.itch.io/scallywag-ships
+pirates_*.png          Scallywag - Pirates (1.0), Pixel Carvel / Foozle
+                       https://foozlecc.itch.io/scallywag-pirates
+water.png              Animated flowing water 2d 16x16 (13 frames), InThePixel
+                       https://opengameart.org/content/animated-flowing-water-2d-16x16
+
+Only the sheets the game uses are kept here.

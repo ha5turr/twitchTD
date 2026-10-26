@@ -43,6 +43,11 @@ export const BIOMES = {
     obstacle: 0x2a3a2a, ambient: 0x6a8060, light: 0xb8ff8a,
     pathTint: 0x6a7448, groundTint: 0xb8d0a0, cliffTint: 0x7a8a5a, // peat and moss; the path is a muddy track
   },
+  river: {
+    name: 'Речной привал', ground: 0x1f2a26, groundAlt: 0x1c2622, path: 0x1f4a5a, pathEdge: 0x8a7a5a,
+    obstacle: 0x2a3a2a, ambient: 0x6a8494, light: 0x8ad8ff,
+    pathTint: 0x4a6a78, groundTint: 0xc0d4b0, cliffTint: 0x7a8a6a, waterTint: 0x3e5a6e, // a dark river between grassy banks
+  },
 };
 
 // Loot rarity colours by tower level 1..6: the 6th, red, is a class building's artifact level.

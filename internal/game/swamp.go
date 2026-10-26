@@ -92,7 +92,7 @@ func (g *Game) hex(e *Enemy) {
 	at.Disabled = max(at.Disabled, hexSec)
 	at.hexLeft = hexSec
 	cp := center(at.Cell)
-	g.emit(Event{Kind: "hex", X: cp.X, Y: cp.Y, Text: g.Cfg.Towers[at.Kind].Name})
+	g.emit(Event{Kind: "hex", X: cp.X, Y: cp.Y, Text: g.towerName(at.Kind)})
 }
 
 // tickHydra grows a head each time the hydra loses another quarter of its
