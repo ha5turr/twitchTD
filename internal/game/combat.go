@@ -444,6 +444,7 @@ func (g *Game) move(e *Enemy, spec EnemySpec, step float64) {
 		g.blowUp(e, spec)
 	}
 	e.Pos = g.routePos(e.Dist)
+	g.ashore(e) // a pirate leaves his boat at the pier
 }
 
 func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
