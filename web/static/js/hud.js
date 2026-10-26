@@ -765,7 +765,9 @@ class SummaryPanel {
     this.root.visible = false;
     const pw = 1000;
     const ph = 520;
-    this.root.position.set(FIELD_CX - pw / 2, FIELD_CY - ph / 2);
+    const scale = 1.2; // read from across the room on a stream
+    this.root.scale.set(scale);
+    this.root.position.set(FIELD_CX - (pw * scale) / 2, FIELD_CY - (ph * scale) / 2);
     const bg = new Graphics();
     bg.roundRect(0, 0, pw, ph, 14).fill({ color: 0x0d0b09, alpha: 0.92 }).stroke({ width: 4, color: 0x7a1d1d });
     this.root.addChild(bg);
@@ -786,7 +788,7 @@ class SummaryPanel {
         v: add({ fontFamily: FONT_PIXEL, fontSize: 14, fill: 0xffd24a, stroke: { color: 0x000000, width: 4 } }, x, 268 + r * 70),
       }));
     });
-    this.next = add(ui(24, 0xc9b98f), pw / 2, ph - 54);
+    this.next = add(ui(34, 0xf2e6c9), pw / 2, ph - 62);
   }
 
   show(s, timer) {
