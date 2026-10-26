@@ -147,20 +147,27 @@ type Game struct {
 	rng        *rand.Rand
 	events     []Event
 	mapChanged bool
-	emoteIDs   []string // channels whose emotes the overlay loads (SetEmoteChannels)
-	summary    *Summary
-	cellDist   []float64            // route distance to the centre of each path cell
-	waveHP     float64              // base enemy HP of the current wave
-	rushLeft   float64              // seconds of the frost demon's speed-up left
-	assist     []string             // drummers behind the shot being resolved
-	rewardMult float64              // grows after every boss wave: kills, assists and barricades pay more
-	smallKill  float64              // a small party's extra share of every bounty this wave (0.5 is x1.5)
-	afkCheck   float64              // seconds to the next AFK sweep
-	helpAt     map[string]time.Time // last !помощь answer per topic
-	jailVote   *JailVote            // the tavern voting to lock someone up
-	mapVote    *MapVote             // the tavern voting for a new map (newmap.go)
-	mapVoteAt  time.Time            // a failed vote: no new one until then
-	nextMeme   int
+	// The match (match.go).
+	matchElapsed float64         // seconds played this game, saved
+	finalDue     bool            // the time is up: the next wave is the final
+	finalWave    bool            // the wave on the field is the final
+	ready        map[string]bool // !готов this build phase
+	readyGo      bool            // enough are ready: the countdown runs
+	tempoSaved   float64         // build phase seconds the ready vote cut
+	emoteIDs     []string        // channels whose emotes the overlay loads (SetEmoteChannels)
+	summary      *Summary
+	cellDist     []float64            // route distance to the centre of each path cell
+	waveHP       float64              // base enemy HP of the current wave
+	rushLeft     float64              // seconds of the frost demon's speed-up left
+	assist       []string             // drummers behind the shot being resolved
+	rewardMult   float64              // grows after every boss wave: kills, assists and barricades pay more
+	smallKill    float64              // a small party's extra share of every bounty this wave (0.5 is x1.5)
+	afkCheck     float64              // seconds to the next AFK sweep
+	helpAt       map[string]time.Time // last !помощь answer per topic
+	jailVote     *JailVote            // the tavern voting to lock someone up
+	mapVote      *MapVote             // the tavern voting for a new map (newmap.go)
+	mapVoteAt    time.Time            // a failed vote: no new one until then
+	nextMeme     int
 }
 
 func New(cfg Config, seed uint64) *Game {
@@ -221,6 +228,8 @@ func (g *Game) NewGame(biome Biome) {
 	}
 	g.Dice = nil
 	g.jailVote, g.mapVote = nil, nil
+	g.matchElapsed, g.finalDue, g.finalWave = 0, false, false
+	g.ready, g.readyGo, g.tempoSaved = nil, false, 0
 	for _, c := range g.Chatters {
 		if !g.Cfg.KeepGold {
 			c.Gold = g.Cfg.StartGold
@@ -320,6 +329,7 @@ func (g *Game) Tick(dt float64) {
 	g.tickDice(dt)
 	g.tickJail(dt)
 	g.tickMapVote(dt)
+	g.tickMatch(dt)
 	switch g.Phase {
 	case PhaseBuild:
 		g.Timer -= dt
@@ -327,9 +337,10 @@ func (g *Game) Tick(dt float64) {
 			g.StartWave()
 		}
 	case PhaseGameOver:
-		g.Timer -= dt
-		if g.Timer <= 0 {
-			g.NewGame("")
+		if g.Cfg.GameOverSec > 0 { // otherwise the game waits for !нк
+			if g.Timer -= dt; g.Timer <= 0 {
+				g.NewGame("")
+			}
 		}
 		return
 	case PhaseWave:
@@ -351,12 +362,7 @@ func (g *Game) Tick(dt float64) {
 	g.sweepDead()
 	if g.Walls <= 0 && g.Phase != PhaseGameOver {
 		g.Walls = 0
-		g.Phase = PhaseGameOver
-		g.Timer = g.Cfg.GameOverSec
-		g.Workers = map[string]*Worker{}
-		g.summary = g.makeSummary()
-		g.awardSouls(g.summary.Wave)
-		g.emit(Event{Kind: "gameOver", Amount: g.Wave})
+		g.endMatch(false)
 	}
 }
 

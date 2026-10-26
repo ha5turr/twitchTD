@@ -1,6 +1,7 @@
 // Command balance plays many games headless with simulated chatters and
 // reports how far the tavern holds and how long a game lasts, per chat size.
-// The design target: a typical game ends around waves 15-25, about 30 min.
+// With the match clock a game ends at the final (won or lost) or when the
+// walls fall before it; the table tells how often the final came and was held.
 //
 //	go run ./cmd/balance -games 60
 //	go run ./cmd/balance -config configs/candidate.json
@@ -24,8 +25,10 @@ func main() {
 	sizes := flag.String("chatters", "1,5,10,20", "comma-separated chat sizes")
 	cfgPath := flag.String("config", "", "balance overrides (same format as config.json)")
 	biomeFlag := flag.String("biome", "", "play every game in this biome (ruins, dungeon, crypt, ice, swamp)")
+	readyFlag := flag.Bool("ready", false, "bots vote !готов once they have nothing to spend, cutting build phases short")
 	flag.Parse()
 	biome = game.Biome(*biomeFlag)
+	hurry = *readyFlag
 
 	cfg := game.DefaultConfig()
 	if *cfgPath != "" {
@@ -40,21 +43,29 @@ func main() {
 		}
 	}
 
-	fmt.Println("чатерсов | волн пережито: p10 / медиана / p90 | длительность, мин: медиана | построек в конце, ср. уровень")
+	fmt.Println("чатерсов | волн пережито: p10 / медиана / p90 | длительность, мин: медиана | построек в конце, ср. уровень | дошли до финала | победы")
 	for _, s := range strings.Split(*sizes, ",") {
 		var n int
 		fmt.Sscan(s, &n)
 		var waves, mins []float64
 		var towers, level float64
+		finals, wins := 0, 0
 		for i := 0; i < *games; i++ {
 			r := play(cfg, n, uint64(i*7919+n))
 			waves = append(waves, float64(r.waves))
 			mins = append(mins, r.minutes)
 			towers += r.towers
 			level += r.level
+			if r.final {
+				finals++
+			}
+			if r.won {
+				wins++
+			}
 		}
-		fmt.Printf("%8d | %5.0f / %5.0f / %5.0f | %6.1f | %5.1f, ур. %.1f\n",
-			n, pct(waves, 10), pct(waves, 50), pct(waves, 90), pct(mins, 50), towers/float64(*games), level/float64(*games))
+		fmt.Printf("%8d | %5.0f / %5.0f / %5.0f | %6.1f | %5.1f, ур. %.1f | %3.0f%% | %3.0f%%\n",
+			n, pct(waves, 10), pct(waves, 50), pct(waves, 90), pct(mins, 50), towers/float64(*games), level/float64(*games),
+			100*float64(finals)/float64(*games), 100*float64(wins)/float64(*games))
 	}
 }
 
@@ -63,6 +74,8 @@ type result struct {
 	minutes float64
 	towers  float64 // standing when the walls fell
 	level   float64 // their average level
+	final   bool    // the final wave came
+	won     bool    // and was held
 }
 
 func pct(v []float64, p float64) float64 {
@@ -102,6 +115,9 @@ type bot struct {
 
 // biome, when set, is the one every simulated game is played in.
 var biome game.Biome
+
+// hurry makes the bots vote !готов once they have nothing left to spend.
+var hurry bool
 
 // play runs one game to the end and reports the waves survived.
 func play(cfg game.Config, chatters int, seed uint64) result {
@@ -153,7 +169,7 @@ func play(cfg game.Config, chatters int, seed uint64) result {
 	if len(g.Towers) > 0 {
 		avg = float64(levels) / float64(len(g.Towers))
 	}
-	return result{waves: max(g.Wave-1, 0), minutes: t / 60, towers: float64(len(g.Towers)), level: avg}
+	return result{waves: max(g.Wave-1, 0), minutes: t / 60, towers: float64(len(g.Towers)), level: avg, final: g.FinalReached(), won: g.Won()}
 }
 
 // act spends gold the way a chatter would: build up to the limit, then upgrade.
@@ -199,6 +215,10 @@ func (b *bot) act(g *game.Game, r *rand.Rand) {
 	}
 	if best != nil && c.Gold+c.Grant >= g.Cfg.TowerCost(best.Kind, best.Level+1) {
 		g.HandleChat(game.ChatMessage{User: b.name, Text: "!up " + best.Cell.Name()})
+		return
+	}
+	if hurry && g.Phase == game.PhaseBuild {
+		g.HandleChat(game.ChatMessage{User: b.name, Text: "!готов"}) // nothing to spend: go on
 	}
 }
 

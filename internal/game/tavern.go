@@ -149,11 +149,13 @@ func (g *Game) soberUp(dt float64) {
 
 // Summary is the game over screen: how far the tavern held and who shone.
 type Summary struct {
-	Wave   int    `json:"wave"`
-	Biome  Biome  `json:"biome"`
-	Damage []Rank `json:"damage"`
-	Kills  []Rank `json:"kills"`
-	Drinks []Rank `json:"drinks"`
+	Won     bool   `json:"won,omitempty"` // the final was held
+	Minutes int    `json:"minutes"`       // of the match played
+	Wave    int    `json:"wave"`
+	Biome   Biome  `json:"biome"`
+	Damage  []Rank `json:"damage"`
+	Kills   []Rank `json:"kills"`
+	Drinks  []Rank `json:"drinks"`
 }
 
 type Rank struct {
