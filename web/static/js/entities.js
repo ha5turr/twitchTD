@@ -4,6 +4,7 @@ import { W, CELL, LEFT, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './l
 import { drawFigure } from './figures.js';
 import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
 import { hasTileset, sprite, frames, texture } from './tileset.js';
+import { isWater } from './map.js';
 
 const { Container, Graphics, Text } = PIXI;
 
@@ -152,6 +153,16 @@ class EnemyView {
     // Status effects: a frost ring while slowed, a shield arc for the bone knight.
     this.fx = new Graphics();
     this.root.addChild(this.body, this.fx);
+    if (this.art?.boat) {
+      // A pirate stands in a rowboat, bow first; the boat shows its wounds.
+      this.boat = sprite('boat_0', 1.5);
+      if (this.boat) {
+        this.boat.anchor.set(0.5);
+        this.root.addChildAt(this.boat, 0);
+        this.body.y = this.footY = this.body.height / 2 - 6;
+        this.boatFrame = 'boat_0';
+      }
+    }
     layer.world.addChild(this.root);
 
     this.bar = new Graphics();
@@ -185,11 +196,26 @@ class EnemyView {
       this.bar.rect(-w / 2, 0, w, 6).fill({ color: 0x000000, alpha: 0.7 });
       this.bar.rect(-w / 2, 0, w * f, 6).fill(f > 0.5 ? 0x5fd35f : f > 0.25 ? 0xe0b03a : 0xe04a3a);
     }
-    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '');
+    if (this.boat) {
+      const name = e.sunk ? '' : e.boat > 0.6 ? 'boat_0' : e.boat > 0.3 ? 'boat_1' : 'boat_2';
+      if (name !== this.boatFrame) {
+        this.boatFrame = name;
+        this.boat.visible = !!name;
+        if (name) this.boat.texture = texture(name);
+      }
+    }
+    this.dive = !!e.dive;
+    this.bar.visible = !this.dive;
+    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '') + (e.swim ? 'w' : '') + (e.dive ? 'd' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
       this.fx.clear();
+      if (e.swim || e.dive) {
+        // Swimming: rings of ripples round the waist; under water only they show.
+        this.fx.ellipse(0, r * 0.4, r * 1.1, r * 0.35).stroke({ width: 2, color: 0xbfe8ff, alpha: 0.7 });
+        this.fx.ellipse(0, r * 0.4, r * 1.5, r * 0.5).stroke({ width: 2, color: 0xbfe8ff, alpha: 0.35 });
+      }
       if (e.slow) this.fx.ellipse(0, r * 0.8, r * 1.1, r * 0.35).stroke({ width: 3, color: 0x8fd4ff });
       if (e.kind === 'shieldbearer') {
         // The cover he gives: a faint dome over everyone within GUARD cells.
@@ -232,6 +258,15 @@ class EnemyView {
       // Sprites face the way they walk.
       this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
     }
+    if (this.boat && Math.hypot(dx, dy) > 0.5) {
+      // The bow leads, the pirate keeps facing us.
+      const want = Math.atan2(dy, dx) + Math.PI / 2;
+      let d = want - this.boat.rotation;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      this.boat.rotation += d * 0.15;
+      this.body.scale.x = Math.abs(this.body.scale.x);
+    }
+    this.body.alpha = this.dive ? 0.18 : this.art?.alpha ?? 1;
     if (this.motion === 'float') this.body.y = this.footY - 6 + Math.sin(t * 3 + this.phase) * 5;
     else if (this.motion === 'hop') this.body.y = this.footY - Math.abs(Math.sin(t * 12 + this.phase)) * 5;
     // Raging enemies throb red, burning ones flicker orange.
@@ -293,7 +328,14 @@ class TowerView {
     }
     this.web.circle(0, 0, 16).circle(0, 0, 30);
     this.web.stroke({ width: 2, color: 0xe8f4ff, alpha: 0.85 });
-    layer.world.addChild(this.root, this.web);
+    // The leviathan's tide over the building.
+    this.wave = new Graphics();
+    this.wave.position.set(this.cx, this.cy);
+    this.wave.roundRect(-44, -44, 88, 88, 18).fill({ color: 0x2a6a9a, alpha: 0.8 });
+    for (let i = -1; i <= 1; i++) this.wave.moveTo(-34, i * 20).quadraticCurveTo(-17, i * 20 - 8, 0, i * 20).quadraticCurveTo(17, i * 20 + 8, 34, i * 20);
+    this.wave.stroke({ width: 3, color: 0xbfe8ff, alpha: 0.8 });
+    this.wave.visible = false;
+    layer.world.addChild(this.root, this.web, this.wave);
     // The frog a swamp witch turns the building into for a while.
     this.frog = sprite('tc_frog', 4) ?? emoji('🐸', 40);
     this.frog.position.set(this.cx, this.cy + (this.frog.anchor?.y === 1 ? 24 : 0));
@@ -333,6 +375,7 @@ class TowerView {
   set(t) {
     this.disabled = !!t.disabled;
     this.hex = !!t.hex;
+    this.flood = !!t.flood;
     // One bar above the cell: construction progress, or a barricade's health.
     const key = `${t.progress ?? 0}|${t.hp ?? 0}`;
     if (key !== this.barKey) {
@@ -366,11 +409,12 @@ class TowerView {
       g.moveTo(-28, 28).lineTo(28, -28).moveTo(-28, -28).lineTo(28, 28).stroke({ width: 3, color: 0x6b5638, alpha: 0.8 });
       return;
     }
-    if (!this.art && hasTileset()) {
+    const water = isWater(t.x, t.y);
+    if (!this.art && hasTileset() && !water) {
       this.art = towerArt(this.kind, sprite);
       if (this.art) this.root.addChildAt(this.art, this.kind === 'trap' || this.kind === 'wall' ? 0 : 1);
     }
-    drawTower(g, this.kind, RARITY[Math.min(t.lvl, 6) - 1], t.lvl, { pixel: hasTileset(), art: !!this.art });
+    drawTower(g, this.kind, RARITY[Math.min(t.lvl, 6) - 1], t.lvl, { pixel: hasTileset(), art: !!this.art, water });
   }
 
   highlight(secs) {
@@ -382,7 +426,10 @@ class TowerView {
     // A disabled building turns grey, the colour the design keeps for that.
     this.root.tint = this.disabled ? 0x777777 : 0xffffff;
     this.root.alpha = !this.built ? 0.85 : this.empty ? 0.45 : 1;
-    this.web.visible = this.disabled && !this.hex;
+    this.web.visible = this.disabled && !this.hex && !this.flood;
+    // Under the tide the building sinks into the water.
+    this.wave.visible = this.flood;
+    if (this.flood) this.wave.alpha = 0.55 + 0.15 * Math.sin(t * 4);
     this.web.rotation = Math.sin(t) * 0.05;
     this.frog.visible = this.hex;
     if (this.hex) this.frog.scale.y = Math.abs(this.frog.scale.y) * (1 + 0.06 * Math.sin(t * 6)); // croaking

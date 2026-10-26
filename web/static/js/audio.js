@@ -28,6 +28,7 @@ const AMBIENT = {
   crypt: { base: 46.25, cutoff: 180, wind: 0.03 },
   ice: { base: 61.7, cutoff: 420, wind: 0.07 },
   swamp: { base: 51.9, cutoff: 230, wind: 0.04 },
+  river: { base: 55, cutoff: 320, wind: 0.05 },
 };
 
 export class Sound {

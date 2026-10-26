@@ -24,7 +24,7 @@ func main() {
 	games := flag.Int("games", 40, "games per chat size")
 	sizes := flag.String("chatters", "1,5,10,20", "comma-separated chat sizes")
 	cfgPath := flag.String("config", "", "balance overrides (same format as config.json)")
-	biomeFlag := flag.String("biome", "", "play every game in this biome (ruins, dungeon, crypt, ice, swamp)")
+	biomeFlag := flag.String("biome", "", "play every game in this biome (ruins, dungeon, crypt, ice, swamp, river)")
 	readyFlag := flag.Bool("ready", false, "bots vote !готов once they have nothing to spend, cutting build phases short")
 	flag.Parse()
 	biome = game.Biome(*biomeFlag)

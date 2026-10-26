@@ -56,6 +56,13 @@ type Enemy struct {
 	stunLeft    float64         // seconds left stunned by a pillar of light
 	helpers     map[string]bool // trap owners who hurt it: they share the kill
 
+	// The river (river.go).
+	boatHP, boatMax float64 // a pirate's boat, while it floats
+	diveLeft        float64 // seconds left under water: out of every reach
+	diveCD          float64 // seconds to a deep one's next dive
+	cling           *Tower  // the building an octopling sits on
+	clingLeft       float64 // seconds until it lets go
+
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
 	act        int     // 1 burp, 2 fart, while paused
@@ -101,6 +108,7 @@ type Tower struct {
 	Ammo        string  // an artifact ballista's arrows: "", poison, fire, blast
 	artCD       float64 // an artifact's timed power (war beat, shove, lightning charge)
 	warLeft     float64 // seconds an artifact drum's war beat still powers this building
+	floodLeft   float64 // seconds left under the leviathan's tide
 }
 
 type Projectile struct {
@@ -140,6 +148,9 @@ func (g *Game) readyTower(t *Tower) {
 	switch spec.Role {
 	case RoleWall:
 		t.MaxHP = spec.HP * g.levelMult(t) * bonus
+		if g.wet(t.Cell) {
+			t.MaxHP *= boomHPMult // a boom across the river
+		}
 		t.HP = t.MaxHP
 	case RoleTrap:
 		t.Charges = spec.Charges + spec.Charges/3*(t.Level-1) // a third more per level
@@ -271,6 +282,9 @@ func (g *Game) tickSpawns(dt float64) {
 		if isGuest(s.kind) {
 			g.emit(Event{Kind: "guest", Text: s.kind, X: e.Pos.X, Y: e.Pos.Y})
 		}
+	} else if g.Cfg.Enemies[s.kind].Rise && g.river() {
+		e := g.spawnEnemy(s.kind, s.hp, g.riseDist())
+		g.emit(Event{Kind: "rise", X: e.Pos.X, Y: e.Pos.Y})
 	} else {
 		g.spawnEnemy(s.kind, s.hp, 0)
 	}
@@ -286,6 +300,7 @@ func (g *Game) spawnBoss(kind string, hp float64) *Enemy {
 
 func (g *Game) spawnEnemy(kind string, hp, dist float64) *Enemy {
 	e := &Enemy{ID: g.id(), Kind: kind, HP: hp, MaxHP: hp, Dist: dist, Pos: g.routePos(dist), slowMult: 1}
+	g.launch(e, g.Cfg.Enemies[kind])
 	g.Enemies = append(g.Enemies, e)
 	return e
 }
@@ -308,9 +323,17 @@ func (g *Game) tickEnemies(dt float64) {
 			continue
 		}
 		spec := g.Cfg.Enemies[e.Kind]
+		if e.cling != nil {
+			g.tickCling(e, dt) // an octopling sits on its building
+			continue
+		}
 		if e.burnLeft > 0 {
 			e.burnLeft -= dt
-			g.damage(e, e.burnDPS*dt, e.burnOwner, true)
+			burn := e.burnDPS * dt
+			if e.boatHP > 0 {
+				burn *= boatBurn // planks and tar
+			}
+			g.damage(e, burn, e.burnOwner, true)
 			if e.dead {
 				continue
 			}
@@ -343,6 +366,11 @@ func (g *Game) tickEnemies(dt float64) {
 		}
 		if e.Kind == "hydra" {
 			g.tickHydra(e)
+		}
+		if spec.Dive {
+			g.tickDive(e, dt)
+		} else if e.diveLeft > 0 {
+			e.diveLeft = max(0, e.diveLeft-dt) // the leviathan in its tide
 		}
 		if e.slowLeft > 0 {
 			e.slowLeft -= dt
@@ -389,8 +417,8 @@ func (g *Game) move(e *Enemy, spec EnemySpec, step float64) {
 	to = g.heldByBear(e, spec, to) // a druid's bear holds the line
 	for i, p := range g.Map.Path {
 		t := g.Towers[p]
-		if t == nil || !t.Built || spec.Ghost {
-			continue
+		if t == nil || !t.Built || spec.Ghost || e.submerged() {
+			continue // ghosts float over, divers swim under
 		}
 		c := g.cellDist[i]
 		switch g.Cfg.Towers[t.Kind].Role {
@@ -434,10 +462,18 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 	e.slowMult = ts.Slow
 	e.slowLeft = ts.SlowSec
 	dmg := ts.Damage * g.levelMult(t) * g.classBonus(t.Owner, t.Kind) * g.drinkMult(t)
-	// The cut keeps bleeding, harder from a better trap, and halves healing
-	// for a while; whoever set the trap shares the kill.
-	e.bleedLeft, e.bleedDPS, e.bleedOwner = g.Cfg.TrapBleedSec, dmg*g.Cfg.TrapBleed, t.Owner
-	e.healCut = g.Cfg.TrapHealCutSec
+	if g.wet(t.Cell) {
+		// An anchor net: it holds harder and longer but cuts less, and
+		// nothing bleeds in the river.
+		e.slowMult, e.slowLeft = ts.Slow*netSlowMult, ts.SlowSec*netSecMult
+		dmg *= netDmgMult
+	} else {
+		// The cut keeps bleeding, harder from a better trap, and halves
+		// healing for a while.
+		e.bleedLeft, e.bleedDPS, e.bleedOwner = g.Cfg.TrapBleedSec, dmg*g.Cfg.TrapBleed, t.Owner
+		e.healCut = g.Cfg.TrapHealCutSec
+	}
+	// Whoever set the trap shares the kill.
 	if e.helpers == nil {
 		e.helpers = map[string]bool{}
 	}
@@ -527,6 +563,7 @@ func (g *Game) tickTowers(dt float64) {
 	for _, t := range g.Towers {
 		t.repairCD = max(0, t.repairCD-dt)
 		t.hexLeft = max(0, t.hexLeft-dt)
+		t.floodLeft = max(0, t.floodLeft-dt)
 		if t.Disabled > 0 {
 			t.Disabled -= dt
 			continue
@@ -574,7 +611,7 @@ func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
 		if spec.Only != "" && e.Kind != spec.Only {
 			continue // clowns see nobody but ЭссДиЭф
 		}
-		if !e.dead && e.Pos.sub(tc).len() <= reach && (target == nil || e.Dist > target.Dist) {
+		if targetable(e) && e.Pos.sub(tc).len() <= reach && (target == nil || e.Dist > target.Dist) {
 			target = e
 		}
 	}
@@ -691,6 +728,9 @@ func (g *Game) burn(e *Enemy, p *Projectile) {
 // ignite sets e alight. Burns do not stack, but a weaker one never puts out
 // a stronger one still burning: a fire arrow does not cool a brazier's burn.
 func (g *Game) ignite(e *Enemy, dps, sec float64, owner string) {
+	if g.swimming(e) {
+		return // fire goes out in the water
+	}
 	if e.burnLeft > 0 && e.burnDPS > dps {
 		return
 	}
@@ -700,7 +740,7 @@ func (g *Game) ignite(e *Enemy, dps, sec float64, owner string) {
 // damage hurts an enemy, credits the owner and handles the kill. Dead
 // enemies are swept at the end of the tick so loops over Enemies stay valid.
 func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
-	if e.dead || dmg <= 0 {
+	if e.dead || dmg <= 0 || e.submerged() {
 		return
 	}
 	physical := !ignoreArmor
@@ -716,6 +756,13 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 		dmg *= 0.2
 	}
 	c := g.Chatters[owner]
+	if e.boatHP > 0 {
+		hit := g.hitBoat(e, dmg, physical) // the boat takes the blow
+		if c != nil {
+			c.GameDamage += hit
+		}
+		return
+	}
 	if c != nil {
 		c.GameDamage += min(dmg, e.HP) // overkill does not count
 		if tracksDamage(e.Kind) {
@@ -730,6 +777,7 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 		return
 	}
 	e.dead = true
+	g.release(e) // an octopling shot off its building
 	if s := g.Cfg.Enemies[e.Kind]; s.Split != "" && s.SplitN > 0 {
 		g.split(e, s)
 	}

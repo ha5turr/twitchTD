@@ -24,7 +24,7 @@ func (g *Game) cmdNewMap(c *Chatter, key string, mod bool, args []string) {
 	if len(args) > 0 {
 		b, ok := parseBiome(args[0])
 		if !ok {
-			g.reply(c.Name, "нет такого биома: руины, подземелье, крипта, лёд, болото")
+			g.reply(c.Name, "нет такого биома: руины, подземелье, крипта, лёд, болото, река")
 			return
 		}
 		biome = b
@@ -63,7 +63,7 @@ func parseBiome(s string) (Biome, bool) {
 
 // biomeName is a biome's name for the chat.
 func biomeName(b Biome) string {
-	return map[Biome]string{BiomeRuins: "руины", BiomeDungeon: "подземелье", BiomeCrypt: "крипта", BiomeIce: "ледяные пещеры", BiomeSwamp: "болото"}[b]
+	return map[Biome]string{BiomeRuins: "руины", BiomeDungeon: "подземелье", BiomeCrypt: "крипта", BiomeIce: "ледяные пещеры", BiomeSwamp: "болото", BiomeRiver: "речной привал"}[b]
 }
 
 // mapVoters are the players in the tavern: all of them have a say.
