@@ -8,7 +8,8 @@ import "slices"
 // (fewer hit points). Fire goes out on swimmers, while boats burn half as
 // hard again. Pirates sit in boats that take the blows, with armour, until
 // they sink; deep ones dive now and then where nothing can touch them;
-// the drowned rise from the riverbed halfway down. Its bosses: the grim
+// the drowned rise from the riverbed a third of the way down. Pirates
+// leave their boats at the pier and walk the last cells. Its bosses: the grim
 // octopus sets its young on buildings, which stay silent until the
 // neighbours shoot the octopling off, and the leviathan raises the tide,
 // drowning the buildings on the banks around it while it swims deep.
@@ -26,7 +27,7 @@ const (
 	diveEvery = 6.0 // a deep one dives this often
 	diveSec   = 2.0 // and stays under this long
 
-	riseFrom, riseTo = 0.55, 0.75 // the drowned rise this far down the river (share of the route)
+	riseFrom, riseTo = 0.25, 0.40 // the drowned rise this far down the river (share of the route)
 
 	clingEvery  = 9.0  // the octopus sets an octopling on a building this often
 	clingRadius = 4.0  // within this many cells of it
@@ -117,6 +118,16 @@ func (g *Game) hitBoat(e *Enemy, dmg float64, physical bool) float64 {
 		g.emit(Event{Kind: "sink", X: e.Pos.X, Y: e.Pos.Y})
 	}
 	return hit
+}
+
+// ashore leaves a pirate's boat at the pier: he walks the rest of the way.
+func (g *Game) ashore(e *Enemy) {
+	if e.boatHP <= 0 || !g.river() || e.Dist < g.pierStart() {
+		return
+	}
+	e.boatHP = 0
+	e.burnLeft = 0 // the burning boat stays behind
+	g.emit(Event{Kind: "ashore", X: e.Pos.X, Y: e.Pos.Y})
 }
 
 // tickDive takes a deep one under now and then.

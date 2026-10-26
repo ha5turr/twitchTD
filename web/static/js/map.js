@@ -323,17 +323,16 @@ function drawRiver(g, layer, map, pal, pixel) {
       g.rect(p.x, p.y, CELL, CELL).fill(pal.path);
     }
   }
-  // Banks: a sandy lip wherever the water meets dry ground.
+  // The river runs below the banks, like the trench of the other biomes:
+  // an earthen bank face along the top edge, the banks' shade on the water.
+  if (pixel) drawTrench(g, layer, map, pal);
+  // A dark band of deep water along the banks, so the river reads sunken.
   for (const [x, y] of map.path) {
     if (!isWater(x, y)) continue;
     const p = toPx(x, y);
-    const e = 7;
-    if (!isPath(x, y - 1)) g.rect(p.x, p.y, CELL, e);
-    if (!isPath(x, y + 1)) g.rect(p.x, p.y + CELL - e, CELL, e);
-    if (!isPath(x - 1, y) && x > 0) g.rect(p.x, p.y, e, CELL);
-    if (!isPath(x + 1, y) && x < COLS - 1) g.rect(p.x + CELL - e, p.y, e, CELL);
+    if (!isPath(x, y + 1)) g.rect(p.x, p.y + CELL - 18, CELL, 12).fill({ color: 0x06121a, alpha: 0.35 });
+    if (!isPath(x - 1, y) && x > 0) g.rect(p.x + 16, p.y, 10, CELL).fill({ color: 0x06121a, alpha: 0.25 });
   }
-  g.fill({ color: pal.pathEdge, alpha: 0.9 });
   // The pier: planks across the last cells, posts at the corners.
   for (const [x, y] of map.path.slice(-PIER)) {
     const p = toPx(x, y);
