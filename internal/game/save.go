@@ -29,6 +29,9 @@ type Save struct {
 	Memes     []*MemeRequest    `json:"memes"`
 
 	RewardUses map[string]int `json:"rewardUses,omitempty"`
+
+	MatchElapsed float64 `json:"matchElapsed,omitempty"` // seconds of the match played
+	FinalDue     bool    `json:"finalDue,omitempty"`
 }
 
 // wantCell is the kind of cell a building stands on.
@@ -79,6 +82,7 @@ func (g *Game) Export() Save {
 	s := Save{
 		Seed: g.Map.Seed, Biome: g.Map.Biome, Curve: &g.Map.Curve, Wave: g.Wave, Walls: g.Walls, Over: g.Phase == PhaseGameOver,
 		Treasury: g.Treasury, Links: g.Links, LinkCodes: g.LinkCodes, Banned: g.Banned, Memes: g.Memes, RewardUses: g.RewardUses,
+		MatchElapsed: g.matchElapsed, FinalDue: g.finalDue,
 	}
 	for _, t := range g.Towers {
 		s.Towers = append(s.Towers, SavedTower{t.Kind, t.Cell.X, t.Cell.Y, t.Owner, t.Level, t.Invested, t.Built, t.PendingCost, t.Granted, t.Ammo})
@@ -146,7 +150,8 @@ func (g *Game) Restore(s Save) {
 	g.Timer = g.Cfg.FirstBuildPhaseSec
 	g.Wave = max(s.Wave-1, 0) // an interrupted wave is played again
 	g.RewardUses = s.RewardUses
-	if g.Cfg.BossEvery > 0 { // the rewards grown by the boss waves already held
+	g.matchElapsed, g.finalDue, g.finalWave = s.MatchElapsed, s.FinalDue, false // an interrupted final is played again
+	if g.Cfg.BossEvery > 0 {                                                    // the rewards grown by the boss waves already held
 		g.rewardMult = math.Pow(1+g.Cfg.RewardGrowth, float64(g.Wave/g.Cfg.BossEvery))
 	}
 	g.Walls = s.Walls

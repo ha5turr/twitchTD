@@ -7,8 +7,20 @@ type Config struct {
 
 	BuildPhaseSec      float64 `json:"buildPhaseSec"`
 	FirstBuildPhaseSec float64 `json:"firstBuildPhaseSec"`
-	GameOverSec        float64 `json:"gameOverSec"`
-	SpawnIntervalSec   float64 `json:"spawnIntervalSec"`
+	GameOverSec        float64 `json:"gameOverSec"` // a new game this long after the end; 0 = wait for !нк
+	// The match (match.go): MatchMinutes of play, then the final, as strong
+	// as wave FinalWave with both of the biome's bosses (each FinalBossMult
+	// times a boss). !готов starts a wave after ReadyCountdownSec; every
+	// second of build phase saved pays TempoGoldPerSec, up to TempoGoldMax
+	// a wave. A win pays SoulsWinMult times the souls.
+	MatchMinutes      float64 `json:"matchMinutes"`
+	FinalWave         int     `json:"finalWave"`
+	FinalBossMult     float64 `json:"finalBossMult"`
+	ReadyCountdownSec float64 `json:"readyCountdownSec"`
+	TempoGoldPerSec   float64 `json:"tempoGoldPerSec"`
+	TempoGoldMax      float64 `json:"tempoGoldMax"`
+	SoulsWinMult      float64 `json:"soulsWinMult"`
+	SpawnIntervalSec  float64 `json:"spawnIntervalSec"`
 
 	WallsHP float64 `json:"wallsHP"`
 	GateDPS float64 `json:"gateDps"` // guards on the walls hurt each enemy at the gate
@@ -370,7 +382,14 @@ func DefaultConfig() Config {
 		TickRate:             20,
 		BuildPhaseSec:        35,
 		FirstBuildPhaseSec:   60,
-		GameOverSec:          18,
+		GameOverSec:          0,
+		MatchMinutes:         60,
+		FinalWave:            38,
+		FinalBossMult:        1.5,
+		ReadyCountdownSec:    5,
+		TempoGoldPerSec:      1,
+		TempoGoldMax:         30,
+		SoulsWinMult:         2,
 		SpawnIntervalSec:     0.9,
 		WallsHP:              1000,
 		GateDPS:              12,

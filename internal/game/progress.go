@@ -35,6 +35,7 @@ var Achievements = []Achievement{
 	{"zabuldyga", "Забулдыга", 2, false},
 	{"artifact", "Хранитель реликвии", 5, false},
 	{"monogamist", "Однолюб", 4, false},
+	{"victory", "Час выстоян", 8, false},
 	{"lucky", "Везунчик", 4, false},
 	{"high_roller", "Крупная ставка", 4, false},
 	// Hidden ones, mostly about the guest boss: chat finds them by itself.
@@ -113,7 +114,11 @@ func (g *Game) onKill(key string, c *Chatter, e *Enemy) {
 // up to a cap, and the achievements for the waves held and games played.
 // Only chatters who hurt an enemy this game take part, so chatting alone
 // never earns souls.
-func (g *Game) awardSouls(held int) {
+func (g *Game) awardSouls(held int, won bool) {
+	mult := 1.0
+	if won {
+		mult = max(1, g.Cfg.SoulsWinMult)
+	}
 	type earned struct {
 		name  string
 		souls int
@@ -124,7 +129,7 @@ func (g *Game) awardSouls(held int) {
 			continue
 		}
 		s := int(float64(c.Gold)*g.Cfg.SoulsGoldPct + c.GameDamage*g.Cfg.SoulsPerDamage + float64(c.GameKills)*g.Cfg.SoulsPerKill)
-		s = min(max(s, 1), g.Cfg.SoulsGameCap)
+		s = min(max(int(float64(s)*mult), 1), int(float64(g.Cfg.SoulsGameCap)*mult))
 		g.giveSouls(key, c, s)
 		list = append(list, earned{c.Name, s})
 		g.emit(Event{Kind: "souls", User: c.Name, Amount: s})
@@ -157,7 +162,11 @@ func (g *Game) awardSouls(held int) {
 	if len(list) > 5 {
 		more = fmt.Sprintf(" и ещё %d", len(list)-5)
 	}
-	g.reply("", fmt.Sprintf("Таверна пала. Души за игру: %s%s. Баланс: !души", strings.Join(parts, ", "), more))
+	head := "Таверна пала"
+	if won {
+		head = "Победа! Таверна выстояла"
+	}
+	g.reply("", fmt.Sprintf("%s. Души за игру: %s%s. Баланс: !души", head, strings.Join(parts, ", "), more))
 }
 
 func (g *Game) cmdSouls(c *Chatter) {

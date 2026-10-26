@@ -3,5 +3,6 @@
   "bossEvery": 2,
   "firstBuildPhaseSec": 15,
   "buildPhaseSec": 10,
-  "startGold": 400
+  "startGold": 400,
+  "gameOverSec": 18
 }

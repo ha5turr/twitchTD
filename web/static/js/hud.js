@@ -126,7 +126,14 @@ export class Hud {
   update(st) {
     this.waveText.text = st.wave ? `Волна ${st.wave}` : 'Подготовка';
     let phase = PHASE[st.phase] ?? st.phase;
-    if (st.phase === 'build' || st.phase === 'gameover') phase += `  ${fmtTime(st.timer)}`;
+    if (st.phase === 'build') phase += `  ${fmtTime(st.timer)}`;
+    if (st.phase === 'gameover' && st.summary?.won) phase = 'Победа';
+    // The match clock and the ready vote ride the phase line.
+    const m = st.match;
+    if (m && st.phase !== 'gameover') {
+      if (st.phase === 'build' && m.ready > 0) phase += `  ·  готовы ${m.ready}/${m.need}`;
+      phase += m.final ? '  ·  финал!' : `  ·  до финала ${fmtTime(m.left)}`;
+    }
     if (st.paused) phase = 'Пауза';
     this.phaseText.text = phase;
     this.infoText.text = `наёмников ${st.active}   seed ${this.map?.seed ?? ''}   v${this.map?.version ?? ''}`;
@@ -219,7 +226,8 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.6, 'оглушён!', 0xff9a6a, FONT_UI, 22);
         break;
       case 'waveStart':
-        if (ev.text === 'sdf') this.showBanner('ЭссДиЭф', 'стройте клоунов: !b C4 clown', 6);
+        if (ev.text === 'final') this.showBanner('ФИНАЛ', 'все хозяева этих мест идут на таверну', 6);
+        else if (ev.text === 'sdf') this.showBanner('ЭссДиЭф', 'стройте клоунов: !b C4 clown', 6);
         else if (ev.text) this.showBanner(ENEMIES[ev.text]?.name ?? 'Босс', `волна ${ev.amount} · босс приближается`, 4);
         else this.showBanner(`Волна ${ev.amount}`);
         break;
@@ -449,6 +457,18 @@ export class Hud {
         break;
       case 'rage':
         this.floatAt(ev.x, ev.y - 0.6, 'ярость!', 0xff5a4a, FONT_UI, 20);
+        break;
+      case 'matchWarn':
+        this.toasts.push({ text: `⏳ До финала ${ev.amount} мин`, color: 0xf2d48a });
+        break;
+      case 'timeUp':
+        this.showBanner('Время вышло', 'после стройки придёт финал', 5);
+        break;
+      case 'readyGo':
+        this.showBanner('Таверна готова!', `волна через ${ev.amount} с`, 2.5);
+        break;
+      case 'tempo':
+        this.toasts.push({ text: `⚡ За темп +${ev.amount} з каждому`, color: 0xffd24a });
         break;
       case 'limitUp':
         this.toasts.push({ text: `🏗️ Лимит построек вырос до ${ev.amount}`, color: 0xffd24a });
@@ -746,8 +766,11 @@ class SummaryPanel {
 
   show(s, timer) {
     this.root.visible = true;
-    this.title.text = 'Таверна пала';
-    this.sub.text = `продержались ${s.wave} ${plural(s.wave, 'волну', 'волны', 'волн')} · ${BIOMES[s.biome]?.name ?? ''}`;
+    this.title.text = s.won ? 'Победа! Таверна выстояла' : 'Таверна пала';
+    this.title.style.fill = s.won ? 0xffd24a : 0xe8c9a0;
+    const held = `${s.wave} ${plural(s.wave, 'волну', 'волны', 'волн')}`;
+    const time = s.minutes ? ` · ${s.minutes} мин` : '';
+    this.sub.text = `${s.won ? 'финал выстоян, ' : 'продержались '}${held}${time} · ${BIOMES[s.biome]?.name ?? ''}`;
     [s.damage, s.kills, s.drinks].forEach((list, i) => {
       this.cols[i].forEach((cell, r) => {
         const e = list?.[r];
@@ -756,7 +779,7 @@ class SummaryPanel {
         cell.v.text = e ? String(e.value) : '';
       });
     });
-    this.next.text = `новая карта через ${Math.ceil(Math.max(0, timer))} с`;
+    this.next.text = timer > 0 ? `новая карта через ${Math.ceil(timer)} с` : 'новая партия: !нк [биом]';
   }
 
   hide() {

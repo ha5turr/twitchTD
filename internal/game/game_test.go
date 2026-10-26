@@ -79,7 +79,7 @@ func TestFullGame(t *testing.T) {
 	}
 
 	sawWave, sawOver := false, false
-	for i := 0; i < 20*60*60 && !(sawOver && g.Phase == PhaseBuild); i++ {
+	for i := 0; i < 20*60*60 && !sawOver; i++ {
 		g.Tick(0.05)
 		now = now.Add(50 * time.Millisecond)
 		switch g.Phase {
@@ -93,6 +93,13 @@ func TestFullGame(t *testing.T) {
 	if !sawWave || !sawOver {
 		t.Fatalf("flow incomplete: wave=%v gameOver=%v (wave %d, walls %.0f)", sawWave, sawOver, g.Wave, g.Walls)
 	}
+	for i := 0; i < 60*20; i++ {
+		g.Tick(0.05)
+	}
+	if g.Phase != PhaseGameOver {
+		t.Fatal("the game waits for !нк after it ends")
+	}
+	g.HandleChat(ChatMessage{User: "streamer", Text: "!нк", Mod: true})
 	if len(g.Towers) != 0 || g.Wave != 0 {
 		t.Fatalf("new game should start clean, got %d towers, wave %d", len(g.Towers), g.Wave)
 	}
