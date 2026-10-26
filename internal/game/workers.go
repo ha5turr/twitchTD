@@ -14,6 +14,7 @@ type Worker struct {
 	Orders []Pos // cells to work on, in order
 	work   float64
 	rest   float64
+	Veiled bool // a rogue's veil: enemies do not see him this trip
 }
 
 type WorkerState string
@@ -90,8 +91,10 @@ func (g *Game) step(w *Worker, target vec, dt float64) bool {
 
 func (g *Game) tickWorkers(dt float64) {
 	for owner, w := range g.Workers {
-		// The Воитель is never stunned by enemies, whatever runs into him.
-		if w.State != WorkerFlee && w.State != WorkerRest && g.Chatters[owner].Class != "warrior" && g.enemyNear(w.Pos) {
+		g.veil(owner, w)
+		// The Воитель is never stunned by enemies, whatever runs into him, nor
+		// a veiled rogue, whom they do not see.
+		if w.State != WorkerFlee && w.State != WorkerRest && !w.Veiled && g.Chatters[owner].Class != "warrior" && g.enemyNear(w.Pos) {
 			w.State = WorkerFlee
 			g.emit(Event{Kind: "stun", User: w.Name, X: w.Pos.X, Y: w.Pos.Y})
 		}
@@ -181,6 +184,18 @@ func (g *Game) finish(t *Tower, w *Worker) {
 		g.unlock(t.Owner, "masterpiece")
 	}
 	g.announceArtifact(t, w.Name)
+}
+
+// veil cloaks a rogue's mercenary the first time in a wave he is out
+// building or upgrading: enemies do not see him until he is home again.
+// Once a wave; a shadow-step is a skill of its own and never uses it.
+func (g *Game) veil(owner string, w *Worker) {
+	c := g.Chatters[owner]
+	if w.Veiled || g.Phase != PhaseWave || w.State == WorkerRest || c == nil || c.Class != "rogue" || c.veilWave == g.Wave {
+		return
+	}
+	w.Veiled, c.veilWave = true, g.Wave
+	g.emit(Event{Kind: "veil", User: w.Name, X: w.Pos.X, Y: w.Pos.Y})
 }
 
 func (g *Game) enemyNear(p vec) bool {

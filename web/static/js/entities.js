@@ -90,7 +90,7 @@ export class Entities {
       if (t.built && light && !t.disabled) out.push({ x: t.cx, y: t.cy, r: 120 + 20 * t.level, color: light, a: 0.75 });
     }
     // Each mercenary carries a lantern, so it is visible on dark ground.
-    for (const w of this.workers.values()) out.push({ x: w.root.x, y: w.root.y - 10, r: 80, color: 0xffcf8a, a: 0.7 });
+    for (const w of this.workers.values()) out.push({ x: w.root.x, y: w.root.y - 10, r: 80, color: 0xffcf8a, a: w.veil ? 0.15 : 0.7 }); // a veiled rogue shades it
     for (const p of this.panthers.values()) out.push({ x: p.root.x, y: p.root.y - 10, r: 70, color: 0xb0ff8a, a: 0.6 });
     // Spirit wolves give off a faint cold glow of their own.
     for (const r of this.runs.values()) if (r.kind === 'wolf') out.push({ x: r.root.x, y: r.root.y - 14, r: 60, color: 0x9ef0ff, a: 0.5 });
@@ -512,6 +512,7 @@ class WorkerView {
   set(w) {
     this.target = toPx(w.x, w.y);
     this.state = w.state;
+    this.veil = !!w.veil;
   }
 
   frame(k, dt) {
@@ -532,6 +533,9 @@ class WorkerView {
       this.body.y = moving ? -Math.abs(Math.sin(this.t * 10)) * 4 : 0;
     }
     this.tool.rotation = this.state === 'build' ? Math.sin(this.t * 14) * 0.9 : 0.3;
+    // A veiled rogue: barely there, the nick too.
+    this.root.alpha = this.veil ? 0.3 + 0.12 * Math.sin(this.t * 5) : 1;
+    this.name.alpha = this.veil ? 0.55 : 1;
     this.stars.visible = this.state === 'flee' || this.state === 'rest';
     this.stars.position.set(r.x, r.y - this.height - 24);
     this.stars.rotation = Math.sin(this.t * 6) * 0.3;

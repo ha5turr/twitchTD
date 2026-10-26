@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"twitchtd/internal/donationalerts"
@@ -62,6 +63,14 @@ func main() {
 
 	g := game.New(cfg.Config, *seed)
 	g.Admin = chatAdmin{set}
+	// Numeric IDs need no lookup: the overlay has them from the start.
+	var known []string
+	for _, ch := range append([]string{cfg.TwitchChannelID}, cfg.EmoteChannels...) {
+		if allDigits(strings.TrimSpace(ch)) {
+			known = append(known, strings.TrimSpace(ch))
+		}
+	}
+	g.SetEmoteChannels(known)
 	opt := server.Options{OnSettings: set.Set}
 
 	if st != nil {
@@ -129,6 +138,13 @@ func main() {
 	}
 
 	srv = server.New(g, files, opt)
+	if len(cfg.EmoteChannels) > 0 || cfg.TwitchChannelID != "" {
+		go func() { // nicks are looked up off the main path: a slow lookup delays nothing
+			ids := emoteChannels(cfg.TwitchChannelID, cfg.EmoteChannels)
+			srv.Do(func(g *game.Game) { g.SetEmoteChannels(ids) })
+			log.Printf("emotes: %d channels", len(ids))
+		}()
+	}
 	up := newOps(cfg.Update, srv, stop)
 	g.Ops = up
 	set.apply = func(c appConfig, values map[string]any) {

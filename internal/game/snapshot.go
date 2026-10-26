@@ -7,24 +7,24 @@ import (
 
 // MapMsg is sent on connect and whenever a new map is generated.
 type MapMsg struct {
-	T       string       `json:"t"` // "map"
-	Seed    uint64       `json:"seed"`
-	Biome   Biome        `json:"biome"`
-	W       int          `json:"w"`
-	H       int          `json:"h"`
-	Cells   []string     `json:"cells"` // one string per row, see cellChars
-	Path    [][2]int     `json:"path"`
-	Route   [][2]float64 `json:"route"`
-	Torches [][2]int     `json:"torches"`
-	Version string       `json:"version"`           // the release the server runs
-	Channel string       `json:"channel,omitempty"` // the Twitch channel ID, for the overlay's emotes
+	T        string       `json:"t"` // "map"
+	Seed     uint64       `json:"seed"`
+	Biome    Biome        `json:"biome"`
+	W        int          `json:"w"`
+	H        int          `json:"h"`
+	Cells    []string     `json:"cells"` // one string per row, see cellChars
+	Path     [][2]int     `json:"path"`
+	Route    [][2]float64 `json:"route"`
+	Torches  [][2]int     `json:"torches"`
+	Version  string       `json:"version"`            // the release the server runs
+	Channels []string     `json:"channels,omitempty"` // Twitch channel IDs whose emotes the overlay loads, first wins
 }
 
 // One character per cell keeps the message small and readable in devtools.
 var cellChars = map[CellKind]byte{CellBuild: '.', CellPath: '#', CellObstacle: 'o', CellWebcam: 'w'}
 
 func (g *Game) MapMessage() MapMsg {
-	m := MapMsg{T: "map", Seed: g.Map.Seed, Biome: g.Map.Biome, W: GridW, H: GridH, Version: Version, Channel: g.Cfg.TwitchChannelID}
+	m := MapMsg{T: "map", Seed: g.Map.Seed, Biome: g.Map.Biome, W: GridW, H: GridH, Version: Version, Channels: g.emoteIDs}
 	for y := 0; y < GridH; y++ {
 		row := make([]byte, GridW)
 		for x := 0; x < GridW; x++ {
@@ -122,6 +122,7 @@ type WorkerView struct {
 	X     float64     `json:"x"`
 	Y     float64     `json:"y"`
 	State WorkerState `json:"state"`
+	Veil  bool        `json:"veil,omitempty"` // a veiled rogue: drawn faint
 }
 
 type ProjView struct {
@@ -257,7 +258,7 @@ func (g *Game) StateMessage() StateMsg {
 		if c := g.Chatters[w.Owner]; c != nil {
 			class = c.Class
 		}
-		s.Workers = append(s.Workers, WorkerView{w.Name, class, round2(w.Pos.X), round2(w.Pos.Y), w.State})
+		s.Workers = append(s.Workers, WorkerView{w.Name, class, round2(w.Pos.X), round2(w.Pos.Y), w.State, w.Veiled})
 	}
 	sort.Slice(s.Workers, func(i, j int) bool { return s.Workers[i].Name < s.Workers[j].Name })
 	return s
