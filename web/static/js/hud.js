@@ -426,6 +426,9 @@ export class Hud {
         this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
         this.floatAt(ev.x, ev.y - 0.6, 'лодка тонет!', 0x8ad8ff, FONT_UI, 20);
         break;
+      case 'ashore':
+        this.floatAt(ev.x, ev.y - 0.6, 'на берег!', 0xffc08a, FONT_UI, 18);
+        break;
       case 'dive':
         this.floatAt(ev.x, ev.y - 0.5, 'буль', 0x8ad8ff, FONT_UI, 16);
         break;

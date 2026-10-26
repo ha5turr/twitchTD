@@ -98,7 +98,7 @@ func TestDrownedRise(t *testing.T) {
 	g.tickSpawns(0.05)
 	e := g.Enemies[len(g.Enemies)-1]
 	if e.Dist < g.total*riseFrom || e.Dist > g.total*riseTo {
-		t.Fatalf("the drowned rises halfway down: %.1f of %.1f", e.Dist, g.total)
+		t.Fatalf("the drowned rises a third of the way down: %.1f of %.1f", e.Dist, g.total)
 	}
 }
 
@@ -161,5 +161,22 @@ func TestLeviathanTide(t *testing.T) {
 	run(g, tideSec+0.2)
 	if !g.active(bank) || boss.submerged() {
 		t.Fatal("the tide falls")
+	}
+}
+
+func TestPiratesLeaveBoatsAtThePier(t *testing.T) {
+	g := riverGame(t)
+	n := len(g.Map.Path)
+	p := enemyAt(g, "pirate", n-pierCells, 1000)
+	if p.boatHP <= 0 {
+		t.Fatal("on the river he is still in his boat")
+	}
+	run(g, 1)
+	if p.boatHP != 0 || p.Dist < g.pierStart() || g.swimming(p) {
+		t.Fatalf("at the pier he leaves the boat and walks: boat %.0f dist %.2f pier %.2f", p.boatHP, p.Dist, g.pierStart())
+	}
+	g.damage(p, 100, "", false)
+	if p.HP != 900 {
+		t.Fatal("ashore he has no armour")
 	}
 }

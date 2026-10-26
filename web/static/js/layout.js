@@ -46,7 +46,7 @@ export const BIOMES = {
   river: {
     name: 'Речной привал', ground: 0x1f2a26, groundAlt: 0x1c2622, path: 0x1f4a5a, pathEdge: 0x8a7a5a,
     obstacle: 0x2a3a2a, ambient: 0x6a8494, light: 0x8ad8ff,
-    pathTint: 0x4a6a78, groundTint: 0xc0d4b0, cliffTint: 0x7a8a6a, waterTint: 0x3e5a6e, // a dark river between grassy banks
+    pathTint: 0x4a6a78, groundTint: 0xc0d4b0, cliffTint: 0x8a7458, waterTint: 0x3e5a6e, // a dark river between grassy banks
   },
 };
 

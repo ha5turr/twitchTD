@@ -296,7 +296,7 @@ type EnemySpec struct {
 	Dispel     float64 `json:"dispel"` // washes nets, burns, curses and slows off everyone within this radius
 	Boat       float64 `json:"boat"`   // sails a boat with this share of its max HP, armoured, that takes the blows until it sinks
 	Dive       bool    `json:"dive"`   // dives now and then, out of every reach
-	Rise       bool    `json:"rise"`   // rises from the riverbed halfway down instead of coming in at the edge
+	Rise       bool    `json:"rise"`   // rises from the riverbed a third of the way down instead of coming in at the edge
 	Boss       bool    `json:"boss"`
 }
 
