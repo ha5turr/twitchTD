@@ -9,10 +9,29 @@
 # - If a freshly swapped build dies within 30 seconds, the previous one is
 #   put back; the game then tells the chat the update did not start.
 # - A crash restarts the server after 3 seconds; Ctrl+C (exit code 0) stops.
+# - The console's QuickEdit is switched off: a click into the window would
+#   otherwise freeze anything printing to it, the server and this script
+#   alike, until a key is pressed (an update then seemed to hang).
 
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
 $env:TWITCHTD_SUPERVISED = '1'
+
+try {
+    Add-Type -Namespace TwitchTD -Name Console -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int handle);
+[DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr handle, out uint mode);
+[DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr handle, uint mode);
+'@
+    $stdin = [TwitchTD.Console]::GetStdHandle(-10)
+    $mode = [uint32]0
+    if ([TwitchTD.Console]::GetConsoleMode($stdin, [ref]$mode)) {
+        # Clear ENABLE_QUICK_EDIT_MODE (0x40); ENABLE_EXTENDED_FLAGS (0x80) makes it stick.
+        [void][TwitchTD.Console]::SetConsoleMode($stdin, [uint32](($mode -band 0xFFFFFFBF) -bor 0x80))
+    }
+} catch {
+    Write-Host "run.ps1: could not switch QuickEdit off ($_), do not click into this window"
+}
 
 $exe = Join-Path $PSScriptRoot 'twitchtd.exe'
 $next = Join-Path $PSScriptRoot 'twitchtd.next.exe'

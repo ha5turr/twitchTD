@@ -139,8 +139,7 @@ func (o *ops) Restart(by string) {
 		}
 		o.say(by + " перезапускает таверну, вернусь через пару секунд")
 		time.Sleep(2 * time.Second) // let the line reach the chat
-		o.code.Store(exitUpdate)    // run.ps1 starts us again; with no next exe nothing is swapped
-		o.stop()
+		o.exit(exitUpdate)          // run.ps1 starts us again; with no next exe nothing is swapped
 	}()
 }
 
@@ -169,8 +168,22 @@ func (o *ops) restart(to string) {
 	}
 	o.say("перезапуск, вернусь через пару секунд")
 	time.Sleep(2 * time.Second) // let the line reach the chat
-	o.code.Store(exitUpdate)
+	o.exit(exitUpdate)
+}
+
+// exitWait is how long a stop may take before the process ends anyway.
+const exitWait = 20 * time.Second
+
+// exit stops the server with code for run.ps1. The game saves on its way
+// out; should anything hold the way out up, the process ends with the same
+// code regardless, so the supervisor still starts the next build.
+func (o *ops) exit(code int) {
+	o.code.Store(int32(code))
 	o.stop()
+	go func() {
+		time.Sleep(exitWait)
+		os.Exit(code)
+	}()
 }
 
 // reportUpdate tells the chat how the last update or rollback went, from the
