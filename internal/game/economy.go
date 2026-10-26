@@ -30,7 +30,7 @@ type Donation struct {
 // payTo credits gold to a chatter, creating one for a supporter who never
 // chatted, and returns what reached the wallet.
 func (g *Game) payTo(login, display string, gold int) (*Chatter, int) {
-	key := strings.ToLower(strings.TrimSpace(login))
+	key := g.supporter(login)
 	if key == "" || g.ignored(key) {
 		g.toTreasury(gold)
 		return nil, 0
@@ -44,6 +44,17 @@ func (g *Game) payTo(login, display string, gold int) (*Chatter, int) {
 	}
 	c := g.chatter(key, display)
 	return c, g.addGold(c, gold)
+}
+
+// supporter turns the login behind a reward, cheer, sub or donation into a
+// chatter key. Chat from the broadcaster plays as StreamerName, so their own
+// login is mapped onto that wallet instead of a second, unseen one.
+func (g *Game) supporter(login string) string {
+	key := strings.ToLower(strings.TrimSpace(login))
+	if key != "" && key == g.streamerLogin && !g.Cfg.StreamerPlays {
+		return StreamerName
+	}
+	return key
 }
 
 // toTreasury puts gold into the common treasury, which repairs the walls.
@@ -96,7 +107,14 @@ func (g *Game) Reward(login, display, title string) (refused bool) {
 	ev := Event{Kind: "reward", User: display, Text: r.Title}
 	switch r.Action {
 	case "gold":
-		_, ev.Amount = g.payTo(login, display, r.Amount)
+		// Bought with channel points, so it all reaches the buyer, wallet cap
+		// or not: a full wallet would otherwise pour it into the treasury.
+		if c, _ := g.payTo(login, display, 0); c != nil {
+			c.Gold += r.Amount
+			ev.Amount = r.Amount
+		} else {
+			g.toTreasury(r.Amount) // no buyer to pay (an ignored bot)
+		}
 	case "repair":
 		g.Walls = min(g.Cfg.WallsHP, g.Walls+float64(r.Amount))
 		ev.Amount = r.Amount
@@ -104,7 +122,7 @@ func (g *Game) Reward(login, display, title string) (refused bool) {
 		// A volley from the sky: a share of every enemy's max HP, a fifth
 		// of that for bosses so a reward never skips a boss fight.
 		share := float64(r.Amount) / 100
-		owner := strings.ToLower(login)
+		owner := g.supporter(login)
 		for _, e := range g.Enemies {
 			s := share
 			if g.Cfg.Enemies[e.Kind].Boss {

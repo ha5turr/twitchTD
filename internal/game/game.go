@@ -148,26 +148,27 @@ type Game struct {
 	events     []Event
 	mapChanged bool
 	// The match (match.go).
-	matchElapsed float64         // seconds played this game, saved
-	finalDue     bool            // the time is up: the next wave is the final
-	finalWave    bool            // the wave on the field is the final
-	ready        map[string]bool // !готов this build phase
-	readyGo      bool            // enough are ready: the countdown runs
-	tempoSaved   float64         // build phase seconds the ready vote cut
-	emoteIDs     []string        // channels whose emotes the overlay loads (SetEmoteChannels)
-	summary      *Summary
-	cellDist     []float64            // route distance to the centre of each path cell
-	waveHP       float64              // base enemy HP of the current wave
-	rushLeft     float64              // seconds of the frost demon's speed-up left
-	assist       []string             // drummers behind the shot being resolved
-	rewardMult   float64              // grows after every boss wave: kills, assists and barricades pay more
-	smallKill    float64              // a small party's extra share of every bounty this wave (0.5 is x1.5)
-	afkCheck     float64              // seconds to the next AFK sweep
-	helpAt       map[string]time.Time // last !помощь answer per topic
-	jailVote     *JailVote            // the tavern voting to lock someone up
-	mapVote      *MapVote             // the tavern voting for a new map (newmap.go)
-	mapVoteAt    time.Time            // a failed vote: no new one until then
-	nextMeme     int
+	streamerLogin string          // the broadcaster's Twitch login, learnt from their chat, saved
+	matchElapsed  float64         // seconds played this game, saved
+	finalDue      bool            // the time is up: the next wave is the final
+	finalWave     bool            // the wave on the field is the final
+	ready         map[string]bool // !готов this build phase
+	readyGo       bool            // enough are ready: the countdown runs
+	tempoSaved    float64         // build phase seconds the ready vote cut
+	emoteIDs      []string        // channels whose emotes the overlay loads (SetEmoteChannels)
+	summary       *Summary
+	cellDist      []float64            // route distance to the centre of each path cell
+	waveHP        float64              // base enemy HP of the current wave
+	rushLeft      float64              // seconds of the frost demon's speed-up left
+	assist        []string             // drummers behind the shot being resolved
+	rewardMult    float64              // grows after every boss wave: kills, assists and barricades pay more
+	smallKill     float64              // a small party's extra share of every bounty this wave (0.5 is x1.5)
+	afkCheck      float64              // seconds to the next AFK sweep
+	helpAt        map[string]time.Time // last !помощь answer per topic
+	jailVote      *JailVote            // the tavern voting to lock someone up
+	mapVote       *MapVote             // the tavern voting for a new map (newmap.go)
+	mapVoteAt     time.Time            // a failed vote: no new one until then
+	nextMeme      int
 }
 
 func New(cfg Config, seed uint64) *Game {

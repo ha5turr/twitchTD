@@ -46,6 +46,9 @@ func (g *Game) HandleChat(m ChatMessage) {
 	if key == "" || g.ignored(key) {
 		return
 	}
+	if m.Broadcaster {
+		g.streamerLogin = key // so rewards and support from this login reach the streamer
+	}
 	if m.Broadcaster && !g.Cfg.StreamerPlays {
 		key = StreamerName
 	}
@@ -92,9 +95,13 @@ func (g *Game) HandleChat(m ChatMessage) {
 		if c.Grant > 0 {
 			grant = fmt.Sprintf(" (+%d подъёмных)", c.Grant)
 		}
-		g.reply(c.Name, fmt.Sprintf("%s, %s, золото %d/%d%s, построек %d/%d, убийств %d, душ %d, %s",
-			Ranks[c.rank()].Name, strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, grant, g.towersOf(key), g.TowerLimit(), c.Kills, c.Souls, g.drunkStatus(c)))
-		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key)})
+		over, extra := "", ""
+		if n := g.overLimit(key); n > 0 {
+			over, extra = fmt.Sprintf(" (+%d сверх лимита)", n), fmt.Sprintf("+%d", n)
+		}
+		g.reply(c.Name, fmt.Sprintf("%s, %s, золото %d/%d%s, построек %d/%d%s, убийств %d, душ %d, %s",
+			Ranks[c.rank()].Name, strings.ToLower(cl.Name), c.Gold, g.Cfg.WalletCap, grant, g.towersOf(key), g.TowerLimit(), over, c.Kills, c.Souls, g.drunkStatus(c)))
+		g.emit(Event{Kind: "card", User: c.Name, Amount: g.towersOf(key), Text: extra})
 	case "!link", "!привязать":
 		g.cmdLink(c, key)
 	case "!dice", "!кости", "!к":
@@ -222,7 +229,13 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 		g.reply(c.Name, fmt.Sprintf("святилищ у одного игрока не больше %d (у жреца %d)", g.Cfg.ShrineLimit, g.Cfg.ShrineLimitCleric))
 		return
 	case kind != clownKind && !g.isStreamer(key) && g.towersOf(key)-g.clownsOf(key) >= g.TowerLimit():
-		g.reply(c.Name, fmt.Sprintf("лимит построек %d", g.TowerLimit()))
+		if n := g.overLimit(key); n > 0 {
+			// Built while the party was small; the buildings stay, new ones wait.
+			g.reply(c.Name, fmt.Sprintf("лимит построек %d, у тебя %d сверх него (бонус малой команды). Новую можно поставить, когда продашь %d",
+				g.TowerLimit(), n, n+1))
+		} else {
+			g.reply(c.Name, fmt.Sprintf("лимит построек %d", g.TowerLimit()))
+		}
 		return
 	}
 	cost := g.Cfg.TowerCost(kind, 1)

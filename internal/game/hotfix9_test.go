@@ -389,3 +389,35 @@ func TestMeShowsDrunk(t *testing.T) {
 		t.Fatalf("and how drunk he is: %q", lastReply(g))
 	}
 }
+
+func TestOverLimitIsShown(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.HandleChat(ChatMessage{User: "solo", Text: "!play"})
+	for range g.TowerLimit() {
+		placeAs(g, "solo", "arrow", freeCell(t, g))
+	}
+	for _, u := range []string{"anna", "boris"} {
+		g.HandleChat(ChatMessage{User: u, Text: "!play"})
+	}
+	if n := g.overLimit("solo"); n != g.Cfg.SmallTeamBonus {
+		t.Fatalf("the small-party bonus towers stay past the limit: %d", n)
+	}
+	g.Chatters["solo"].Gold = 1000
+	g.HandleChat(ChatMessage{User: "solo", Text: "!b " + freeCell(t, g).Name() + " arrow"})
+	if r := lastReply(g); !strings.Contains(r, "сверх") || !strings.Contains(r, "продашь 3") {
+		t.Fatalf("the refusal says why: %q", r)
+	}
+	g.HandleChat(ChatMessage{User: "solo", Text: "!me"})
+	var card Event
+	for _, e := range g.TakeEvents() {
+		if e.Kind == "reply" && !strings.Contains(e.Text, "+2 сверх лимита") {
+			t.Fatalf("!me shows the excess: %q", e.Text)
+		}
+		if e.Kind == "card" {
+			card = e
+		}
+	}
+	if card.Text != "+2" {
+		t.Fatalf("the card shows it too: %q", card.Text)
+	}
+}
