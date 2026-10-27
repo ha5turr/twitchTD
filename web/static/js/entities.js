@@ -102,6 +102,7 @@ export class Entities {
     for (const f of this.gateFires.values()) out.push({ x: f.cx, y: f.cy, r: 130, color: 0xff7a2a, a: 0.9 });
     for (const e of this.enemies.values()) {
       if (e.kind === 'golden_golem') out.push({ x: e.root.x, y: e.root.y, r: 170, color: 0xffd24a, a: 0.8 }); // it glitters
+      else if (e.kind === 'king') out.push({ x: e.root.x, y: e.root.y + 40, r: 190, color: 0xfff2c0, a: 0.85 }); // a pale glow, so his yellow stays yellow
       else if (e.boss) out.push({ x: e.root.x, y: e.root.y, r: 160, color: 0xff3b3b, a: 0.6 });
       else if (e.burn) out.push({ x: e.root.x, y: e.root.y, r: 60, color: 0xff7a2a, a: 0.7 });
     }
@@ -255,7 +256,7 @@ class EnemyView {
     }
     if (this.art?.dirs) {
       this.animate(dx, dy);
-    } else if (Math.abs(dx) > 0.5 && this.body.anchor) {
+    } else if (Math.abs(dx) > 0.5 && this.body.anchor && !this.art?.front) {
       // Sprites face the way they walk.
       this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
     }

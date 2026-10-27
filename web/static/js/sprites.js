@@ -285,9 +285,10 @@ export const ENEMY_ART = {
   drowned: { name: 'tc_drowned', scale: 2.8, hop: true, tint: 0xa8d0c8 },
   octopling: { name: 'tc_octopus', scale: 2, float: true },
   octopus: { name: 'tc_octopus', scale: 5.5, float: true },
-  // The King in Yellow: his own sprite when assets/king/king_field.png is
-  // there, a wraith in yellow until then; his faceless retinue in grey.
-  king: { name: 'king_field', scale: 3, float: true, fallback: { name: 'tc_wraith', scale: 5.5, float: true, tint: 0xffd84a } },
+  // The King in Yellow: his own sprite (40x93, finer than the 16 px pack,
+  // so drawn at half its scale), a wraith in yellow if it is missing; his
+  // faceless retinue in grey. front: drawn facing us, never mirrored.
+  king: { name: 'king_field', scale: 1.5, float: true, front: true, fallback: { name: 'tc_wraith', scale: 5.5, float: true, tint: 0xffd84a } },
   faceless: { name: 'tc_wraith', scale: 2.6, float: true, tint: 0xb8b8b0, alpha: 0.9 },
   leviathan: { name: 'tc_serpent', scale: 6.4, float: true, tint: 0x9ae0d0 },
   spider: { name: 'spider_dark', scale: 3.6 },
