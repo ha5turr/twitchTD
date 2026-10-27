@@ -23,6 +23,7 @@ type Enemy struct {
 	summoned  bool    // raised by a boss: worth almost no gold
 	blocked   *Tower  // barricade it is hacking at
 	siegeSec  float64 // seconds spent at barricades since it last walked
+	healGot   float64 // share of its health healers gave it this tick: theirs do not add up
 	rage      bool    // held too long: heals no more and hits the barricade harder
 	slowLeft  float64 // seconds of slow left
 	slowMult  float64
@@ -336,6 +337,9 @@ func (g *Game) speedMult() float64 {
 func (g *Game) tickEnemies(dt float64) {
 	g.rushLeft = max(0, g.rushLeft-dt)
 	for _, e := range g.Enemies {
+		e.healGot = 0
+	}
+	for _, e := range g.Enemies {
 		if e.dead {
 			continue
 		}
@@ -563,8 +567,17 @@ func (g *Game) breakWall(t *Tower) {
 
 func (g *Game) healAround(healer *Enemy, share float64) {
 	for _, o := range g.Enemies {
-		if o != healer && !o.dead && o.Pos.sub(healer.Pos).len() <= 1.5 {
-			g.heal(o, share*o.MaxHP)
+		// The King in Yellow takes no one's healing: a share of his health
+		// would be a fortune, and the final would never end.
+		if o == healer || o.dead || o.Kind == kingKind || o.Pos.sub(healer.Pos).len() > 1.5 {
+			continue
+		}
+		// Healers do not add up: in a crowd of them each enemy gets only the
+		// strongest one's healing, or a barricade's crowd heals faster than
+		// any defence can hurt it.
+		if share > o.healGot {
+			g.heal(o, (share-o.healGot)*o.MaxHP)
+			o.healGot = share
 		}
 	}
 }

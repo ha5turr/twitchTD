@@ -28,6 +28,7 @@ func main() {
 	seed := flag.Uint64("seed", 0, "random seed (0 = time based)")
 	webDir := flag.String("web", "", "serve web files from this directory instead of the embedded copy (for development)")
 	fresh := flag.Bool("fresh", false, "ignore the saved game and start a new one (wallets are kept)")
+	kingDemo := flag.String("kingdemo", "", "development: start at the King in Yellow's final with five artifact players, in this biome (any: a random one)")
 	flag.Parse()
 
 	cfg, err := loadConfig(*cfgPath)
@@ -164,6 +165,14 @@ func main() {
 	}
 	if da != nil {
 		go da.Run(ctx)
+	}
+	if *kingDemo != "" {
+		biome := game.Biome(*kingDemo)
+		if *kingDemo == "any" {
+			biome = ""
+		}
+		srv.Do(func(g *game.Game) { g.KingDemo(biome) })
+		log.Printf("King in Yellow demo: %s", *kingDemo)
 	}
 	if *bots > 0 {
 		sim.Run(ctx, *bots, srv.Chat, srv.CurrentMap)

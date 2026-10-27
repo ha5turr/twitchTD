@@ -676,7 +676,7 @@ func DefaultConfig() Config {
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
 		KingIntroSec:  60, // a cap: the overlay ends the scene when its lines are said
-		KingHPMult:    0.7,
+		KingHPMult:    1.0,
 		KingSignEvery: 20,
 		KingSignSec:   25,
 		KingMaskAt:    0.3,

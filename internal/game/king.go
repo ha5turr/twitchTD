@@ -315,6 +315,9 @@ func (g *Game) signOn(t *Tower) *Sign {
 // tickSigns fades signs, drains the supports under them and drops those
 // whose building is gone.
 func (g *Game) tickSigns(dt float64) {
+	if len(g.demoDispel) > 0 {
+		g.tickDemo()
+	}
 	g.signs = slices.DeleteFunc(g.signs, func(s *Sign) bool {
 		if g.Towers[s.Tower.Cell] != s.Tower {
 			return true

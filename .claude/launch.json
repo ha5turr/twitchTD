@@ -65,6 +65,24 @@
         "127.0.0.1:8791"
       ],
       "port": 8791
+    },
+    {
+      "name": "twitchtd-kingdemo",
+      "runtimeExecutable": "go",
+      "runtimeArgs": [
+        "run",
+        "./cmd/twitchtd",
+        "-fresh",
+        "-kingdemo",
+        "any",
+        "-web",
+        "web/static",
+        "-config",
+        "configs/dev-fast.json",
+        "-addr",
+        "127.0.0.1:8794"
+      ],
+      "port": 8794
     }
   ]
 }

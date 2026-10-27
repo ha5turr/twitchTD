@@ -338,3 +338,21 @@ func TestKingCloakBreathes(t *testing.T) {
 		t.Fatal("and when it closes nothing holds him again")
 	}
 }
+
+func TestKingDemo(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.KingDemo(BiomeRuins)
+	art := 0
+	for _, tw := range g.Towers {
+		if g.artifact(tw) {
+			art++
+		}
+	}
+	if art != 5*g.limitAfter(34) || !g.finalDue {
+		t.Fatalf("five players, every building an artifact, the final next: %d", art)
+	}
+	run(g, 6)
+	if !g.finalWave || g.introLeft <= 0 {
+		t.Fatal("the king's scene starts")
+	}
+}
