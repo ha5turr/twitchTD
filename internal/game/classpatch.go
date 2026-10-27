@@ -148,7 +148,7 @@ func (g *Game) spiritWolves(key string, c *Chatter) bool {
 	if len(g.Enemies) == 0 {
 		return false
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		g.Runs = append(g.Runs, &Run{Owner: key, Name: c.Name, Kind: "wolf", Pos: g.gate(), dist: g.total + 0.3*float64(i), hit: map[int]bool{}, lane: 0.2 - 0.4*float64(i)})
 	}
 	g.emit(Event{Kind: "wolves", User: c.Name})

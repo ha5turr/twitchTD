@@ -21,7 +21,7 @@ func TestPillarGrowsWithShrines(t *testing.T) {
 	e := enemyAt(g, "skeleton", 5, 1e6)
 	g.pillarOfLight("anna", c)
 	plain, stun := 1e6-e.HP, e.stunLeft
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		placeAs(g, "anna", "shrine", freeCell(t, g))
 	}
 	e.HP, e.stunLeft = 1e6, 0
