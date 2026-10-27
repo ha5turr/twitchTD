@@ -188,7 +188,12 @@ export class KingScene {
   pose(line) {
     this.figure.removeChildren();
     this.figure.alpha = 1;
-    const tex = this.art[line.pose];
+    // A cat pose not drawn yet is the plain cat (the transformation too:
+    // the frame darkens it), so two pictures are enough for the scene.
+    const cat = line.pose.startsWith('king_cat') || line.transform;
+    let tex = this.art[line.pose];
+    if (!tex && cat) tex = this.art.king_cat_idle;
+    this.figure.talks = tex && tex === this.art.king_cat_idle; // its mouth can move
     if (tex) {
       const s = new Sprite(tex);
       s.anchor.set(0.5, 1);
@@ -241,13 +246,14 @@ export class KingScene {
       const line = sc.lines[i];
       this.pose(line);
       this.sub.text = line.text;
-      this.talking = 0;
+      // Without a recording the mouth moves for about as long as the line reads.
+      this.talking = Math.min(sc.per - 0.4, 0.4 + line.text.length * 0.06);
       this.voice(line.voice);
     }
     const line = sc.lines[i];
     // The mouth: with both cat poses loaded it opens and closes while he talks.
     const s = this.figure.sprite;
-    if (s && line.pose === 'king_cat_idle' && this.art.king_cat_talk) {
+    if (s && this.figure.talks && this.art.king_cat_talk) {
       const talking = this.talking > 0 && sc.at - i * sc.per < this.talking;
       s.texture = talking && Math.floor(this.t * 8) % 2 ? this.art.king_cat_talk : this.art.king_cat_idle;
     }
