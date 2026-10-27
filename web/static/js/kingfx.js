@@ -5,7 +5,7 @@
 // drums when the mask comes off. The sign plays at once; the rest wait their
 // turn so two of them never share the screen.
 import { LEFT, TOP, COLS, ROWS, CELL, toPx } from './layout.js';
-import { drawDrum, towerArt } from './sprites.js';
+import { drawDrum, towerArt, softGlow as glow } from './sprites.js';
 import { hasTileset, sprite } from './tileset.js';
 import { SIGN_H } from './entities.js';
 
@@ -55,30 +55,6 @@ function paleSun(tex) {
   const t = Texture.from(c);
   t.source.scaleMode = 'nearest';
   return t;
-}
-
-// glow makes a soft round light of the given colour and radius, added onto
-// what lies under it.
-let glowTex = null;
-function glow(color, r = 64) {
-  if (!glowTex) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 128;
-    const ctx = c.getContext('2d');
-    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
-    g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.35, 'rgba(255,255,255,0.45)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 128, 128);
-    glowTex = Texture.from(c);
-  }
-  const s = new Sprite(glowTex);
-  s.anchor.set(0.5);
-  s.tint = color;
-  s.blendMode = 'add';
-  s.scale.set(r / 64);
-  return s;
 }
 
 export class KingFx {

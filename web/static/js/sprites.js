@@ -347,6 +347,30 @@ const PATH_ART = {
   wall: [[{ name: 'spear_wall', scale: 3, y: 30 }], [{ name: 'crate', scale: 2, x: -16, y: 30 }, { name: 'crate', scale: 2, x: 16, y: 30 }]],
 };
 
+// softGlow makes a soft round light of the given colour and radius, added onto
+// what lies under it.
+let glowTex = null;
+export function softGlow(color, r = 64) {
+  if (!glowTex) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    glowTex = PIXI.Texture.from(c);
+  }
+  const s = new PIXI.Sprite(glowTex);
+  s.anchor.set(0.5);
+  s.tint = color;
+  s.blendMode = 'add';
+  s.scale.set(r / 64);
+  return s;
+}
+
 // emoji makes a centred emoji, drawn by the system's colour emoji font.
 export function emoji(s, size, x = 0, y = 0) {
   const t = new PIXI.Text({ text: s, style: { fontSize: size, fontFamily: 'Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif' } });

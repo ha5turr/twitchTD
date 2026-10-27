@@ -2,7 +2,7 @@
 // glide toward the latest position so motion stays smooth at 60 fps.
 import { W, CELL, LEFT, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
-import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
+import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji, softGlow } from './sprites.js';
 import { hasTileset, sprite, frames, texture } from './tileset.js';
 import { isWater } from './map.js';
 
@@ -109,7 +109,7 @@ export class Entities {
     for (const f of this.gateFires.values()) out.push({ x: f.cx, y: f.cy, r: 130, color: 0xff7a2a, a: 0.9 });
     for (const e of this.enemies.values()) {
       if (e.kind === 'golden_golem') out.push({ x: e.root.x, y: e.root.y, r: 170, color: 0xffd24a, a: 0.8 }); // it glitters
-      else if (e.kind === 'king') out.push({ x: e.root.x, y: e.root.y + 40, r: 190, color: 0xfff2c0, a: 0.85 }); // a pale glow, so his yellow stays yellow
+      else if (e.kind === 'king') out.push({ x: e.root.x, y: e.root.y + 40, r: 190 + 40 * (e.opened ?? 0), color: 0xfff2c0, a: 0.85 }); // a pale glow, so his yellow stays yellow; wider with the cloak open
       else if (e.boss) out.push({ x: e.root.x, y: e.root.y, r: 160, color: 0xff3b3b, a: 0.6 });
       else if (e.burn) out.push({ x: e.root.x, y: e.root.y, r: 60, color: 0xff7a2a, a: 0.7 });
     }
@@ -215,16 +215,31 @@ class EnemyView {
     }
     this.dive = !!e.dive;
     this.bar.visible = !this.dive;
+    if (e.open && !this.breath) {
+      // The King in Yellow's cloak is open (nets and slows take now): it
+      // breathes, a soft golden light swelling behind him and motes of it
+      // drifting up the cloak (see frame).
+      this.breath = softGlow(0xffc83a, this.r * 2.2);
+      this.motes = new Graphics();
+      this.motes.blendMode = 'add';
+      this.root.addChildAt(this.breath, 0);
+      // The cloak itself glows on each breath: the body again, added on top.
+      if (this.body.texture) {
+        this.shine = new PIXI.Sprite(this.body.texture);
+        this.shine.anchor.copyFrom(this.body.anchor);
+        this.shine.blendMode = 'add';
+        this.shine.tint = 0xffb020;
+        this.root.addChildAt(this.shine, this.root.getChildIndex(this.body) + 1);
+      }
+      this.root.addChild(this.motes);
+      this.opened = 0;
+    }
+    this.open = !!e.open;
     const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '') + (e.swim ? 'w' : '') + (e.dive ? 'd' : '') + (e.open ? 'o' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
       this.fx.clear();
-      if (e.open) {
-        // The King in Yellow's cloak is open: a broken golden ring, nets and slows take now.
-        for (let i = 0; i < 6; i++) this.fx.arc(0, 0, r + 12, (i * Math.PI) / 3, (i * Math.PI) / 3 + 0.7);
-        this.fx.stroke({ width: 4, color: 0xffd23a, alpha: 0.9 });
-      }
       if (e.swim || e.dive) {
         // Swimming: rings of ripples round the waist; under water only they show.
         this.fx.ellipse(0, r * 0.4, r * 1.1, r * 0.35).stroke({ width: 2, color: 0xbfe8ff, alpha: 0.7 });
@@ -288,6 +303,34 @@ class EnemyView {
     else if (this.cursed) this.body.tint = Math.sin(t * 5) > 0 ? 0xc07aff : 0xe0c0ff;
     else this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
     this.bar.position.set(r.x, r.y - this.r - (this.boss ? 34 : 14));
+    if (this.breath) this.breathe(k, t);
+  }
+
+  // breathe swells the open cloak's light in and out, fading it in as the
+  // cloak opens and out as it closes.
+  breathe(k, t) {
+    this.opened += ((this.open ? 1 : 0) - this.opened) * Math.min(1, k * 0.5);
+    const o = this.opened;
+    const b = 0.5 + 0.5 * Math.sin(t * 3.2);
+    const h = this.r * 2;
+    const foot = this.footY ?? this.r;
+    this.breath.position.set(0, foot - h * 0.5);
+    this.breath.scale.set(((this.r * 1.7) / 64) * (0.85 + 0.3 * b), ((this.r * 2.3) / 64) * (0.85 + 0.3 * b));
+    this.breath.alpha = o * (0.75 + 0.25 * b);
+    if (this.shine) {
+      this.shine.texture = this.body.texture;
+      this.shine.position.copyFrom(this.body.position);
+      this.shine.scale.copyFrom(this.body.scale);
+      this.shine.alpha = o * 0.55 * b;
+    }
+    this.motes.clear();
+    if (o < 0.02) return;
+    for (let i = 0; i < 12; i++) {
+      const p = (t * 0.45 + i / 12) % 1; // each mote rises from the hem and fades
+      const x = Math.sin(i * 2.4 + t * 1.3) * this.r * 0.75;
+      const y = foot - p * h * 1.05;
+      this.motes.circle(x, y, 3 + 3 * (1 - p)).fill({ color: 0xffe08a, alpha: o * Math.sin(p * Math.PI) });
+    }
   }
 
   // animate picks the walk cycle for the heading, or plays an act (the
