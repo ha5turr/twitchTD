@@ -99,6 +99,7 @@ func (g *Game) cmdDance(c *Chatter, key string) {
 		return
 	}
 	c.dancedAt = now
+	c.GameDances++
 	g.emit(Event{Kind: "dance", User: c.Name, Amount: int(g.Cfg.DanceSec)})
 }
 

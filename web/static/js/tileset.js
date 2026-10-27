@@ -113,6 +113,8 @@ const EXTRA = [
       tc_tree: kt(3, 11), tc_bush: kt(4, 11), // the trees on its banks
     },
   },
+  // The King in Yellow on the field: one frame, 32 or 48 px (assets/king/).
+  { file: 'assets/king/king_field.png', defs: {}, whole: 'king_field' },
   {
     // InThePixel's flowing water: 13 frames of a 16 px tile, flowing left.
     file: 'assets/river/water.png',
@@ -160,10 +162,11 @@ const EXTRA = [
   },
 ];
 
-async function loadExtra({ file, defs }) {
+async function loadExtra({ file, defs, whole }) {
   try {
     const sheet = await Assets.load(file);
     sheet.source.scaleMode = 'nearest';
+    if (whole) tex.set(whole, new Texture({ source: sheet.source })); // the whole image is the sprite
     for (const [name, rects] of Object.entries(defs)) {
       const frames = rects.map(([x, y, w, h]) => new Texture({ source: sheet.source, frame: new Rectangle(x, y, w, h) }));
       tex.set(name, frames[0]);

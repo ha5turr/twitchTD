@@ -114,7 +114,7 @@ func (e *Enemy) burning() bool { return e.burnLeft > 0 || e.sburnLeft > 0 }
 
 // stackBurn adds a stack of an artifact brazier's burn.
 func (g *Game) stackBurn(e *Enemy, p *Projectile) {
-	if g.swimming(e) {
+	if g.swimming(e) || g.fireproof(e) {
 		return // fire goes out in the water
 	}
 	if e.sburnLeft <= 0 {
@@ -205,8 +205,8 @@ func (g *Game) tickArtifact(t *Tower, spec TowerSpec, dt float64) {
 		}
 		shoved := false
 		for _, e := range g.Enemies {
-			if e.dead || e.blocked != t {
-				continue
+			if e.dead || e.blocked != t || e.Kind == kingKind {
+				continue // nothing shoves the king
 			}
 			e.Dist = max(0, e.Dist-1)
 			e.blocked = nil
@@ -314,7 +314,11 @@ func (g *Game) soulLinks() []SoulLink {
 				if center(ts[i].Cell).sub(center(ts[j].Cell)).len() > g.Cfg.SoulLinkRange+1e-9 {
 					continue
 				}
-				out = append(out, SoulLink{ID: ts[i].ID*100000 + ts[j].ID, Owner: owner, A: center(ts[i].Cell), B: center(ts[j].Cell)})
+				id := ts[i].ID*100000 + ts[j].ID
+				if g.brokenLinks[id] {
+					continue // the king tore it (crypt)
+				}
+				out = append(out, SoulLink{ID: id, Owner: owner, A: center(ts[i].Cell), B: center(ts[j].Cell)})
 			}
 		}
 	}
@@ -340,6 +344,9 @@ func (g *Game) tickSoulLinks() {
 				e.linked = map[int]bool{}
 			}
 			e.linked[l.ID] = true
+			if g.tearsLink(e, l.ID) {
+				continue
+			}
 			g.damage(e, g.skillHP()*g.Cfg.SoulLinkDmg, l.Owner, true)
 			if !g.Cfg.Enemies[e.Kind].SlowImmune {
 				e.slowMult = math.Min(e.slowMult, g.Cfg.SoulLinkSlow)

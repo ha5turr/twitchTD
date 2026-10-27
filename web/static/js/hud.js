@@ -226,7 +226,7 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.6, 'оглушён!', 0xff9a6a, FONT_UI, 22);
         break;
       case 'waveStart':
-        if (ev.text === 'final') this.showBanner('ФИНАЛ', 'все хозяева этих мест идут на таверну', 6);
+        if (ev.text === 'final') break; // the king's scene comes first, the banner after it (kingGo)
         else if (ev.text === 'sdf') this.showBanner('ЭссДиЭф', 'стройте клоунов: !b C4 clown', 6);
         else if (ev.text) this.showBanner(ENEMIES[ev.text]?.name ?? 'Босс', `волна ${ev.amount} · босс приближается`, 4);
         else this.showBanner(`Волна ${ev.amount}`);
@@ -421,6 +421,54 @@ export class Hud {
       case 'headGrow':
         this.floatAt(ev.x, ev.y - 0.8, `+голова! (${ev.amount})`, 0xff6a5a, FONT_UI, 22);
         this.toasts.push({ text: `🐍 У гидры отросла голова: их уже ${ev.amount}! Поджигайте раны`, color: 0xff8a7a });
+        break;
+      case 'kingGo':
+        this.showBanner('ФИНАЛ', 'Король в Жёлтом идёт на таверну', 5);
+        break;
+      case 'kingPhase':
+        if (ev.amount === 2) this.showBanner('Король в Жёлтом', 'вторая фаза: свита безликих', 3);
+        if (ev.amount === 3) this.showBanner('Король в Жёлтом', 'третья фаза', 3);
+        break;
+      case 'sign':
+        this.floatAt(ev.x, ev.y - 0.7, 'Жёлтый знак!', 0xffd23a, FONT_UI, 24);
+        this.toasts.push({ text: `👁 Жёлтый знак на ${ev.text}! Развеять: !рз ${ev.text}`, color: 0xffd23a });
+        break;
+      case 'dispelling':
+        this.floatAt(ev.x, ev.y - 0.7, `${ev.user} развеивает…`, 0xfff0b0, FONT_UI, 18);
+        break;
+      case 'signOff':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.4 });
+        this.floatAt(ev.x, ev.y - 0.7, 'знак развеян!', 0xb0ff8a, FONT_UI, 22);
+        break;
+      case 'signFade':
+        this.floatAt(ev.x, ev.y - 0.7, 'знак угас', 0xc9b98f, FONT_UI, 18);
+        break;
+      case 'drain':
+        this.floatAt(ev.x, ev.y - 0.6, `−1 ур. (${ev.amount})`, 0xff8a6a, FONT_UI, 20);
+        break;
+      case 'song':
+        this.toasts.push({ text: '🎶 Песнь Кассильды: навыки наёмников сбоят', color: 0xe0c0ff });
+        break;
+      case 'unmask':
+        this.showBanner('Маска снята', 'святилища и барабаны ослабляют постройки', 4);
+        break;
+      case 'named':
+        this.floatAt(ev.x, ev.y - 1, 'он слышит…', 0xffd23a, FONT_UI, 22);
+        break;
+      case 'petrify':
+        this.floatAt(ev.x, ev.y - 0.6, 'окаменела', 0xc8c0b0, FONT_UI, 18);
+        break;
+      case 'tear':
+        this.floatAt(ev.x, ev.y - 0.6, 'порвано!', 0x8ad8ff, FONT_UI, 18);
+        break;
+      case 'frostback':
+        this.floatAt(ev.x, ev.y - 0.6, 'заморожено!', 0x9fe8ff, FONT_UI, 18);
+        break;
+      case 'doused':
+        this.floatAt(ev.x, ev.y - 0.6, 'погасла!', 0xffb36b, FONT_UI, 18);
+        break;
+      case 'linkBroken':
+        this.floatAt(ev.x, ev.y - 0.7, 'связь порвана', 0xc07aff, FONT_UI, 18);
         break;
       case 'sink':
         this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });

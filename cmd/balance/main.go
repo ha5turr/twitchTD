@@ -178,6 +178,9 @@ func (b *bot) act(g *game.Game, r *rand.Rand) {
 	if c == nil {
 		return
 	}
+	for _, p := range g.SignCells() {
+		g.HandleChat(game.ChatMessage{User: b.name, Text: "!рз " + p.Name()}) // the chat wipes the Yellow Sign
+	}
 	mine := 0
 	for _, t := range g.Towers {
 		if t.Owner == b.name && t.Kind == "arrow" && g.IsArtifact(t) && t.Ammo == "" {

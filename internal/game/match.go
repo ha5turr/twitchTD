@@ -72,16 +72,15 @@ func (g *Game) finalQueue(sq float64) {
 	g.waveHP = hp
 	pool := biomeEnemies[g.Map.Biome]
 	g.queue = g.queue[:0]
-	for _, boss := range biomeBosses[g.Map.Biome] {
-		g.queue = append(g.queue, spawn{boss, hp * g.Cfg.BossHPMult * g.Cfg.FinalBossMult * g.Cfg.Enemies[boss].HPMult})
-	}
+	g.queue = append(g.queue, spawn{kingKind, g.kingHP(hp)}) // the King in Yellow, always
 	count := g.Cfg.BaseCount + g.Cfg.CountPerWave*w + int(sq)
 	for i := 0; i < count; i++ {
 		kind := pickEnemy(g.rng.Float64(), pool, w)
 		g.queue = append(g.queue, spawn{kind, hp * g.Cfg.Enemies[kind].HPMult})
 	}
 	g.finalWave = true
-	g.reply("", "ФИНАЛ! Все хозяева этих мест идут на таверну. Выстоим — победа")
+	g.startKingIntro()
+	g.reply("", "ФИНАЛ! Король в Жёлтом идёт на таверну. Выстоим — победа")
 }
 
 // cmdReady is a vote to start the wave early: once more than half the
@@ -140,6 +139,7 @@ func (g *Game) payTempo(saved float64) {
 // game waits for !нк, or GameOverSec when that is set.
 func (g *Game) endMatch(won bool) {
 	g.Phase = PhaseGameOver
+	g.clearKing()
 	g.Timer = g.Cfg.GameOverSec
 	g.Workers = map[string]*Worker{}
 	g.summary = g.makeSummary()
