@@ -83,6 +83,26 @@
         "127.0.0.1:8794"
       ],
       "port": 8794
+    },
+    {
+      "name": "twitchtd-kingdemo-warlock",
+      "runtimeExecutable": "go",
+      "runtimeArgs": [
+        "run",
+        "./cmd/twitchtd",
+        "-fresh",
+        "-kingdemo",
+        "ruins",
+        "-kingparty",
+        "warlock",
+        "-web",
+        "web/static",
+        "-config",
+        "configs/dev-fast.json",
+        "-addr",
+        "127.0.0.1:8793"
+      ],
+      "port": 8793
     }
   ]
 }

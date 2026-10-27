@@ -72,8 +72,12 @@ func (g *Game) finalQueue(sq float64) {
 	g.waveHP = hp
 	pool := biomeEnemies[g.Map.Biome]
 	g.queue = g.queue[:0]
-	g.queue = append(g.queue, spawn{kingKind, g.kingHP(hp)}) // the King in Yellow, always
+	g.queue = append(g.queue, spawn{kingKind, g.kingHP(hp) * g.kingTeamMult()}) // the King in Yellow, always
 	count := g.Cfg.BaseCount + g.Cfg.CountPerWave*w + int(sq)
+	// A small team meets a smaller escort, by the square of its share: its
+	// buildings are fewer and each one has to hold more of the path.
+	share := g.teamShare()
+	count = max(1, int(math.Round(float64(count)*max(share*share, g.Cfg.FinalEscortMin))))
 	for i := 0; i < count; i++ {
 		kind := pickEnemy(g.rng.Float64(), pool, w)
 		g.queue = append(g.queue, spawn{kind, hp * g.Cfg.Enemies[kind].HPMult})
@@ -81,6 +85,25 @@ func (g *Game) finalQueue(sq float64) {
 	g.finalWave = true
 	g.startKingIntro()
 	g.reply("", "ФИНАЛ! Король в Жёлтом идёт на таверну. Выстоим — победа")
+}
+
+// teamShare is how much of a full team (FinalTeamSize) plays the final, at
+// most 1: bigger chats meet the final as designed.
+func (g *Game) teamShare() float64 {
+	if g.Cfg.FinalTeamSize <= 0 {
+		return 1
+	}
+	n := g.finalTeam
+	if n <= 0 {
+		n = g.Cfg.FinalTeamSize
+	}
+	return min(1, n/g.Cfg.FinalTeamSize)
+}
+
+// kingTeamMult scales the king's health to the team: its share to the
+// power KingTeamPow, a full team's at most.
+func (g *Game) kingTeamMult() float64 {
+	return math.Pow(g.teamShare(), g.Cfg.KingTeamPow)
 }
 
 // cmdReady is a vote to start the wave early: once more than half the

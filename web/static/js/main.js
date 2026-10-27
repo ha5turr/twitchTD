@@ -72,6 +72,7 @@ async function start() {
       tavern.update(s);
       bossAlive = s.enemies.some((e) => e.boss);
       playSounds(s);
+      king.update(s); // his health first: near death his powers keep quiet
       for (const ev of s.events ?? []) {
         fx.onEvent(ev);
         king.onEvent(ev, finalOn);

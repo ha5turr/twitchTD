@@ -241,7 +241,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 	if e.phase >= 2 {
 		if e.retinueCD -= dt; e.retinueCD <= 0 {
 			e.retinueCD = retinueEvery
-			g.summon(e, facelessKind, retinueN)
+			g.summon(e, facelessKind, max(1, int(math.Round(retinueN*g.teamShare()))))
 		}
 		if e.songCD -= dt; e.songCD <= 0 {
 			e.songCD = songEvery
@@ -427,7 +427,8 @@ func (g *Game) clearKing() {
 // kingCut is what the king's torn cloak and his retinue leave of a hit.
 func (g *Game) kingCut(e *Enemy, dmg float64, owner string) float64 {
 	if owner != "" && g.Cfg.KingCloak > 0 {
-		dmg /= 1 + e.hurtBy[owner]/(g.Cfg.KingCloak*e.MaxHP)
+		// The cloak stretches over the team: a smaller one has fewer to share the work.
+		dmg /= 1 + e.hurtBy[owner]/(g.Cfg.KingCloak/g.teamShare()*e.MaxHP)
 	}
 	for _, o := range g.Enemies {
 		if o.Kind == facelessKind && !o.dead {

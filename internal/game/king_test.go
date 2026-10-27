@@ -341,7 +341,7 @@ func TestKingCloakBreathes(t *testing.T) {
 
 func TestKingDemo(t *testing.T) {
 	g, _ := newTestGame(t)
-	g.KingDemo(BiomeRuins)
+	g.KingDemo(BiomeRuins, false)
 	art := 0
 	for _, tw := range g.Towers {
 		if g.artifact(tw) {
@@ -354,5 +354,40 @@ func TestKingDemo(t *testing.T) {
 	run(g, 6)
 	if !g.finalWave || g.introLeft <= 0 {
 		t.Fatal("the king's scene starts")
+	}
+}
+
+func TestKingDemoWarlockNet(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.KingDemo(BiomeRuins, true)
+	altars, walls := 0, 0
+	for _, tw := range g.Towers {
+		switch tw.Kind {
+		case "curse":
+			altars++
+		case "wall":
+			walls++
+		}
+	}
+	if walls != 0 || altars < 6 || len(g.soulLinks()) < altars/2 {
+		t.Fatalf("no barricades, a net of artifact altars: %d altars, %d links", altars, len(g.soulLinks()))
+	}
+}
+
+func TestFinalScalesWithTheTeam(t *testing.T) {
+	size := func(players []string) (int, float64) {
+		g, _ := newTestGame(t)
+		for _, u := range players {
+			g.HandleChat(ChatMessage{User: u, Text: "!play"})
+			placeAs(g, strings.ToLower(u), "arrow", freeCell(t, g))
+		}
+		g.finalDue = true
+		g.StartWave()
+		return len(g.queue), g.queue[0].hp
+	}
+	duoN, duoHP := size([]string{"anna", "boris"})
+	fullN, fullHP := size([]string{"anna", "boris", "vera", "gleb", "dina"})
+	if duoN >= fullN/3 || duoHP >= fullHP/2 {
+		t.Fatalf("a duo meets a much smaller final: escort %d vs %d, king %.0f vs %.0f", duoN, fullN, duoHP, fullHP)
 	}
 }

@@ -204,6 +204,7 @@ func (g *Game) StartWave() {
 	}
 	boss := ""
 	if g.finalDue {
+		g.finalTeam = max(players, 1)
 		g.finalQueue(sq)
 		g.spawnTimer = 0
 		g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: "final"})

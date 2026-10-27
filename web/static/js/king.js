@@ -15,11 +15,9 @@ const FIELD_W = COLS * CELL;
 const FIELD_H = ROWS * CELL;
 const ART = ['king_cat_idle', 'king_cat_talk', 'king_cat_grin', 'king_cat_point', 'king_transform', 'king_dark'];
 const LINE_SEC = 3.2; // a line stays this long without a voice to time it
-// The King in Yellow's theme, from his first appearance to the end of the
-// final: under the dialogue at MUSIC_TALK, in the fight at full level,
-// dipping to MUSIC_LINE while he speaks.
+// The King in Yellow's theme, from the end of his scene to the end of the
+// final, dipping to MUSIC_LINE while he speaks in the fight.
 const MUSIC = 'assets/king/music/lost_carcosa.ogg';
-const MUSIC_TALK = 0.35;
 const MUSIC_LINE = 0.55;
 // The king stands on the right, the player he talks about on the left.
 const KING_X = FIELD_X + FIELD_W * 0.75;
@@ -59,7 +57,7 @@ function introLines(d) {
     out.push({ text: `${w} ${plural(w, 'волна', 'волны', 'волн')} за час. Неплохо… для смертных.`, voice: 'king_waves', pose: 'king_cat_idle' });
   }
   out.push({ text: 'А теперь… снимем маски.', voice: 'king_transform', pose: 'king_transform', transform: true });
-  out.push({ text: 'Узрите Жёлтый знак.', voice: 'king_dark', pose: 'king_dark', dark: true });
+  out.push({ text: 'Узрите Короля в Жёлтом.', voice: 'king_dark', pose: 'king_dark', dark: true });
   return out;
 }
 
@@ -165,12 +163,21 @@ export class KingScene {
       case 'signOff':
         this.say(FIGHT.signOff);
         break;
+      case 'kill':
+        // His last words when he falls, over whatever he was saying.
+        if (ev.text === 'king') {
+          this.stopVoice();
+          this.say(FIGHT.fall, true);
+        }
+        break;
       case 'victory':
-        if (finalOn) this.say(FIGHT.fall);
-        this.endMusic(6); // the theme fades with his last words
+        this.endMusic(6); // the theme fades after his last words
         break;
       case 'gameOver':
-        if (finalOn) this.say(FIGHT.rules);
+        if (finalOn) {
+          this.stopVoice();
+          this.say(FIGHT.rules, true);
+        }
         this.endMusic(6);
         break;
     }
@@ -187,10 +194,9 @@ export class KingScene {
     this.root.visible = true;
     this.dark.alpha = 0;
     this.sound?.ambientBus?.gain.setTargetAtTime(0.1, this.sound.ctx.currentTime, 0.5);
-    this.startMusic();
   }
 
-  // startMusic begins his theme from the top, quiet under the dialogue.
+  // startMusic begins his theme from the top.
   startMusic() {
     const s = this.sound;
     if (!s?.ctx) return;
@@ -207,7 +213,7 @@ export class KingScene {
     this.music.currentTime = 0;
     this.music.play().catch(() => {});
     this.musicOn = true;
-    this.musicLevel(MUSIC_TALK, 1.5);
+    this.musicLevel(1, 1.5);
   }
 
   // keepMusic starts the theme at full level if the king is on the field
@@ -215,7 +221,6 @@ export class KingScene {
   keepMusic() {
     if (this.musicOn || this.scene) return;
     this.startMusic();
-    this.musicLevel(1, 2);
   }
 
   // musicLevel glides the theme to a level over about secs.
@@ -237,17 +242,19 @@ export class KingScene {
   }
 
   stop() {
+    const played = !!this.scene;
     this.scene = null;
     this.root.visible = false;
     this.figure.removeChildren();
     this.card.visible = false;
     this.sub.text = '';
-    // The dialogue is over: the theme comes up to full, the ambience stays low under it.
+    // The dialogue is over (or skipped): his theme starts, the ambience stays low under it.
+    if (played) this.startMusic();
     this.sound?.ambientBus?.gain.setTargetAtTime(this.musicOn ? 0.3 : 0.7, this.sound.ctx.currentTime, 0.8);
-    if (this.musicOn) this.musicLevel(1, 2);
   }
 
-  say(line) {
+  say(line, force = false) {
+    if (!force && (this.kingShare ?? 1) < 0.05) return; // he is about to fall: only his last words
     this.fightLine.text = line.text;
     this.fightLeft = LINE_SEC;
     this.fightLeft = Math.max(LINE_SEC, this.voice(line.voice) + 0.5); // the subtitle stays while he talks
@@ -298,6 +305,23 @@ export class KingScene {
     src.buffer = buf;
     src.connect(s.master);
     src.start();
+    this.speaking = src;
+    src.onended = () => this.speaking === src && (this.speaking = null);
+  }
+
+  // stopVoice cuts off the line he is saying.
+  stopVoice() {
+    try {
+      this.speaking?.stop();
+    } catch {}
+    this.speaking = null;
+  }
+
+  // update follows the king's health: near death his powers say nothing,
+  // so his last words are not lost under a spell's line.
+  update(s) {
+    const k = s.enemies.find((e) => e.kind === 'king');
+    this.kingShare = k ? k.hp / k.maxHp : 1;
   }
 
   // pose shows the cat or the dark form: the art when it is loaded, a

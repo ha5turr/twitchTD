@@ -70,6 +70,15 @@ type Config struct {
 	KingOpenSec  float64 `json:"kingOpenSec"`
 	// He stands this long drawing each Yellow Sign.
 	KingSignPause float64 `json:"kingSignPause"`
+	// A final for the team that plays it: against fewer than FinalTeamSize
+	// players the escort shrinks with them (down to FinalEscortMin of it),
+	// the king's health is KingTeamBase + KingTeamPer per player (never above
+	// what FinalTeamSize meet), his cloak stretches over the team and his
+	// retinue thins. The king's health goes with the team's share to the
+	// power KingTeamPow: a small team's fire falls off faster than its size.
+	FinalTeamSize  float64 `json:"finalTeamSize"`
+	FinalEscortMin float64 `json:"finalEscortMin"`
+	KingTeamPow    float64 `json:"kingTeamPow"`
 	// TwitchChannelID, the channel's numeric Twitch ID, lets the overlay load
 	// its 7TV, BTTV and FFZ emotes itself for !s lines, on top of those
 	// Streamer.bot resolves.
@@ -675,18 +684,21 @@ func DefaultConfig() Config {
 				StrikeEvery: 8, StrikeDmg: 2.5, StrikeRadius: 1, StrikeArt: true, UpgMult: 1.48, MaxLevel: 5},
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
-		KingIntroSec:  60, // a cap: the overlay ends the scene when its lines are said
-		KingHPMult:    1.0,
-		KingSignEvery: 20,
-		KingSignSec:   25,
-		KingMaskAt:    0.3,
-		KingCloak:     0.5,
-		KingRegen:     0,
-		KingGuardSec:  8,
-		KingOpenSec:   7,
-		KingSignPause: 2,
-		WebcamFrom:    "N1",
-		WebcamTo:      "P5",
+		KingIntroSec:   60, // a cap: the overlay ends the scene when its lines are said
+		KingHPMult:     1.0,
+		KingSignEvery:  20,
+		KingSignSec:    25,
+		KingMaskAt:     0.3,
+		KingCloak:      0.5,
+		KingRegen:      0,
+		KingGuardSec:   8,
+		KingOpenSec:    7,
+		KingSignPause:  2,
+		FinalTeamSize:  5,
+		FinalEscortMin: 0.05,
+		KingTeamPow:    1.2,
+		WebcamFrom:     "N1",
+		WebcamTo:       "P5",
 	}
 }
 
