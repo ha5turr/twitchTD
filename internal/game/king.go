@@ -36,6 +36,7 @@ const (
 	facelessKind = "faceless"
 
 	kingSignRadius   = 4.0  // the sign falls on a building this close
+	kingSignWall     = 1.0  // and before anything else on a barricade this close
 	kingSignHeal     = 0.5  // a marked shooter heals him this share of its damage
 	kingSignDrainSec = 5.0  // a marked support loses a level this often
 	kingHeatHalfLife = 30.0 // seconds over which a building's recent damage halves
@@ -289,10 +290,13 @@ func (g *Game) placeSign(king *Enemy) {
 		}
 		return 0
 	}
-	var shooter, support *Tower
+	var shooter, support, wall *Tower
 	for _, t := range g.Towers {
 		if !t.Built || marked[t] || t.Kind == "clown" || center(t.Cell).sub(king.Pos).len() > kingSignRadius {
 			continue
+		}
+		if l := center(t.Cell).sub(king.Pos).len(); g.Cfg.Towers[t.Kind].Role == RoleWall && l <= kingSignWall && (wall == nil || l < center(wall.Cell).sub(king.Pos).len()) {
+			wall = t // the barricade in his way
 		}
 		if supportTower(g.Cfg.Towers[t.Kind]) {
 			if support == nil {
@@ -309,6 +313,9 @@ func (g *Game) placeSign(king *Enemy) {
 	at := shooter
 	if g.signSupport && support != nil || at == nil {
 		at = support
+	}
+	if wall != nil {
+		at = wall // a barricade he has come up to goes first, whoever's turn it is
 	}
 	if at == nil {
 		king.signCD = 2 // nothing near: look again soon

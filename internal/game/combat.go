@@ -529,7 +529,7 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, blows, dt float64) {
 		return
 	}
 	t.HP -= spec.WallDPS * blows * g.siege(e, dt) * g.cramped(e) * dt
-	if g.artifact(t) {
+	if g.artifact(t) && !(e.Kind == kingKind && !e.open) { // the King in Yellow's whole cloak turns them
 		g.damage(e, g.skillHP()*g.Cfg.WallSpikeDPS*dt, t.Owner, false) // its spikes
 	}
 	g.payHold(t, dt)

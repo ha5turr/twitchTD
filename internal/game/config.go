@@ -662,7 +662,7 @@ func DefaultConfig() Config {
 			"hydra":         {Name: "Гидра", HPMult: 1.1, Speed: 0.5, Armor: 0.25, WallDPS: 70, Bounty: 90, Boss: true},
 			"tax_collector": {Name: "Сборщик податей", HPMult: 0.4, Speed: 0.9, Armor: 0.3, Bounty: 20, Boss: true},
 			"golden_golem":  {Name: "Золотой голем", HPMult: 0.35, Speed: 1.8, Armor: 0.2, Bounty: 10, Boss: true},
-			"king":          {Name: "Король в Жёлтом", HPMult: 1, Speed: 0.4, Armor: 0.2, WallDPS: 120, Bounty: 200, Boss: true}, // slows and nets take only while his cloak is open (king.go)
+			"king":          {Name: "Король в Жёлтом", HPMult: 1, Speed: 0.45, Armor: 0.2, WallDPS: 120, Bounty: 200, Boss: true}, // slows and nets take only while his cloak is open (king.go)
 			"faceless":      {Name: "Безликий", HPMult: 0.5, Speed: 1.6, WallDPS: 5, Bounty: 1},
 			"octopus":       {Name: "Мрачный Осьминог", HPMult: 1, Speed: 0.55, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
 			"leviathan":     {Name: "Левиафан", HPMult: 1.1, Speed: 0.45, Armor: 0.3, WallDPS: 80, Bounty: 90, Boss: true},

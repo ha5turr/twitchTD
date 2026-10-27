@@ -358,6 +358,33 @@ func TestKingCloakBreathes(t *testing.T) {
 	}
 }
 
+func TestKingCloakTurnsSpikes(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	if _, c := g.findChatter("anna"); c != nil {
+		c.Class = "warrior"
+	}
+	wall := placeAs(g, "anna", "wall", g.Map.Path[len(g.Map.Path)/2])
+	wall.Level = g.Cfg.Towers["wall"].MaxLevel + 1
+	if !g.artifact(wall) {
+		t.Fatal("an artifact barricade")
+	}
+	spikes := func() float64 {
+		k.blocked = wall
+		hp := k.HP
+		g.hackBarricade(k, g.Cfg.Enemies[kingKind], 1, 0.5)
+		return hp - k.HP
+	}
+	k.open = false
+	if got := spikes(); got != 0 {
+		t.Fatalf("with his cloak whole its spikes do not hurt him: %.1f", got)
+	}
+	k.open = true
+	if got := spikes(); got <= 0 {
+		t.Fatal("with it open they do")
+	}
+}
+
 func TestKingDemo(t *testing.T) {
 	g, _ := newTestGame(t)
 	g.KingDemo(BiomeRuins, false)
@@ -450,5 +477,38 @@ func TestYellowSignLooksAhead(t *testing.T) {
 	g.placeSign(k)
 	if g.signOn(fire) == nil {
 		t.Fatal("ahead of him, the kind that hurt him most comes first")
+	}
+}
+
+func TestYellowSignHitsTheBarricadeAhead(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	i := len(g.Map.Path) / 2
+	k.Dist = g.cellDist[i]
+	k.Pos = g.routePos(k.Dist)
+	wall := place(g, "wall", g.Map.Path[i+1])
+	near := Pos{-1, -1} // a hot shooter within his reach
+	for y := 0; y < GridH && near.X < 0; y++ {
+		for x := 0; x < GridW; x++ {
+			if p := (Pos{x, y}); g.Map.Grid.At(p) == CellBuild && center(p).sub(k.Pos).len() <= kingSignRadius {
+				near = p
+				break
+			}
+		}
+	}
+	if near.X < 0 {
+		t.Skip("no room by the path")
+	}
+	gun := place(g, "arrow", near)
+	gun.heat = 1e6
+	g.signSupport = false // a shooter's turn
+	g.placeSign(k)
+	if g.signOn(wall) == nil {
+		t.Fatal("a barricade one cell from him takes the sign first")
+	}
+	g.signs = nil
+	g.removeTower(wall)
+	g.placeSign(k)
+	if g.signOn(gun) == nil {
+		t.Fatal("without it the shooter's turn goes on as before")
 	}
 }
