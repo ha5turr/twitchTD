@@ -65,7 +65,7 @@ function spotLine(s) {
     case 'damage':
       return { text: `${s.name}… Это ты бил больше всех? Я запомню твоё имя.`, voice: 'king_top', pose: 'king_cat_point', spot: s, stat: `урон за партию: ${n.toLocaleString('ru-RU')}` };
     case 'drinks':
-      return { text: `Был у Боба ${n} ${plural(n, 'раз', 'раза', 'раз')}… ${s.name}, что с лицом?!`, voice: 'king_bob', pose: 'king_cat_grin', spot: s, stat: `у Боба: ${n} ${plural(n, 'кружка', 'кружки', 'кружек')}` };
+      return { text: `Был у Боба ${n} ${plural(n, 'раз', 'раза', 'раз')}… ${s.name}. Теперь понятно по твоему лицу…`, voice: 'king_bob', pose: 'king_cat_grin', spot: s, stat: `у Боба: ${n} ${plural(n, 'кружка', 'кружки', 'кружек')}` };
     case 'dances':
       return { text: `Ты, ${s.name}, танцевал до упаду, пока остальные пахали… НЕ СИЛЬНО ЗАПАХАЛСЯ?`, voice: 'king_dance', pose: 'king_cat_grin', spot: s, stat: `танцев: ${n}` };
     default:
