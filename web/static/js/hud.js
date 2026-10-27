@@ -430,7 +430,6 @@ export class Hud {
         break;
       case 'kingPhase':
         if (ev.amount === 2) this.showBanner('Король в Жёлтом', 'вторая фаза: свита безликих', 3);
-        if (ev.amount === 3) this.showBanner('Король в Жёлтом', 'третья фаза', 3);
         break;
       case 'sign':
         this.floatAt(ev.x, ev.y - 0.7, 'Жёлтый знак!', 0xffd23a, FONT_UI, 24);
@@ -453,7 +452,7 @@ export class Hud {
         this.toasts.push({ text: '🎶 Песнь Кассильды: навыки наёмников сбоят', color: 0xe0c0ff });
         break;
       case 'unmask':
-        this.showBanner('Маска снята', 'святилища и барабаны ослабляют постройки', 4);
+        this.showBanner('Маска снята', 'третья фаза: свиты больше нет, святилища и барабаны ослабляют постройки', 4);
         break;
       case 'named':
         this.floatAt(ev.x, ev.y - 1, 'он слышит…', 0xffd23a, FONT_UI, 22);

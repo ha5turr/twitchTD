@@ -172,6 +172,11 @@ func TestKingPhases(t *testing.T) {
 	if got := before - k.HP; got > 1000*(1-retinueCut)+0.01 {
 		t.Fatalf("he takes less while it lives: %.0f", got)
 	}
+	k.HP = k.MaxHP * 0.35
+	run(g, 0.1)
+	if k.phase != 2 || g.maskLeft > 0 {
+		t.Fatal("the retinue's phase lasts down to 30%")
+	}
 	k.HP = k.MaxHP * 0.25
 	run(g, 0.1)
 	if k.phase != 3 || g.maskLeft <= 0 {
@@ -182,6 +187,20 @@ func TestKingPhases(t *testing.T) {
 	_ = shrine
 	if dmg, _ := g.auras(gun); dmg >= 1 {
 		t.Fatalf("with the mask off auras weaken: %.2f", dmg)
+	}
+	count := func() (n int) {
+		for _, e := range g.Enemies {
+			if e.Kind == facelessKind {
+				n++
+			}
+		}
+		return n
+	}
+	was := count()
+	k.retinueCD = 0
+	run(g, retinueEvery+1)
+	if count() > was {
+		t.Fatal("no more faceless once the mask is off")
 	}
 }
 

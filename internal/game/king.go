@@ -45,8 +45,7 @@ const (
 	kingNameMax   = 0.30 // up to this much
 	kingNameSec   = 10.0 // for this long, and one player counts this often
 
-	kingPhase2 = 0.70 // the retinue and the song from this share of his health
-	kingPhase3 = 0.40
+	kingPhase2 = 0.70 // the retinue and the song from this share of his health; the third phase starts with the mask (KingMaskAt)
 
 	retinueEvery = 15.0
 	retinueN     = 3
@@ -224,7 +223,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 	// The phases.
 	share := e.HP / e.MaxHP
 	phase := 1
-	if share <= kingPhase3 {
+	if share <= g.Cfg.KingMaskAt {
 		phase = 3
 	} else if share <= kingPhase2 {
 		phase = 2
@@ -239,7 +238,8 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		}
 	}
 	if e.phase >= 2 {
-		if e.retinueCD -= dt; e.retinueCD <= 0 {
+		// The faceless come only in the second phase; the song plays on to the end.
+		if e.retinueCD -= dt; e.phase == 2 && e.retinueCD <= 0 {
 			e.retinueCD = retinueEvery
 			g.summon(e, facelessKind, max(1, int(math.Round(retinueN*g.teamShare()))))
 		}
@@ -253,7 +253,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		e.masked = true
 		g.maskLeft = maskSec
 		g.emit(Event{Kind: "unmask", X: e.Pos.X, Y: e.Pos.Y})
-		g.reply("", "Маска снята! Святилища и барабаны ослабляют постройки")
+		g.reply("", "Маска снята! Свита больше не приходит, но святилища и барабаны ослабляют постройки")
 	}
 	g.kingBiome(e, dt)
 }
