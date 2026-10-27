@@ -410,3 +410,45 @@ func TestFinalScalesWithTheTeam(t *testing.T) {
 		t.Fatalf("a duo meets a much smaller final: escort %d vs %d, king %.0f vs %.0f", duoN, fullN, duoHP, fullHP)
 	}
 }
+
+func TestYellowSignLooksAhead(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	path := g.Map.Path
+	beside := func(j int) Pos { // a free building cell next to path cell j
+		for _, d := range []Pos{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+			p := Pos{path[j].X + d.X, path[j].Y + d.Y}
+			if p.X >= 0 && p.Y >= 0 && p.X < GridW && p.Y < GridH && g.Map.Grid.At(p) == CellBuild && g.Towers[p] == nil {
+				return p
+			}
+		}
+		return Pos{-1, -1}
+	}
+	i := -1
+	for j := 4; j < len(path)-4 && i < 0; j++ {
+		if a, b, c := beside(j-2), beside(j+2), beside(j+3); a.X >= 0 && b.X >= 0 && c.X >= 0 && b != c {
+			i = j
+		}
+	}
+	if i < 0 {
+		t.Skip("no room on this map")
+	}
+	k.Dist = g.cellDist[i]
+	k.Pos = g.routePos(k.Dist)
+	behind := place(g, "arrow", beside(i-2))
+	behind.heat = 1000
+	ahead := place(g, "arrow", beside(i+2))
+	ahead.heat = 10
+	g.placeSign(k)
+	if g.signOn(ahead) == nil {
+		t.Fatal("he marks a building ahead of him before one he has passed")
+	}
+	g.signs, g.signSupport = nil, false
+	ahead.heat = 1000
+	fire := place(g, "fire", beside(i+3))
+	fire.heat = 10
+	k.hurtByKind = map[string]float64{"fire": 5000, "arrow": 100}
+	g.placeSign(k)
+	if g.signOn(fire) == nil {
+		t.Fatal("ahead of him, the kind that hurt him most comes first")
+	}
+}

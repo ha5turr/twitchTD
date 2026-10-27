@@ -267,16 +267,42 @@ func (g *Game) placeSign(king *Enemy) {
 	for _, s := range g.signs {
 		marked[s.Tower] = true
 	}
+	// Of each type he takes first a building still ahead of him, then one
+	// of the kind that has hurt him most so far, then as before: the
+	// deadliest shooter of late, the support of the highest level.
+	fav := map[bool]string{} // support or not -> the kind that hurt him most
+	for kind, dmg := range king.hurtByKind {
+		sup := supportTower(g.Cfg.Towers[kind])
+		if f := fav[sup]; f == "" || dmg > king.hurtByKind[f] || dmg == king.hurtByKind[f] && kind < f {
+			fav[sup] = kind
+		}
+	}
+	ahead := func(t *Tower) bool { return g.routeAhead(center(t.Cell), king.Dist) }
+	first := func(t, best *Tower) int { // 1: t goes before best, -1: after, 0: a tie
+		for _, b := range [][2]bool{{ahead(t), ahead(best)}, {t.Kind == fav[supportTower(g.Cfg.Towers[t.Kind])], best.Kind == fav[supportTower(g.Cfg.Towers[best.Kind])]}} {
+			if b[0] != b[1] {
+				if b[0] {
+					return 1
+				}
+				return -1
+			}
+		}
+		return 0
+	}
 	var shooter, support *Tower
 	for _, t := range g.Towers {
 		if !t.Built || marked[t] || t.Kind == "clown" || center(t.Cell).sub(king.Pos).len() > kingSignRadius {
 			continue
 		}
 		if supportTower(g.Cfg.Towers[t.Kind]) {
-			if support == nil || t.Level > support.Level || t.Level == support.Level && t.ID < support.ID {
+			if support == nil {
+				support = t
+			} else if c := first(t, support); c > 0 || c == 0 && (t.Level > support.Level || t.Level == support.Level && t.ID < support.ID) {
 				support = t
 			}
-		} else if shooter == nil || t.heat > shooter.heat || t.heat == shooter.heat && t.Level > shooter.Level {
+		} else if shooter == nil {
+			shooter = t
+		} else if c := first(t, shooter); c > 0 || c == 0 && (t.heat > shooter.heat || t.heat == shooter.heat && t.Level > shooter.Level) {
 			shooter = t
 		}
 	}
@@ -294,6 +320,18 @@ func (g *Game) placeSign(king *Enemy) {
 	cp := center(at.Cell)
 	g.emit(Event{Kind: "sign", X: cp.X, Y: cp.Y, Text: at.Cell.Name()})
 	g.reply("", fmt.Sprintf("Жёлтый знак на %s! Развеять: !рз %s", at.Cell.Name(), at.Cell.Name()))
+}
+
+// routeAhead reports whether p borders the stretch of the route the king
+// at distance d has yet to walk, within the sign's reach: a building there
+// still stands in his way, whatever it borders behind him.
+func (g *Game) routeAhead(p vec, d float64) bool {
+	for x := d + 0.5; x <= min(g.total, d+kingSignRadius+1); x += 0.2 {
+		if g.routePos(x).sub(p).len() <= 1.6 {
+			return true
+		}
+	}
+	return false
 }
 
 // supportTower reports whether a building helps others rather than hurts:
@@ -373,8 +411,17 @@ func (g *Game) signHeal(t *Tower, dmg float64) {
 	}
 }
 
-// warm counts damage a building deals, for the sign to find the deadliest.
-func (t *Tower) warm(dmg float64) { t.heat += dmg }
+// warm counts damage a building deals, for the sign to find the deadliest;
+// what it deals the king counts for its kind too.
+func (t *Tower) warm(dmg float64, e *Enemy) {
+	t.heat += dmg
+	if e != nil && e.Kind == kingKind {
+		if e.hurtByKind == nil {
+			e.hurtByKind = map[string]float64{}
+		}
+		e.hurtByKind[t.Kind] += dmg
+	}
+}
 
 // cool lets a building's recent damage fade.
 func (t *Tower) cool(dt float64) { t.heat *= math.Pow(0.5, dt/kingHeatHalfLife) }

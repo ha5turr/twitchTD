@@ -89,6 +89,7 @@ type Enemy struct {
 	tavernLeft float64            // seconds left robbing the tavern
 	loot       map[string]int     // gold stolen from each chatter
 	hurtBy     map[string]float64 // damage dealt to him, by chatter
+	hurtByKind map[string]float64 // and by kind of building (the King in Yellow's sign looks for that kind)
 }
 
 type Tower struct {
@@ -514,7 +515,7 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 	if g.artifact(t) {
 		dmg *= g.Cfg.TrapArtSnap // its charges never run out, so the snap itself is milder
 	}
-	t.warm(dmg)
+	t.warm(dmg, e)
 	g.signHeal(t, dmg)
 	g.damage(e, dmg, t.Owner, false)
 	cp := center(t.Cell)
@@ -674,7 +675,7 @@ func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
 	if spec.BossPct > 0 {
 		damage = spec.BossPct * target.MaxHP * mult
 	}
-	t.warm(damage)
+	t.warm(damage, target)
 	g.signHeal(t, damage) // a building under the Yellow Sign heals the king
 	if spec.Chain > 0 {
 		damage *= g.stormGrowth()
