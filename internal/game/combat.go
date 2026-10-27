@@ -368,7 +368,11 @@ func (g *Game) tickEnemies(dt float64) {
 		e.curseLeft = max(0, e.curseLeft-dt)
 		e.stunLeft = max(0, e.stunLeft-dt)
 		// Every enemy slowly closes its wounds; trolls much faster.
-		g.heal(e, (g.Cfg.EnemyRegen+spec.Regen)*e.MaxHP*dt)
+		regen := g.Cfg.EnemyRegen + spec.Regen
+		if e.Kind == kingKind {
+			regen = g.Cfg.KingRegen // the king mends at his own pace
+		}
+		g.heal(e, regen*e.MaxHP*dt)
 		if spec.Heal > 0 {
 			g.healAround(e, spec.Heal*dt)
 		}

@@ -40,8 +40,6 @@ const (
 	kingSignDrainSec = 5.0  // a marked support loses a level this often
 	kingHeatHalfLife = 30.0 // seconds over which a building's recent damage halves
 
-	kingCloak = 0.15 // a player's damage to him halves after this share of his max HP
-
 	kingNameHeal  = 0.01 // every "Хастур" heals him this share of his max HP
 	kingNameHaste = 0.05 // and speeds him up this much
 	kingNameMax   = 0.30 // up to this much
@@ -397,8 +395,8 @@ func (g *Game) clearKing() {
 
 // kingCut is what the king's torn cloak and his retinue leave of a hit.
 func (g *Game) kingCut(e *Enemy, dmg float64, owner string) float64 {
-	if owner != "" {
-		dmg /= 1 + e.hurtBy[owner]/(kingCloak*e.MaxHP)
+	if owner != "" && g.Cfg.KingCloak > 0 {
+		dmg /= 1 + e.hurtBy[owner]/(g.Cfg.KingCloak*e.MaxHP)
 	}
 	for _, o := range g.Enemies {
 		if o.Kind == facelessKind && !o.dead {

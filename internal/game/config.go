@@ -59,6 +59,11 @@ type Config struct {
 	KingSignEvery float64 `json:"kingSignEvery"`
 	KingSignSec   float64 `json:"kingSignSec"`
 	KingMaskAt    float64 `json:"kingMaskAt"`
+	// His torn cloak: a player's damage to him halves once that player has
+	// dealt KingCloak of his max HP (0: no cloak). KingRegen is his own
+	// healing, a share of his max HP per second, instead of EnemyRegen.
+	KingCloak float64 `json:"kingCloak"`
+	KingRegen float64 `json:"kingRegen"`
 	// TwitchChannelID, the channel's numeric Twitch ID, lets the overlay load
 	// its 7TV, BTTV and FFZ emotes itself for !s lines, on top of those
 	// Streamer.bot resolves.
@@ -665,10 +670,12 @@ func DefaultConfig() Config {
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
 		KingIntroSec:  60, // a cap: the overlay ends the scene when its lines are said
-		KingHPMult:    0.9,
+		KingHPMult:    0.7,
 		KingSignEvery: 20,
 		KingSignSec:   25,
 		KingMaskAt:    0.3,
+		KingCloak:     0.5,
+		KingRegen:     0,
 		WebcamFrom:    "N1",
 		WebcamTo:      "P5",
 	}
