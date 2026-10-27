@@ -148,7 +148,7 @@ func (g *Game) spiritWolves(key string, c *Chatter) bool {
 	if len(g.Enemies) == 0 {
 		return false
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		g.Runs = append(g.Runs, &Run{Owner: key, Name: c.Name, Kind: "wolf", Pos: g.gate(), dist: g.total + 0.3*float64(i), hit: map[int]bool{}, lane: 0.2 - 0.4*float64(i)})
 	}
 	g.emit(Event{Kind: "wolves", User: c.Name})
@@ -173,8 +173,8 @@ func (g *Game) bearForm(key string, c *Chatter) bool {
 		r.dist = g.total - 0.6
 		for _, e := range g.Enemies {
 			spec := g.Cfg.Enemies[e.Kind]
-			if e.dead || spec.Fly || e.tavernLeft > 0 || e.Dist < g.total-1.2 {
-				continue
+			if e.dead || spec.Fly || e.tavernLeft > 0 || e.Dist < g.total-1.2 || e.Kind == kingKind {
+				continue // nothing shoves the king
 			}
 			// Bosses too: the bear is the one thing that moves them at the door.
 			e.Dist = max(0, g.total-1.2-0.1*float64(len(r.hit)))

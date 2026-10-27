@@ -51,8 +51,8 @@ func TestMatchClockWarnsAndCallsTheFinal(t *testing.T) {
 			bosses++
 		}
 	}
-	if bosses != len(biomeBosses[g.Map.Biome]) {
-		t.Fatalf("both of the biome's bosses lead it: %d", bosses)
+	if bosses != 1 || g.queue[0].kind != kingKind {
+		t.Fatalf("the King in Yellow alone leads it: %d bosses", bosses)
 	}
 	// The final is as strong as wave FinalWave, whatever wave was reached.
 	if g.waveHP < g.Cfg.BaseHP*pow(g.Cfg.HPGrowth, g.Cfg.FinalWave) {

@@ -123,6 +123,7 @@ type TowerView struct {
 	Ammo     string  `json:"ammo,omitempty"`  // an artifact ballista's arrows
 	War      bool    `json:"war,omitempty"`   // powered by an artifact drum's war beat
 	Flood    bool    `json:"flood,omitempty"` // under the leviathan's tide
+	Sign     bool    `json:"sign,omitempty"`  // under a Yellow Sign
 }
 
 type WorkerView struct {
@@ -210,7 +211,7 @@ func (g *Game) StateMessage() StateMsg {
 		}
 		s.Towers = append(s.Towers, TowerView{
 			t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress),
-			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0, g.artifact(t), t.Ammo, t.warLeft > 0, t.floodLeft > 0,
+			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0, g.artifact(t), t.Ammo, t.warLeft > 0, t.floodLeft > 0, g.signOn(t) != nil,
 		})
 	}
 	sort.Slice(s.Towers, func(i, j int) bool { return s.Towers[i].ID < s.Towers[j].ID })

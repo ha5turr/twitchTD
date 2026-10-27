@@ -41,6 +41,8 @@ export const ENEMIES = {
   golden_golem: { name: 'Золотой голем', color: 0xffd24a, r: 0.4, boss: true },
   hydra: { name: 'Гидра', color: 0x3a8a4a, r: 0.48, boss: true },
   octopus: { name: 'Мрачный Осьминог', color: 0x6a2a8a, r: 0.46, boss: true },
+  king: { name: 'Король в Жёлтом', color: 0xd8c020, r: 0.5, boss: true },
+  faceless: { name: 'Безликий', color: 0xb8b8b0, r: 0.2 },
   leviathan: { name: 'Левиафан', color: 0x2a7a6a, r: 0.5, boss: true },
   sdf: { name: 'ЭссДиЭф', color: 0x8a9a3a, r: 0.5, boss: true },
 };
@@ -283,6 +285,10 @@ export const ENEMY_ART = {
   drowned: { name: 'tc_drowned', scale: 2.8, hop: true, tint: 0xa8d0c8 },
   octopling: { name: 'tc_octopus', scale: 2, float: true },
   octopus: { name: 'tc_octopus', scale: 5.5, float: true },
+  // The King in Yellow: his own sprite when assets/king/king_field.png is
+  // there, a wraith in yellow until then; his faceless retinue in grey.
+  king: { name: 'king_field', scale: 3, float: true, fallback: { name: 'tc_wraith', scale: 5.5, float: true, tint: 0xffd84a } },
+  faceless: { name: 'tc_wraith', scale: 2.6, float: true, tint: 0xb8b8b0, alpha: 0.9 },
   leviathan: { name: 'tc_serpent', scale: 6.4, float: true, tint: 0x9ae0d0 },
   spider: { name: 'spider_dark', scale: 3.6 },
   spider_queen: { name: 'spider_purple', scale: 5.5 },

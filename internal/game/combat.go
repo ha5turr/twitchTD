@@ -63,6 +63,18 @@ type Enemy struct {
 	cling           *Tower  // the building an octopling sits on
 	clingLeft       float64 // seconds until it lets go
 
+	// The King in Yellow (king.go).
+	phase     int                // 1..3 by his health
+	signCD    float64            // seconds to the next Yellow Sign
+	retinueCD float64            // to the next faceless
+	songCD    float64            // to the next Cassilda's song
+	biomeCD   float64            // to the biome's power
+	masked    bool               // the mask has come off
+	nameHaste float64            // how much faster "Хастур" in the chat made him
+	nameLeft  float64            // seconds that haste lasts
+	namedBy   map[string]float64 // when each player last said his name
+	torn      map[int]bool       // nets and booms he tore (river)
+
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
 	act        int     // 1 burp, 2 fart, while paused
@@ -109,6 +121,7 @@ type Tower struct {
 	artCD       float64 // an artifact's timed power (war beat, shove, lightning charge)
 	warLeft     float64 // seconds an artifact drum's war beat still powers this building
 	floodLeft   float64 // seconds left under the leviathan's tide
+	heat        float64 // recent damage, fading: the Yellow Sign looks for the deadliest
 }
 
 type Projectile struct {
@@ -131,6 +144,7 @@ type Projectile struct {
 	Arcane    bool     // an artifact obelisk's empowered hit
 	BurnStack bool     // an artifact brazier's burn stacks
 	SplashPct float64  // a blast arrow: share of the damage to those around the target
+	From      int      // the building that shot it
 }
 
 // levelMult is how much a building's main stat grows with its level.
@@ -358,7 +372,9 @@ func (g *Game) tickEnemies(dt float64) {
 		if spec.Heal > 0 {
 			g.healAround(e, spec.Heal*dt)
 		}
-		if spec.Boss {
+		if e.Kind == kingKind {
+			g.tickKing(e, dt)
+		} else if spec.Boss {
 			g.tickBoss(e, dt)
 		}
 		if spec.Dispel > 0 {
@@ -380,6 +396,9 @@ func (g *Game) tickEnemies(dt float64) {
 		speed, blows := e.fury()
 		if e.Kind == sdfKind {
 			speed *= g.sdfHaste()
+		}
+		if e.Kind == kingKind {
+			speed *= e.kingSpeed()
 		}
 		switch {
 		case e.AtGate && isGuest(e.Kind):
@@ -458,6 +477,7 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 	} else {
 		t.Charges--
 	}
+	g.kingFreezes(e, t) // ice: a trap that tries to hold the king freezes
 	// A trap slows everyone, even those immune to frost: each charge is one
 	// snap with its full damage.
 	e.slowMult = ts.Slow
@@ -482,6 +502,8 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 	if g.artifact(t) {
 		dmg *= g.Cfg.TrapArtSnap // its charges never run out, so the snap itself is milder
 	}
+	t.warm(dmg)
+	g.signHeal(t, dmg)
 	g.damage(e, dmg, t.Owner, false)
 	cp := center(t.Cell)
 	g.emit(Event{Kind: "trap", X: cp.X, Y: cp.Y, Amount: t.Charges})
@@ -493,7 +515,7 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, blows, dt float64) {
 		e.blocked = nil // sold or already broken
 		return
 	}
-	t.HP -= spec.WallDPS * blows * g.siege(e, dt) * dt
+	t.HP -= spec.WallDPS * blows * g.siege(e, dt) * g.cramped(e) * dt
 	if g.artifact(t) {
 		g.damage(e, g.skillHP()*g.Cfg.WallSpikeDPS*dt, t.Owner, false) // its spikes
 	}
@@ -557,6 +579,10 @@ func (g *Game) auras(t *Tower) (dmg, rate float64) {
 			rate += g.Cfg.DrumArtRate // artifact drums beat faster still
 		}
 	}
+	if g.maskLeft > 0 {
+		// The king's mask is off: every aura works against its building.
+		dmg, rate = max(0.2, 2-dmg), max(0.2, 2-rate)
+	}
 	return dmg, rate
 }
 
@@ -565,6 +591,7 @@ func (g *Game) tickTowers(dt float64) {
 		t.repairCD = max(0, t.repairCD-dt)
 		t.hexLeft = max(0, t.hexLeft-dt)
 		t.floodLeft = max(0, t.floodLeft-dt)
+		t.cool(dt)
 		if t.Disabled > 0 {
 			t.Disabled -= dt
 			continue
@@ -626,6 +653,8 @@ func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
 	if spec.BossPct > 0 {
 		damage = spec.BossPct * target.MaxHP * mult
 	}
+	t.warm(damage)
+	g.signHeal(t, damage) // a building under the Yellow Sign heals the king
 	if spec.Chain > 0 {
 		damage *= g.stormGrowth()
 		g.chainZap(t, spec, target, damage) // lightning needs no flight time
@@ -642,7 +671,7 @@ func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
 		ID: g.id(), Kind: t.Kind, Pos: tc, Target: target.ID, Aim: target.Pos,
 		Damage: damage, Magic: spec.Magic, Speed: spec.ProjSpd, Owner: t.Owner,
 		Splash: spec.Splash, BurnDPS: spec.BurnDPS * mult, BurnSec: spec.BurnSec,
-		Assist: g.drummers(t), Crit: crit,
+		Assist: g.drummers(t), Crit: crit, From: t.ID,
 	}
 	if t.Kind == "magic" && g.classBonus(t.Owner, t.Kind) > 1 {
 		// A mage's obelisk slows now and then, more often the better it is.
@@ -686,6 +715,7 @@ func (g *Game) tickProjectiles(dt float64) {
 						dmg *= p.SplashPct // a blast arrow hits its target in full, the rest less
 					}
 					g.damage(e, dmg, p.Owner, p.Magic)
+					g.kingHit(e, p)
 				}
 			}
 			g.emit(Event{Kind: "blast", X: p.Aim.X, Y: p.Aim.Y})
@@ -706,6 +736,7 @@ func (g *Game) tickProjectiles(dt float64) {
 				}
 			}
 			g.damage(target, p.Damage, p.Owner, p.Magic)
+			g.kingHit(target, p)
 			if p.Crit {
 				g.emit(Event{Kind: "crit", X: target.Pos.X, Y: target.Pos.Y, Amount: int(math.Round(p.Damage))})
 			}
@@ -729,7 +760,7 @@ func (g *Game) burn(e *Enemy, p *Projectile) {
 // ignite sets e alight. Burns do not stack, but a weaker one never puts out
 // a stronger one still burning: a fire arrow does not cool a brazier's burn.
 func (g *Game) ignite(e *Enemy, dps, sec float64, owner string) {
-	if g.swimming(e) {
+	if g.swimming(e) || g.fireproof(e) {
 		return // fire goes out in the water
 	}
 	if e.burnLeft > 0 && e.burnDPS > dps {
@@ -756,6 +787,9 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	if e.shieldUp {
 		dmg *= 0.2
 	}
+	if e.Kind == kingKind {
+		dmg = g.kingCut(e, dmg, owner) // his torn cloak and his retinue
+	}
 	c := g.Chatters[owner]
 	if e.boatHP > 0 {
 		hit := g.hitBoat(e, dmg, physical) // the boat takes the blow
@@ -766,7 +800,7 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 	}
 	if c != nil {
 		c.GameDamage += min(dmg, e.HP) // overkill does not count
-		if tracksDamage(e.Kind) {
+		if tracksDamage(e.Kind) || e.Kind == kingKind {
 			if e.hurtBy == nil {
 				e.hurtBy = map[string]float64{}
 			}
@@ -979,7 +1013,7 @@ func (g *Game) tickNet(t *Tower, spec TowerSpec, dt float64) {
 	tc := center(t.Cell)
 	var at *Enemy
 	for _, e := range g.Enemies {
-		if !e.dead && e.netLeft <= 0 && e.netImmune <= 0 && e.Pos.sub(tc).len() <= g.towerRange(t, spec) && (at == nil || e.Dist > at.Dist) {
+		if targetable(e) && e.netLeft <= 0 && e.netImmune <= 0 && e.Pos.sub(tc).len() <= g.towerRange(t, spec) && (at == nil || e.Dist > at.Dist) {
 			at = e
 		}
 	}
@@ -996,6 +1030,7 @@ func (g *Game) tickNet(t *Tower, spec TowerSpec, dt float64) {
 			if g.Cfg.Enemies[e.Kind].Boss {
 				e.netImmune = spec.NetSec + g.Cfg.BossNetImmuneSec
 			}
+			g.kingFreezes(e, t)
 		}
 	}
 	g.emit(Event{Kind: "net", X: p.X, Y: p.Y, Text: t.Owner})
