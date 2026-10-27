@@ -173,8 +173,8 @@ func (g *Game) bearForm(key string, c *Chatter) bool {
 		r.dist = g.total - 0.6
 		for _, e := range g.Enemies {
 			spec := g.Cfg.Enemies[e.Kind]
-			if e.dead || spec.Fly || e.tavernLeft > 0 || e.Dist < g.total-1.2 {
-				continue
+			if e.dead || spec.Fly || e.tavernLeft > 0 || e.Dist < g.total-1.2 || e.Kind == kingKind {
+				continue // nothing shoves the king
 			}
 			// Bosses too: the bear is the one thing that moves them at the door.
 			e.Dist = max(0, g.total-1.2-0.1*float64(len(r.hit)))

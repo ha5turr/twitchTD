@@ -53,6 +53,7 @@ func (g *Game) HandleChat(m ChatMessage) {
 		key = StreamerName
 	}
 	c := g.Touch(key, user)
+	g.sayName(key, m.Text) // "Хастур" makes the king stronger
 	f := strings.Fields(m.Text)
 	if len(f) == 0 || !strings.HasPrefix(f[0], "!") {
 		return
@@ -89,6 +90,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdRepair(c, key, args)
 	case "!sell", "!продать":
 		g.cmdSell(c, key, args)
+	case "!развеять", "!рз", "!dispel":
+		g.cmdDispel(c, key, args)
 	case "!me", "!я":
 		cl, _ := classByKey(c.Class)
 		grant := ""
@@ -502,6 +505,8 @@ func (g *Game) cmdAdmin(c *Chatter, cmd string, args []string) {
 		} else {
 			g.Ops.Rollback(c.Name)
 		}
+	case "!tdskip", "!tdпропустить":
+		g.skipKingIntro()
 	case "!tdwave":
 		g.StartWave()
 	case "!tdnew":
@@ -608,6 +613,7 @@ var gameCommands = map[string]bool{
 	"!build": true, "!b": true, "!строить": true, "!с": true,
 	"!up": true, "!u": true, "!улучшить": true,
 	"!sell": true, "!продать": true,
+	"!развеять": true, "!рз": true, "!dispel": true,
 	"!repair": true, "!чинить": true, "!починить": true,
 	"!me": true, "!я": true,
 	"!стрелы": true, "!arrows": true, "!ammo": true,

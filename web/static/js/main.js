@@ -10,6 +10,7 @@ import { Particles } from './particles.js';
 import { loadTileset } from './tileset.js';
 import { Bubbles } from './bubbles.js';
 import { loadEmotes } from './emotes.js';
+import { KingScene } from './king.js';
 
 const { Application, Container } = PIXI;
 
@@ -46,6 +47,10 @@ async function start() {
   window.td = { app, hud, ents, tavern, lighting, bubbles }; // for poking at the overlay from devtools
   const sound = new Sound();
   window.td.sound = sound;
+  const king = new KingScene(sound);
+  ui.addChild(king.layer);
+  window.td.king = king;
+  let finalOn = false;
   let bossAlive = false;
   let shots = new Set();
   let walls = null;
@@ -66,7 +71,11 @@ async function start() {
       tavern.update(s);
       bossAlive = s.enemies.some((e) => e.boss);
       playSounds(s);
-      for (const ev of s.events ?? []) fx.onEvent(ev);
+      for (const ev of s.events ?? []) {
+        fx.onEvent(ev);
+        king.onEvent(ev, finalOn);
+      }
+      finalOn = !!s.match?.final && s.phase === 'wave';
     },
     settings(s) {
       sound.configure(s.values ?? {});
@@ -99,6 +108,7 @@ async function start() {
     tavern.frame(dt);
     fx.frame(dt);
     bubbles.frame(dt);
+    king.frame(dt);
     lighting.alarm += ((bossAlive ? 0.55 : 0) - lighting.alarm) * Math.min(1, dt * 2);
     lighting.render(dt, [...ents.lights(), ...hud.lights()]);
   });

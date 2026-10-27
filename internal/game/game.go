@@ -157,18 +157,26 @@ type Game struct {
 	tempoSaved    float64         // build phase seconds the ready vote cut
 	emoteIDs      []string        // channels whose emotes the overlay loads (SetEmoteChannels)
 	summary       *Summary
-	cellDist      []float64            // route distance to the centre of each path cell
-	waveHP        float64              // base enemy HP of the current wave
-	rushLeft      float64              // seconds of the frost demon's speed-up left
-	assist        []string             // drummers behind the shot being resolved
-	rewardMult    float64              // grows after every boss wave: kills, assists and barricades pay more
-	smallKill     float64              // a small party's extra share of every bounty this wave (0.5 is x1.5)
-	afkCheck      float64              // seconds to the next AFK sweep
-	helpAt        map[string]time.Time // last !помощь answer per topic
-	jailVote      *JailVote            // the tavern voting to lock someone up
-	mapVote       *MapVote             // the tavern voting for a new map (newmap.go)
-	mapVoteAt     time.Time            // a failed vote: no new one until then
-	nextMeme      int
+	// The King in Yellow (king.go).
+	introLeft   float64              // seconds of the scene before the final
+	signs       []*Sign              // Yellow Signs on buildings
+	signSupport bool                 // the next sign goes on a support
+	maskLeft    float64              // seconds the auras still work the other way
+	songLeft    float64              // seconds Cassilda's song still breaks skills
+	brokenLinks map[int]bool         // soul links the king tore (crypt)
+	nameWarned  bool                 // the chat was told not to say his name
+	cellDist    []float64            // route distance to the centre of each path cell
+	waveHP      float64              // base enemy HP of the current wave
+	rushLeft    float64              // seconds of the frost demon's speed-up left
+	assist      []string             // drummers behind the shot being resolved
+	rewardMult  float64              // grows after every boss wave: kills, assists and barricades pay more
+	smallKill   float64              // a small party's extra share of every bounty this wave (0.5 is x1.5)
+	afkCheck    float64              // seconds to the next AFK sweep
+	helpAt      map[string]time.Time // last !помощь answer per topic
+	jailVote    *JailVote            // the tavern voting to lock someone up
+	mapVote     *MapVote             // the tavern voting for a new map (newmap.go)
+	mapVoteAt   time.Time            // a failed vote: no new one until then
+	nextMeme    int
 }
 
 func New(cfg Config, seed uint64) *Game {
@@ -231,6 +239,8 @@ func (g *Game) NewGame(biome Biome) {
 	g.jailVote, g.mapVote = nil, nil
 	g.matchElapsed, g.finalDue, g.finalWave = 0, false, false
 	g.ready, g.readyGo, g.tempoSaved = nil, false, 0
+	g.clearKing()
+	g.nameWarned = false
 	for _, c := range g.Chatters {
 		if !g.Cfg.KeepGold {
 			c.Gold = g.Cfg.StartGold
@@ -345,7 +355,14 @@ func (g *Game) Tick(dt float64) {
 		}
 		return
 	case PhaseWave:
-		g.tickSpawns(dt)
+		if g.introLeft > 0 {
+			if g.introLeft -= dt; g.introLeft <= 0 { // the king's scene: the final waits
+				g.emit(Event{Kind: "kingGo"})
+			}
+		} else {
+			g.tickSpawns(dt)
+		}
+		g.tickSigns(dt)
 		if len(g.queue) == 0 && len(g.Enemies) == 0 {
 			g.endWave()
 		}

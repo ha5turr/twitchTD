@@ -51,6 +51,14 @@ type Config struct {
 	// viewers' rules (gold, limits, a mercenary in the tavern). The panel
 	// keeps its free, instant building either way.
 	StreamerPlays bool `json:"streamerPlays"`
+	// The King in Yellow (king.go): the scene before the final, his health
+	// in bosses of the final's strength, the Yellow Sign's period and life,
+	// and the share of his health at which the mask comes off.
+	KingIntroSec  float64 `json:"kingIntroSec"`
+	KingHPMult    float64 `json:"kingHpMult"`
+	KingSignEvery float64 `json:"kingSignEvery"`
+	KingSignSec   float64 `json:"kingSignSec"`
+	KingMaskAt    float64 `json:"kingMaskAt"`
 	// TwitchChannelID, the channel's numeric Twitch ID, lets the overlay load
 	// its 7TV, BTTV and FFZ emotes itself for !s lines, on top of those
 	// Streamer.bot resolves.
@@ -634,6 +642,8 @@ func DefaultConfig() Config {
 			"hydra":         {Name: "Гидра", HPMult: 1.1, Speed: 0.5, Armor: 0.25, WallDPS: 70, Bounty: 90, Boss: true},
 			"tax_collector": {Name: "Сборщик податей", HPMult: 0.4, Speed: 0.9, Armor: 0.3, Bounty: 20, Boss: true},
 			"golden_golem":  {Name: "Золотой голем", HPMult: 0.35, Speed: 1.8, Armor: 0.2, Bounty: 10, Boss: true},
+			"king":          {Name: "Король в Жёлтом", HPMult: 1, Speed: 0.4, Armor: 0.2, WallDPS: 120, Bounty: 200, SlowImmune: true, Boss: true},
+			"faceless":      {Name: "Безликий", HPMult: 0.5, Speed: 1.6, WallDPS: 5, Bounty: 1},
 			"octopus":       {Name: "Мрачный Осьминог", HPMult: 1, Speed: 0.55, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
 			"leviathan":     {Name: "Левиафан", HPMult: 1.1, Speed: 0.45, Armor: 0.3, WallDPS: 80, Bounty: 90, Boss: true},
 			"frost_demon":   {Name: "Демон Стужи", HPMult: 1, Speed: 0.65, Armor: 0.25, WallDPS: 70, Bounty: 80, SlowImmune: true, Boss: true},
@@ -654,8 +664,13 @@ func DefaultConfig() Config {
 				StrikeEvery: 8, StrikeDmg: 2.5, StrikeRadius: 1, StrikeArt: true, UpgMult: 1.48, MaxLevel: 5},
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
-		WebcamFrom: "N1",
-		WebcamTo:   "P5",
+		KingIntroSec:  22,
+		KingHPMult:    0.9,
+		KingSignEvery: 20,
+		KingSignSec:   25,
+		KingMaskAt:    0.3,
+		WebcamFrom:    "N1",
+		WebcamTo:      "P5",
 	}
 }
 

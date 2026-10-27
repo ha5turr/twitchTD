@@ -86,6 +86,10 @@ func (g *Game) tickHeroes(dt float64) {
 				continue // a ready skill waits for enemies worth it
 			}
 			c.skillCD = every
+			if g.songFails() {
+				g.emit(Event{Kind: "fizzle", User: c.Name}) // Cassilda's song: the skill breaks
+				continue
+			}
 			switch c.Class {
 			case "warrior":
 				g.Runs = append(g.Runs, &Run{Owner: key, Name: c.Name, Kind: "charge", Pos: g.gate(), dist: g.total, hit: map[int]bool{}})

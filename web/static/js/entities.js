@@ -132,7 +132,8 @@ class EnemyView {
     const st = ENEMIES[e.kind] ?? ENEMIES.skeleton;
     this.r = st.r * CELL;
     this.root = new Container();
-    const art = hasTileset() && ENEMY_ART[e.kind];
+    let art = hasTileset() && ENEMY_ART[e.kind];
+    if (art && !frames(art.name) && art.fallback) art = art.fallback; // the king's own sprite not drawn yet
     if (art && frames(art.name)) {
       // A pixel sprite centred on the enemy's point, feet below it.
       this.body = sprite(art.name, art.scale, art.speed ?? 0.15);
@@ -335,7 +336,20 @@ class TowerView {
     for (let i = -1; i <= 1; i++) this.wave.moveTo(-34, i * 20).quadraticCurveTo(-17, i * 20 - 8, 0, i * 20).quadraticCurveTo(17, i * 20 + 8, 34, i * 20);
     this.wave.stroke({ width: 3, color: 0xbfe8ff, alpha: 0.8 });
     this.wave.visible = false;
+    // The Yellow Sign over a marked building: three hooked arms round a ring.
+    this.signMark = new Graphics();
+    this.signMark.position.set(this.cx, this.cy - 8);
+    this.signMark.circle(0, 0, 9).stroke({ width: 5, color: 0xffd23a });
+    for (let i = 0; i < 3; i++) {
+      const a = (i * Math.PI * 2) / 3 - Math.PI / 2;
+      const x = Math.cos(a);
+      const y = Math.sin(a);
+      this.signMark.moveTo(x * 12, y * 12).lineTo(x * 30, y * 30).quadraticCurveTo(x * 40 - y * 14, y * 40 + x * 14, x * 30 - y * 18, y * 30 + x * 18);
+    }
+    this.signMark.stroke({ width: 5, color: 0xffd23a, cap: 'round' });
+    this.signMark.visible = false;
     layer.world.addChild(this.root, this.web, this.wave);
+    layer.labels.addChild(this.signMark);
     // The frog a swamp witch turns the building into for a while.
     this.frog = sprite('tc_frog', 4) ?? emoji('🐸', 40);
     this.frog.position.set(this.cx, this.cy + (this.frog.anchor?.y === 1 ? 24 : 0));
@@ -376,6 +390,7 @@ class TowerView {
     this.disabled = !!t.disabled;
     this.hex = !!t.hex;
     this.flood = !!t.flood;
+    this.signed = !!t.sign;
     // One bar above the cell: construction progress, or a barricade's health.
     const key = `${t.progress ?? 0}|${t.hp ?? 0}`;
     if (key !== this.barKey) {
@@ -429,6 +444,11 @@ class TowerView {
     this.web.visible = this.disabled && !this.hex && !this.flood;
     // Under the tide the building sinks into the water.
     this.wave.visible = this.flood;
+    this.signMark.visible = this.signed;
+    if (this.signed) {
+      this.signMark.rotation = t * 0.6;
+      this.signMark.alpha = 0.75 + 0.25 * Math.sin(t * 5);
+    }
     if (this.flood) this.wave.alpha = 0.55 + 0.15 * Math.sin(t * 4);
     this.web.rotation = Math.sin(t) * 0.05;
     this.frog.visible = this.hex;
@@ -500,6 +520,8 @@ class TowerView {
   destroy() {
     this.root.destroy({ children: true });
     this.web.destroy();
+    this.wave.destroy();
+    this.signMark.destroy();
     this.frog.destroy();
     this.glow.destroy();
     this.ammoIcon.destroy();
