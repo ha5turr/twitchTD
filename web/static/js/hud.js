@@ -425,6 +425,9 @@ export class Hud {
       case 'kingGo':
         this.showBanner('ФИНАЛ', 'Король в Жёлтом идёт на таверну', 5);
         break;
+      case 'kingOpen':
+        this.floatAt(ev.x, ev.y - 1.2, 'плащ раскрыт: держите его!', 0xffd23a, FONT_UI, 22);
+        break;
       case 'kingPhase':
         if (ev.amount === 2) this.showBanner('Король в Жёлтом', 'вторая фаза: свита безликих', 3);
         if (ev.amount === 3) this.showBanner('Король в Жёлтом', 'третья фаза', 3);

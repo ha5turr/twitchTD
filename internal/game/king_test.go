@@ -316,3 +316,25 @@ func TestKingSceneDoneLetsHimIn(t *testing.T) {
 		t.Fatal("the overlay's end of the scene lets the king in")
 	}
 }
+
+func TestKingCloakBreathes(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	run(g, 0.1)
+	if k.open {
+		t.Fatal("he comes in with his cloak whole")
+	}
+	run(g, g.Cfg.KingGuardSec)
+	if !k.open {
+		t.Fatal("then it opens")
+	}
+	k.netLeft, k.slowMult, k.slowLeft = 2, 0.3, 2
+	d := k.Dist
+	run(g, 0.5)
+	if k.netLeft <= 0 || k.Dist != d {
+		t.Fatal("while it is open a net holds him")
+	}
+	run(g, g.Cfg.KingOpenSec)
+	if k.open || k.netLeft > 0 || k.slowMult != 1 {
+		t.Fatal("and when it closes nothing holds him again")
+	}
+}

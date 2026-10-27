@@ -171,18 +171,45 @@ func (g *Game) kingHP(waveHP float64) float64 {
 	return waveHP * g.Cfg.BossHPMult * g.Cfg.FinalBossMult * g.Cfg.KingHPMult * g.Cfg.Enemies[kingKind].HPMult
 }
 
-// unheld keeps the king free of everything that would hold him.
+// unheld keeps the king free of everything that would hold him while his
+// cloak is whole; in its open spells nets, slows and stuns take as on any
+// boss (shoves never do).
 func (g *Game) unheld(e *Enemy) {
+	if e.open {
+		return
+	}
 	e.slowMult, e.slowLeft = 1, 0
 	e.netLeft, e.stunLeft = 0, 0 // barricades still stop him: he hacks through them
 }
 
+// tickCloak lets the king's cloak breathe: KingGuardSec whole, KingOpenSec open.
+func (g *Game) tickCloak(e *Enemy, dt float64) {
+	if g.Cfg.KingOpenSec <= 0 {
+		e.open = false
+		return
+	}
+	if e.cloakCD -= dt; e.cloakCD > 0 {
+		return
+	}
+	e.open = !e.open
+	if e.open {
+		e.cloakCD = g.Cfg.KingOpenSec
+		g.emit(Event{Kind: "kingOpen", X: e.Pos.X, Y: e.Pos.Y, Amount: int(math.Ceil(g.Cfg.KingOpenSec))})
+	} else {
+		e.cloakCD = g.Cfg.KingGuardSec
+		g.emit(Event{Kind: "kingGuard", X: e.Pos.X, Y: e.Pos.Y})
+	}
+}
+
 // tickKing runs the king's powers.
 func (g *Game) tickKing(e *Enemy, dt float64) {
-	g.unheld(e)
 	if e.phase == 0 {
 		e.signCD = g.Cfg.KingSignEvery / 4 // the first sign soon after he comes in
+		e.cloakCD = g.Cfg.KingGuardSec     // he comes in with his cloak whole
 	}
+	g.tickCloak(e, dt)
+	g.unheld(e)
+	e.drawLeft = max(0, e.drawLeft-dt)
 	e.nameLeft = max(0, e.nameLeft-dt)
 	if e.nameLeft <= 0 {
 		e.nameHaste = 0
@@ -263,6 +290,7 @@ func (g *Game) placeSign(king *Enemy) {
 	}
 	g.signSupport = !supportTower(g.Cfg.Towers[at.Kind]) // the other kind next time
 	g.signs = append(g.signs, &Sign{Tower: at, Left: g.Cfg.KingSignSec, By: map[string]bool{}, drain: kingSignDrainSec})
+	king.drawLeft = g.Cfg.KingSignPause // he stops to draw it
 	cp := center(at.Cell)
 	g.emit(Event{Kind: "sign", X: cp.X, Y: cp.Y, Text: at.Cell.Name()})
 	g.reply("", fmt.Sprintf("Жёлтый знак на %s! Развеять: !рз %s", at.Cell.Name(), at.Cell.Name()))
@@ -502,7 +530,7 @@ func (g *Game) kingBiome(e *Enemy, dt float64) {
 
 // kingFreezes (ice) freezes a building that tried to slow the king.
 func (g *Game) kingFreezes(e *Enemy, t *Tower) {
-	if e.Kind != kingKind || t == nil || g.Map.Biome != BiomeIce {
+	if e.Kind != kingKind || t == nil || g.Map.Biome != BiomeIce || e.open {
 		return
 	}
 	t.Disabled = max(t.Disabled, frostSec)

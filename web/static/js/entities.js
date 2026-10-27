@@ -208,11 +208,16 @@ class EnemyView {
     }
     this.dive = !!e.dive;
     this.bar.visible = !this.dive;
-    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '') + (e.swim ? 'w' : '') + (e.dive ? 'd' : '');
+    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '') + (e.swim ? 'w' : '') + (e.dive ? 'd' : '') + (e.open ? 'o' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
       this.fx.clear();
+      if (e.open) {
+        // The King in Yellow's cloak is open: a broken golden ring, nets and slows take now.
+        for (let i = 0; i < 6; i++) this.fx.arc(0, 0, r + 12, (i * Math.PI) / 3, (i * Math.PI) / 3 + 0.7);
+        this.fx.stroke({ width: 4, color: 0xffd23a, alpha: 0.9 });
+      }
       if (e.swim || e.dive) {
         // Swimming: rings of ripples round the waist; under water only they show.
         this.fx.ellipse(0, r * 0.4, r * 1.1, r * 0.35).stroke({ width: 2, color: 0xbfe8ff, alpha: 0.7 });

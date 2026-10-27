@@ -74,6 +74,9 @@ type Enemy struct {
 	nameLeft  float64            // seconds that haste lasts
 	namedBy   map[string]float64 // when each player last said his name
 	torn      map[int]bool       // nets and booms he tore (river)
+	open      bool               // his cloak is open: nets, slows and stuns take
+	cloakCD   float64            // seconds until it opens or closes again
+	drawLeft  float64            // seconds he stands drawing a Yellow Sign
 
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
@@ -415,7 +418,7 @@ func (g *Game) tickEnemies(dt float64) {
 			// Guards on the walls shoot back, so a leak costs hit points but
 			// is not the end by itself; a boss at the gate still is.
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
-		case e.netLeft > 0 || e.stunLeft > 0: // netted or stunned: neither walks nor hacks
+		case e.netLeft > 0 || e.stunLeft > 0 || e.drawLeft > 0: // netted, stunned or drawing a sign: neither walks nor hacks
 		case e.blocked != nil:
 			g.hackBarricade(e, spec, blows, dt)
 		case e.pause > 0 || e.tavernLeft > 0: // ЭссДиЭф busy with a trick
