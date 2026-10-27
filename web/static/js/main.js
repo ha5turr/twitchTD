@@ -47,14 +47,14 @@ async function start() {
   window.td = { app, hud, ents, tavern, lighting, bubbles }; // for poking at the overlay from devtools
   const sound = new Sound();
   window.td.sound = sound;
-  const king = new KingScene(sound);
+  const king = new KingScene(sound, () => net.send({ t: 'kingDone' })); // the scene is over: let the king in
   ui.addChild(king.layer);
   window.td.king = king;
   let finalOn = false;
   let bossAlive = false;
   let shots = new Set();
   let walls = null;
-  connect({
+  const net = connect({
     map(m) {
       mapLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
       mapLayer.addChild(buildMap(m));

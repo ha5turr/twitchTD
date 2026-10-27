@@ -305,3 +305,14 @@ func TestKingSpotsTheBestPlayers(t *testing.T) {
 		t.Fatal("dances are counted")
 	}
 }
+
+func TestKingSceneDoneLetsHimIn(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.finalDue = true
+	g.StartWave()
+	g.KingSceneDone()
+	run(g, 0.2)
+	if len(g.Enemies) == 0 || g.Enemies[0].Kind != kingKind {
+		t.Fatal("the overlay's end of the scene lets the king in")
+	}
+}

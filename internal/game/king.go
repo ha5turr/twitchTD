@@ -147,6 +147,17 @@ func (g *Game) startKingIntro() {
 	g.emit(Event{Kind: "kingIntro", Text: string(b), Amount: int(math.Ceil(g.Cfg.KingIntroSec))})
 }
 
+// KingSceneDone lets the king in once the overlay has played his scene to
+// the end: its length follows the recorded lines, and KingIntroSec only
+// caps it for when no overlay is watching.
+func (g *Game) KingSceneDone() {
+	if g.introLeft <= 0 {
+		return
+	}
+	g.introLeft = 0
+	g.emit(Event{Kind: "kingGo"})
+}
+
 // skipKingIntro ends the scene now (!tdskip).
 func (g *Game) skipKingIntro() {
 	if g.introLeft <= 0 {

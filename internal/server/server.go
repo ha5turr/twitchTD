@@ -196,6 +196,8 @@ func (s *Server) handleInbound(m inbound) {
 		if err := s.opt.OnSettings(m.Values); err != nil {
 			s.broadcast(mustJSON(map[string]string{"t": "settingsError", "error": err.Error()}))
 		}
+	case "kingDone": // the overlay played the King in Yellow's scene to its end
+		s.Do(func(g *game.Game) { g.KingSceneDone() })
 	case "sub":
 		s.Do(func(g *game.Game) { g.Sub(m.User, m.User) })
 	}

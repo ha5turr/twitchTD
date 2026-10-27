@@ -85,7 +85,7 @@ const FIGHT = {
 };
 
 export class KingScene {
-  constructor(sound) {
+  constructor(sound, onDone) {
     this.sound = sound;
     this.root = new Container();
     this.root.visible = false;
@@ -118,7 +118,9 @@ export class KingScene {
     this.namedAt = -1e9;
     this.t = 0;
     this.art = {};
-    this.buffers = {};
+    this.buffers = {}; // line -> promise of its audio
+    this.loaded = {}; // line -> its audio, once decoded
+    this.onDone = onDone;
     for (const name of ART) {
       Assets.load(`assets/king/${name}.png`).then((tex) => (this.art[name] = tex)).catch(() => {});
     }
@@ -133,7 +135,7 @@ export class KingScene {
         try {
           d = JSON.parse(ev.text);
         } catch {}
-        this.start(introLines(d), ev.amount || 22);
+        this.start(introLines(d));
         break;
       }
       case 'kingSkip':
@@ -167,9 +169,13 @@ export class KingScene {
   }
 
   // start plays the scene over secs: darkness first, then the lines.
-  start(lines, secs) {
-    const per = Math.max(2, (secs - 2.5) / lines.length);
-    this.scene = { lines, per, at: -1.5, index: -1, secs };
+  // start plays the scene: darkness first, then each line as long as its
+  // recording lasts (or as it reads, without one). When it is over the
+  // overlay tells the server, which lets the king in.
+  start(lines) {
+    this.scene = { lines, at: -1.5, index: -1, lineAt: 0, lineEnd: 0, loading: true };
+    Promise.all(lines.map((l) => this.loadVoice(l.voice))).then(() => this.scene && (this.scene.loading = false));
+    for (const l of Object.values(FIGHT)) this.loadVoice(l.voice); // the fight's lines are ready before he speaks them
     this.root.visible = true;
     this.dark.alpha = 0;
     this.sound?.ambientBus?.gain.setTargetAtTime(0.1, this.sound.ctx.currentTime, 0.5);
@@ -187,32 +193,48 @@ export class KingScene {
   say(line) {
     this.fightLine.text = line.text;
     this.fightLeft = LINE_SEC;
-    this.voice(line.voice);
+    this.fightLeft = Math.max(LINE_SEC, this.voice(line.voice) + 0.5); // the subtitle stays while he talks
+    this.fightSec = this.fightLeft;
   }
 
-  // voice plays a recorded line when the file is there.
-  async voice(name) {
+  // loadVoice fetches a recorded line once; it resolves to the audio, or
+  // null when there is no recording.
+  loadVoice(name) {
     const s = this.sound;
-    if (!s?.ctx || !name) return;
-    let buf = this.buffers[name];
-    if (buf === undefined) {
-      buf = null;
+    if (!s?.ctx || !name) return Promise.resolve(null);
+    this.buffers[name] ??= (async () => {
       for (const ext of ['ogg', 'mp3']) {
         try {
           const r = await fetch(`assets/king/voice/${name}.${ext}`);
           if (!r.ok) continue;
-          buf = await s.ctx.decodeAudioData(await r.arrayBuffer());
-          break;
+          const buf = await s.ctx.decodeAudioData(await r.arrayBuffer());
+          this.loaded[name] = buf;
+          return buf;
         } catch {}
       }
-      this.buffers[name] = buf;
+      return null;
+    })();
+    return this.buffers[name];
+  }
+
+  // voice plays a recorded line now if it is loaded and returns its length
+  // in seconds, 0 without one; a line not loaded yet is played when it is.
+  voice(name) {
+    const buf = this.loaded[name];
+    if (!buf) {
+      this.loadVoice(name).then((b) => b && this.fightLeft > 0 && this.play(b));
+      return 0;
     }
-    if (!buf) return;
+    this.play(buf);
+    return buf.duration;
+  }
+
+  play(buf) {
+    const s = this.sound;
     const src = s.ctx.createBufferSource();
     src.buffer = buf;
     src.connect(s.master);
     src.start();
-    this.talking = buf.duration;
   }
 
   // pose shows the cat or the dark form: the art when it is loaded, a
@@ -289,42 +311,52 @@ export class KingScene {
     if (this.card.visible) this.card.alpha = Math.min(1, this.card.alpha + dt * 4);
     if (this.fightLeft > 0) {
       this.fightLeft -= dt;
-      this.fightLine.alpha = Math.min(1, this.fightLeft * 2, (LINE_SEC - this.fightLeft) * 4);
+      this.fightLine.alpha = Math.min(1, this.fightLeft * 2, ((this.fightSec ?? LINE_SEC) - this.fightLeft) * 4);
     } else {
       this.fightLine.alpha = 0;
     }
     const sc = this.scene;
     if (!sc) return;
-    sc.at += dt;
-    this.dark.alpha = Math.min(0.78, (sc.at + 1.5) / 1.5 * 0.78);
-    if (sc.at < 0) return;
-    const i = Math.floor(sc.at / sc.per);
-    if (i >= sc.lines.length) {
-      this.figure.alpha = Math.max(0, 1 - (sc.at - sc.lines.length * sc.per) / 0.8); // the dark form fades out
-      if (this.figure.alpha <= 0) this.stop();
+    // The darkness waits for the recordings, three seconds at most.
+    if (!(sc.at >= 0 && sc.loading && sc.at < 3)) sc.at += dt;
+    this.dark.alpha = Math.min(0.78, ((sc.at + 1.5) / 1.5) * 0.78);
+    if (sc.at < 0 || (sc.index < 0 && sc.loading && sc.at < 3)) return;
+    if (sc.index < 0 || sc.at >= sc.lineEnd) {
+      sc.index++;
+      if (sc.index >= sc.lines.length) {
+        sc.endAt ??= sc.at;
+      } else {
+        const line = sc.lines[sc.index];
+        this.pose(line);
+        this.sub.text = line.text;
+        this.showCard(line);
+        const said = this.voice(line.voice);
+        // Without a recording the mouth moves for about as long as the line reads.
+        this.talking = said || 0.4 + line.text.length * 0.06;
+        sc.lineAt = sc.at;
+        sc.lineEnd = sc.at + (said ? said + 0.45 : Math.max(2.6, this.talking + 0.6));
+      }
+    }
+    if (sc.endAt !== undefined) {
+      sc.index = sc.lines.length;
+      this.figure.alpha = Math.max(0, 1 - (sc.at - sc.endAt) / 0.8); // the dark form fades out
+      if (this.figure.alpha <= 0) {
+        this.stop();
+        this.onDone?.();
+      }
       return;
     }
-    if (i !== sc.index) {
-      sc.index = i;
-      const line = sc.lines[i];
-      this.pose(line);
-      this.sub.text = line.text;
-      this.showCard(line);
-      // Without a recording the mouth moves for about as long as the line reads.
-      this.talking = Math.min(sc.per - 0.4, 0.4 + line.text.length * 0.06);
-      this.voice(line.voice);
-    }
-    const line = sc.lines[i];
+    const line = sc.lines[sc.index];
+    const k = sc.at - sc.lineAt;
     // The mouth: with both cat poses loaded it opens and closes while he talks.
     const s = this.figure.sprite;
     if (s && this.figure.talks && this.art.king_cat_talk) {
-      const talking = this.talking > 0 && sc.at - i * sc.per < this.talking;
+      const talking = k < this.talking;
       s.texture = talking && Math.floor(this.t * 8) % 2 ? this.art.king_cat_talk : this.art.king_cat_idle;
     }
     // A slow breath, and the transformation shudders.
-    const k = sc.at - i * sc.per;
     this.figure.scale.set(1 + 0.01 * Math.sin(this.t * 2));
     this.figure.x = KING_X + (line.transform ? Math.sin(this.t * 40) * 4 * Math.min(1, k) : 0);
-    this.figure.tint = line.transform ? 0xffffff - Math.floor(Math.min(1, k / sc.per) * 0x60) * 0x10101 : 0xffffff;
+    this.figure.tint = line.transform ? 0xffffff - Math.floor(Math.min(1, k / (sc.lineEnd - sc.lineAt)) * 0x60) * 0x10101 : 0xffffff;
   }
 }
