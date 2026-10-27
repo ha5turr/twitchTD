@@ -150,6 +150,14 @@ export function qualityDots(g, rarity, level) {
   }
 }
 
+// drawDrum draws the war drum at the bard's side, in the pack's dark outline style.
+export function drawDrum(g) {
+  g.rect(10, 6, 22, 22).fill(0x8a3a2a).stroke({ width: 3, color: 0x1a0f0f });
+  g.ellipse(21, 6, 11, 5).fill(0xe8d4a8).stroke({ width: 3, color: 0x1a0f0f });
+  g.moveTo(12, 14).lineTo(30, 24).moveTo(30, 14).lineTo(12, 24).stroke({ width: 2, color: 0xd8b070 });
+  g.moveTo(26, -10).lineTo(20, 2).stroke({ width: 3, color: 0x5a3a1f });
+}
+
 // drawTower draws a building centred on (0, 0). pixel: the tileset is
 // loaded, so buildings stand on the floor with no stone plate behind them;
 // art: the building has sprites, and this only adds the quality dots.
@@ -160,13 +168,7 @@ export function drawTower(g, kind, rarity, level, { pixel = false, art = false, 
     return;
   }
   if (art) {
-    if (kind === 'drums') {
-      // A war drum at the bard's side, in the pack's dark outline style.
-      g.rect(10, 6, 22, 22).fill(0x8a3a2a).stroke({ width: 3, color: 0x1a0f0f });
-      g.ellipse(21, 6, 11, 5).fill(0xe8d4a8).stroke({ width: 3, color: 0x1a0f0f });
-      g.moveTo(12, 14).lineTo(30, 24).moveTo(30, 14).lineTo(12, 24).stroke({ width: 2, color: 0xd8b070 });
-      g.moveTo(26, -10).lineTo(20, 2).stroke({ width: 3, color: 0x5a3a1f });
-    }
+    if (kind === 'drums') drawDrum(g);
     qualityDots(g, rarity, level);
     return;
   }

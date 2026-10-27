@@ -57,6 +57,7 @@ async function start() {
   const net = connect({
     map(m) {
       king.endMusic(1); // a new map: the King's theme stops
+      king.fx.clear();
       mapLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
       mapLayer.addChild(buildMap(m));
       ents.clear();

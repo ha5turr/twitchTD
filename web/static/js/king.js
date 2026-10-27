@@ -7,6 +7,7 @@
 import { LEFT, TOP, COLS, ROWS, CELL, FONT_UI, nickColor } from './layout.js';
 import { HERO_ART } from './sprites.js';
 import { hasTileset, sprite } from './tileset.js';
+import { KingFx } from './kingfx.js';
 
 const { Container, Graphics, Text, Sprite, Assets } = PIXI;
 
@@ -117,8 +118,9 @@ export class KingScene {
     this.fightLine.position.set(FIELD_X + FIELD_W / 2, TOP + FIELD_H - 24);
     this.fightLine.alpha = 0;
     this.fightLeft = 0;
+    this.fx = new KingFx(); // his powers played over the field
     this.layer = new Container(); // what main.js puts over the UI
-    this.layer.addChild(this.root, this.fightLine);
+    this.layer.addChild(this.root, this.fx.layer, this.fightLine);
     this.namedAt = -1e9;
     this.t = 0;
     this.art = {};
@@ -133,6 +135,7 @@ export class KingScene {
 
   // onEvent starts the scene or a fight line.
   onEvent(ev, finalOn) {
+    this.fx.onEvent(ev, this.kingShare < 0.05);
     switch (ev.kind) {
       case 'kingIntro': {
         let d = {};
@@ -166,6 +169,7 @@ export class KingScene {
       case 'kill':
         // His last words when he falls, over whatever he was saying.
         if (ev.text === 'king') {
+          this.fx.clear();
           this.stopVoice();
           this.say(FIGHT.fall, true);
         }
@@ -174,6 +178,7 @@ export class KingScene {
         this.endMusic(6); // the theme fades after his last words
         break;
       case 'gameOver':
+        this.fx.clear();
         if (finalOn) {
           this.stopVoice();
           this.say(FIGHT.rules, true);
@@ -395,6 +400,7 @@ export class KingScene {
 
   frame(dt) {
     this.t += dt;
+    this.fx.frame(dt);
     if (this.card.visible) this.card.alpha = Math.min(1, this.card.alpha + dt * 4);
     if (this.fightLeft > 0) {
       this.fightLeft -= dt;

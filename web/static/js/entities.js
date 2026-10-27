@@ -6,7 +6,14 @@ import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, d
 import { hasTileset, sprite, frames, texture } from './tileset.js';
 import { isWater } from './map.js';
 
-const { Container, Graphics, Text } = PIXI;
+const { Container, Graphics, Text, Sprite, Assets } = PIXI;
+
+// The Yellow Sign as the streamer drew it (yellow on black, so added onto
+// the field), the one the king shows close up before it lands; SIGN_H is its
+// height over a marked building. Until it loads the sign is drawn here.
+export const SIGN_H = 64;
+let signTex = null;
+Assets.load('assets/king/sign/yellow_sign.jpg').then((t) => (signTex = t)).catch(() => {});
 
 // Icons of an artifact ballista's arrows.
 const AMMO_ICONS = { poison: '☠️', fire: '🔥', blast: '💥' };
@@ -342,17 +349,20 @@ class TowerView {
     for (let i = -1; i <= 1; i++) this.wave.moveTo(-34, i * 20).quadraticCurveTo(-17, i * 20 - 8, 0, i * 20).quadraticCurveTo(17, i * 20 + 8, 34, i * 20);
     this.wave.stroke({ width: 3, color: 0xbfe8ff, alpha: 0.8 });
     this.wave.visible = false;
-    // The Yellow Sign over a marked building: three hooked arms round a ring.
-    this.signMark = new Graphics();
+    // The Yellow Sign over a marked building: the drawn one once it loads
+    // (see frame), three hooked arms round a ring till then.
+    this.signMark = new Container();
     this.signMark.position.set(this.cx, this.cy - 8);
-    this.signMark.circle(0, 0, 9).stroke({ width: 5, color: 0xffd23a });
+    const mark = new Graphics();
+    this.signMark.addChild(mark);
+    mark.circle(0, 0, 9).stroke({ width: 5, color: 0xffd23a });
     for (let i = 0; i < 3; i++) {
       const a = (i * Math.PI * 2) / 3 - Math.PI / 2;
       const x = Math.cos(a);
       const y = Math.sin(a);
-      this.signMark.moveTo(x * 12, y * 12).lineTo(x * 30, y * 30).quadraticCurveTo(x * 40 - y * 14, y * 40 + x * 14, x * 30 - y * 18, y * 30 + x * 18);
+      mark.moveTo(x * 12, y * 12).lineTo(x * 30, y * 30).quadraticCurveTo(x * 40 - y * 14, y * 40 + x * 14, x * 30 - y * 18, y * 30 + x * 18);
     }
-    this.signMark.stroke({ width: 5, color: 0xffd23a, cap: 'round' });
+    mark.stroke({ width: 5, color: 0xffd23a, cap: 'round' });
     this.signMark.visible = false;
     layer.world.addChild(this.root, this.web, this.wave);
     layer.labels.addChild(this.signMark);
@@ -452,8 +462,21 @@ class TowerView {
     this.wave.visible = this.flood;
     this.signMark.visible = this.signed;
     if (this.signed) {
-      this.signMark.rotation = t * 0.6;
-      this.signMark.alpha = 0.75 + 0.25 * Math.sin(t * 5);
+      if (signTex && !this.signMark.drawn) {
+        const s = new Sprite(signTex);
+        s.anchor.set(0.5);
+        s.blendMode = 'add';
+        s.scale.set(SIGN_H / signTex.height);
+        const halo = new Graphics();
+        for (let r = 40; r > 0; r -= 8) halo.circle(0, 0, r).fill({ color: 0xffd23a, alpha: 0.07 });
+        this.signMark.removeChildren().forEach((c) => c.destroy());
+        this.signMark.addChild(halo, s);
+        this.signMark.drawn = true;
+      }
+      // It sways and glows, the drawn sign upright, the stand-in turning.
+      this.signMark.rotation = this.signMark.drawn ? Math.sin(t * 1.5) * 0.12 : t * 0.6;
+      this.signMark.scale.set(1 + 0.06 * Math.sin(t * 5));
+      this.signMark.alpha = 0.8 + 0.2 * Math.sin(t * 5);
     }
     if (this.flood) this.wave.alpha = 0.55 + 0.15 * Math.sin(t * 4);
     this.web.rotation = Math.sin(t) * 0.05;
@@ -527,7 +550,7 @@ class TowerView {
     this.root.destroy({ children: true });
     this.web.destroy();
     this.wave.destroy();
-    this.signMark.destroy();
+    this.signMark.destroy({ children: true });
     this.frog.destroy();
     this.glow.destroy();
     this.ammoIcon.destroy();

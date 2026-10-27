@@ -583,6 +583,12 @@ go run ./cmd/balance -games 40
 - [Scallywag — Pirates](https://foozlecc.itch.io/scallywag-pirates) и [Scallywag — Ships](https://foozlecc.itch.io/scallywag-ships) от Pixel Carvel / Foozle (`assets/river`): пираты и их лодки — целая, побитая и разбитая.
 - [Animated flowing water 2d 16x16](https://opengameart.org/content/animated-flowing-water-2d-16x16) от InThePixel (`assets/river`): течение реки.
 - [Roguelike Indoors](https://kenney.nl/assets/roguelike-indoors) от Kenney (`assets/kenney`): столы, стулья, канделябры, щиты и барная стойка таверны.
+- [Pixel Art Spells](https://opengameart.org/node/160903) от DevWizard (`assets/king/fx/abyss_orb.png`): шары бездны над троном Короля в Жёлтом.
+- [CC0 Arrows](https://opengameart.org/content/cc0-arrows) от knekko (`assets/king/fx/arrow_down.png`): стрелка, которой Король ослабляет святилища и барабаны.
+
+Не CC0, с указанием автора:
+
+- [Pixel Sun](https://grinnch.itch.io/pixel-sun) от grinnch, лицензия [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) (`assets/king/fx/sun.png`, лист вращения 64×64, перекрашен в бледно-жёлтый в коде): солнца песни Кассильды.
 
 | Постройка | Вид |
 | --- | --- |
