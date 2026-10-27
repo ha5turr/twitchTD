@@ -59,6 +59,26 @@ type Config struct {
 	KingSignEvery float64 `json:"kingSignEvery"`
 	KingSignSec   float64 `json:"kingSignSec"`
 	KingMaskAt    float64 `json:"kingMaskAt"`
+	// His torn cloak: a player's damage to him halves once that player has
+	// dealt KingCloak of his max HP (0: no cloak). KingRegen is his own
+	// healing, a share of his max HP per second, instead of EnemyRegen.
+	KingCloak float64 `json:"kingCloak"`
+	KingRegen float64 `json:"kingRegen"`
+	// His cloak breathes: KingGuardSec nothing holds him, then for
+	// KingOpenSec nets, slows and stuns take (0: never open).
+	KingGuardSec float64 `json:"kingGuardSec"`
+	KingOpenSec  float64 `json:"kingOpenSec"`
+	// He stands this long drawing each Yellow Sign.
+	KingSignPause float64 `json:"kingSignPause"`
+	// A final for the team that plays it: against fewer than FinalTeamSize
+	// players the escort shrinks with them (down to FinalEscortMin of it),
+	// the king's health is KingTeamBase + KingTeamPer per player (never above
+	// what FinalTeamSize meet), his cloak stretches over the team and his
+	// retinue thins. The king's health goes with the team's share to the
+	// power KingTeamPow: a small team's fire falls off faster than its size.
+	FinalTeamSize  float64 `json:"finalTeamSize"`
+	FinalEscortMin float64 `json:"finalEscortMin"`
+	KingTeamPow    float64 `json:"kingTeamPow"`
 	// TwitchChannelID, the channel's numeric Twitch ID, lets the overlay load
 	// its 7TV, BTTV and FFZ emotes itself for !s lines, on top of those
 	// Streamer.bot resolves.
@@ -642,7 +662,7 @@ func DefaultConfig() Config {
 			"hydra":         {Name: "Гидра", HPMult: 1.1, Speed: 0.5, Armor: 0.25, WallDPS: 70, Bounty: 90, Boss: true},
 			"tax_collector": {Name: "Сборщик податей", HPMult: 0.4, Speed: 0.9, Armor: 0.3, Bounty: 20, Boss: true},
 			"golden_golem":  {Name: "Золотой голем", HPMult: 0.35, Speed: 1.8, Armor: 0.2, Bounty: 10, Boss: true},
-			"king":          {Name: "Король в Жёлтом", HPMult: 1, Speed: 0.4, Armor: 0.2, WallDPS: 120, Bounty: 200, SlowImmune: true, Boss: true},
+			"king":          {Name: "Король в Жёлтом", HPMult: 1, Speed: 0.45, Armor: 0.2, WallDPS: 120, Bounty: 200, Boss: true}, // slows and nets take only while his cloak is open (king.go)
 			"faceless":      {Name: "Безликий", HPMult: 0.5, Speed: 1.6, WallDPS: 5, Bounty: 1},
 			"octopus":       {Name: "Мрачный Осьминог", HPMult: 1, Speed: 0.55, Armor: 0.2, WallDPS: 60, Bounty: 80, Boss: true},
 			"leviathan":     {Name: "Левиафан", HPMult: 1.1, Speed: 0.45, Armor: 0.3, WallDPS: 80, Bounty: 90, Boss: true},
@@ -664,13 +684,21 @@ func DefaultConfig() Config {
 				StrikeEvery: 8, StrikeDmg: 2.5, StrikeRadius: 1, StrikeArt: true, UpgMult: 1.48, MaxLevel: 5},
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
-		KingIntroSec:  26,
-		KingHPMult:    0.9,
-		KingSignEvery: 20,
-		KingSignSec:   25,
-		KingMaskAt:    0.3,
-		WebcamFrom:    "N1",
-		WebcamTo:      "P5",
+		KingIntroSec:   60, // a cap: the overlay ends the scene when its lines are said
+		KingHPMult:     1.2,
+		KingSignEvery:  20,
+		KingSignSec:    25,
+		KingMaskAt:     0.3,
+		KingCloak:      0.5,
+		KingRegen:      0,
+		KingGuardSec:   8,
+		KingOpenSec:    7,
+		KingSignPause:  2,
+		FinalTeamSize:  5,
+		FinalEscortMin: 0.05,
+		KingTeamPow:    1.2,
+		WebcamFrom:     "N1",
+		WebcamTo:       "P5",
 	}
 }
 

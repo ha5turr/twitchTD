@@ -113,7 +113,7 @@ const EXTRA = [
       tc_tree: kt(3, 11), tc_bush: kt(4, 11), // the trees on its banks
     },
   },
-  // The King in Yellow on the field: one frame, 32 or 48 px (assets/king/).
+  // The King in Yellow on the field: one frame, 40x93 (assets/king/).
   { file: 'assets/king/king_field.png', defs: {}, whole: 'king_field' },
   {
     // InThePixel's flowing water: 13 frames of a 16 px tile, flowing left.

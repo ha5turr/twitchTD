@@ -47,15 +47,17 @@ async function start() {
   window.td = { app, hud, ents, tavern, lighting, bubbles }; // for poking at the overlay from devtools
   const sound = new Sound();
   window.td.sound = sound;
-  const king = new KingScene(sound);
+  const king = new KingScene(sound, () => net.send({ t: 'kingDone' })); // the scene is over: let the king in
   ui.addChild(king.layer);
   window.td.king = king;
   let finalOn = false;
   let bossAlive = false;
   let shots = new Set();
   let walls = null;
-  connect({
+  const net = connect({
     map(m) {
+      king.endMusic(1); // a new map: the King's theme stops
+      king.fx.clear();
       mapLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
       mapLayer.addChild(buildMap(m));
       ents.clear();
@@ -71,11 +73,13 @@ async function start() {
       tavern.update(s);
       bossAlive = s.enemies.some((e) => e.boss);
       playSounds(s);
+      king.update(s); // his health first: near death his powers keep quiet
       for (const ev of s.events ?? []) {
         fx.onEvent(ev);
         king.onEvent(ev, finalOn);
       }
       finalOn = !!s.match?.final && s.phase === 'wave';
+      if (finalOn && s.enemies.some((e) => e.kind === 'king')) king.keepMusic(); // the overlay reloaded mid-final
     },
     settings(s) {
       sound.configure(s.values ?? {});

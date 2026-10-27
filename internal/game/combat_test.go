@@ -163,3 +163,20 @@ func TestPathBuildingsOnlyOnPath(t *testing.T) {
 		t.Fatal("a trap on the path should be accepted")
 	}
 }
+
+func TestHealersDoNotAddUp(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.Phase = PhaseWave
+	g.Cfg.EnemyRegen = 0
+	e := enemyAt(g, "skeleton", 5, 1000)
+	e.HP = 100
+	for range 4 {
+		h := enemyAt(g, "necromancer", 5, 1000)
+		h.Dist = e.Dist
+	}
+	g.tickEnemies(0.05)
+	want := 100 + g.Cfg.Enemies["necromancer"].Heal*1000*0.05
+	if e.HP > want+0.01 {
+		t.Fatalf("four necromancers heal no more than one: %.2f, want %.2f", e.HP, want)
+	}
+}

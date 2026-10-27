@@ -172,6 +172,11 @@ func TestKingPhases(t *testing.T) {
 	if got := before - k.HP; got > 1000*(1-retinueCut)+0.01 {
 		t.Fatalf("he takes less while it lives: %.0f", got)
 	}
+	k.HP = k.MaxHP * 0.35
+	run(g, 0.1)
+	if k.phase != 2 || g.maskLeft > 0 {
+		t.Fatal("the retinue's phase lasts down to 30%")
+	}
 	k.HP = k.MaxHP * 0.25
 	run(g, 0.1)
 	if k.phase != 3 || g.maskLeft <= 0 {
@@ -182,6 +187,20 @@ func TestKingPhases(t *testing.T) {
 	_ = shrine
 	if dmg, _ := g.auras(gun); dmg >= 1 {
 		t.Fatalf("with the mask off auras weaken: %.2f", dmg)
+	}
+	count := func() (n int) {
+		for _, e := range g.Enemies {
+			if e.Kind == facelessKind {
+				n++
+			}
+		}
+		return n
+	}
+	was := count()
+	k.retinueCD = 0
+	run(g, retinueEvery+1)
+	if count() > was {
+		t.Fatal("no more faceless once the mask is off")
 	}
 }
 
@@ -303,5 +322,193 @@ func TestKingSpotsTheBestPlayers(t *testing.T) {
 	g.HandleChat(ChatMessage{User: "anna", Text: "!dance"})
 	if g.Chatters["anna"].GameDances != 1 {
 		t.Fatal("dances are counted")
+	}
+}
+
+func TestKingSceneDoneLetsHimIn(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.finalDue = true
+	g.StartWave()
+	g.KingSceneDone()
+	run(g, 0.2)
+	if len(g.Enemies) == 0 || g.Enemies[0].Kind != kingKind {
+		t.Fatal("the overlay's end of the scene lets the king in")
+	}
+}
+
+func TestKingCloakBreathes(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	run(g, 0.1)
+	if k.open {
+		t.Fatal("he comes in with his cloak whole")
+	}
+	run(g, g.Cfg.KingGuardSec)
+	if !k.open {
+		t.Fatal("then it opens")
+	}
+	k.netLeft, k.slowMult, k.slowLeft = 2, 0.3, 2
+	d := k.Dist
+	run(g, 0.5)
+	if k.netLeft <= 0 || k.Dist != d {
+		t.Fatal("while it is open a net holds him")
+	}
+	run(g, g.Cfg.KingOpenSec)
+	if k.open || k.netLeft > 0 || k.slowMult != 1 {
+		t.Fatal("and when it closes nothing holds him again")
+	}
+}
+
+func TestKingCloakTurnsSpikes(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	if _, c := g.findChatter("anna"); c != nil {
+		c.Class = "warrior"
+	}
+	wall := placeAs(g, "anna", "wall", g.Map.Path[len(g.Map.Path)/2])
+	wall.Level = g.Cfg.Towers["wall"].MaxLevel + 1
+	if !g.artifact(wall) {
+		t.Fatal("an artifact barricade")
+	}
+	spikes := func() float64 {
+		k.blocked = wall
+		hp := k.HP
+		g.hackBarricade(k, g.Cfg.Enemies[kingKind], 1, 0.5)
+		return hp - k.HP
+	}
+	k.open = false
+	if got := spikes(); got != 0 {
+		t.Fatalf("with his cloak whole its spikes do not hurt him: %.1f", got)
+	}
+	k.open = true
+	if got := spikes(); got <= 0 {
+		t.Fatal("with it open they do")
+	}
+}
+
+func TestKingDemo(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.KingDemo(BiomeRuins, false)
+	art := 0
+	for _, tw := range g.Towers {
+		if g.artifact(tw) {
+			art++
+		}
+	}
+	if art != 5*g.limitAfter(34) || !g.finalDue {
+		t.Fatalf("five players, every building an artifact, the final next: %d", art)
+	}
+	run(g, 6)
+	if !g.finalWave || g.introLeft <= 0 {
+		t.Fatal("the king's scene starts")
+	}
+}
+
+func TestKingDemoWarlockNet(t *testing.T) {
+	g, _ := newTestGame(t)
+	g.KingDemo(BiomeRuins, true)
+	altars, walls := 0, 0
+	for _, tw := range g.Towers {
+		switch tw.Kind {
+		case "curse":
+			altars++
+		case "wall":
+			walls++
+		}
+	}
+	if walls != 0 || altars < 6 || len(g.soulLinks()) < altars/2 {
+		t.Fatalf("no barricades, a net of artifact altars: %d altars, %d links", altars, len(g.soulLinks()))
+	}
+}
+
+func TestFinalScalesWithTheTeam(t *testing.T) {
+	size := func(players []string) (int, float64) {
+		g, _ := newTestGame(t)
+		for _, u := range players {
+			g.HandleChat(ChatMessage{User: u, Text: "!play"})
+			placeAs(g, strings.ToLower(u), "arrow", freeCell(t, g))
+		}
+		g.finalDue = true
+		g.StartWave()
+		return len(g.queue), g.queue[0].hp
+	}
+	duoN, duoHP := size([]string{"anna", "boris"})
+	fullN, fullHP := size([]string{"anna", "boris", "vera", "gleb", "dina"})
+	if duoN >= fullN/3 || duoHP >= fullHP/2 {
+		t.Fatalf("a duo meets a much smaller final: escort %d vs %d, king %.0f vs %.0f", duoN, fullN, duoHP, fullHP)
+	}
+}
+
+func TestYellowSignLooksAhead(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	path := g.Map.Path
+	beside := func(j int) Pos { // a free building cell next to path cell j
+		for _, d := range []Pos{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+			p := Pos{path[j].X + d.X, path[j].Y + d.Y}
+			if p.X >= 0 && p.Y >= 0 && p.X < GridW && p.Y < GridH && g.Map.Grid.At(p) == CellBuild && g.Towers[p] == nil {
+				return p
+			}
+		}
+		return Pos{-1, -1}
+	}
+	i := -1
+	for j := 4; j < len(path)-4 && i < 0; j++ {
+		if a, b, c := beside(j-2), beside(j+2), beside(j+3); a.X >= 0 && b.X >= 0 && c.X >= 0 && b != c {
+			i = j
+		}
+	}
+	if i < 0 {
+		t.Skip("no room on this map")
+	}
+	k.Dist = g.cellDist[i]
+	k.Pos = g.routePos(k.Dist)
+	behind := place(g, "arrow", beside(i-2))
+	behind.heat = 1000
+	ahead := place(g, "arrow", beside(i+2))
+	ahead.heat = 10
+	g.placeSign(k)
+	if g.signOn(ahead) == nil {
+		t.Fatal("he marks a building ahead of him before one he has passed")
+	}
+	g.signs, g.signSupport = nil, false
+	ahead.heat = 1000
+	fire := place(g, "fire", beside(i+3))
+	fire.heat = 10
+	k.hurtByKind = map[string]float64{"fire": 5000, "arrow": 100}
+	g.placeSign(k)
+	if g.signOn(fire) == nil {
+		t.Fatal("ahead of him, the kind that hurt him most comes first")
+	}
+}
+
+func TestYellowSignHitsTheBarricadeAhead(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	i := len(g.Map.Path) / 2
+	k.Dist = g.cellDist[i]
+	k.Pos = g.routePos(k.Dist)
+	wall := place(g, "wall", g.Map.Path[i+1])
+	near := Pos{-1, -1} // a hot shooter within his reach
+	for y := 0; y < GridH && near.X < 0; y++ {
+		for x := 0; x < GridW; x++ {
+			if p := (Pos{x, y}); g.Map.Grid.At(p) == CellBuild && center(p).sub(k.Pos).len() <= kingSignRadius {
+				near = p
+				break
+			}
+		}
+	}
+	if near.X < 0 {
+		t.Skip("no room by the path")
+	}
+	gun := place(g, "arrow", near)
+	gun.heat = 1e6
+	g.signSupport = false // a shooter's turn
+	g.placeSign(k)
+	if g.signOn(wall) == nil {
+		t.Fatal("a barricade one cell from him takes the sign first")
+	}
+	g.signs = nil
+	g.removeTower(wall)
+	g.placeSign(k)
+	if g.signOn(gun) == nil {
+		t.Fatal("without it the shooter's turn goes on as before")
 	}
 }

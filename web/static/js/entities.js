@@ -2,11 +2,18 @@
 // glide toward the latest position so motion stays smooth at 60 fps.
 import { W, CELL, LEFT, toPx, RARITY, FONT_UI, FONT_PIXEL, nickColor } from './layout.js';
 import { drawFigure } from './figures.js';
-import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji } from './sprites.js';
+import { ENEMIES, TOWERS, ENEMY_ART, HERO_ART, towerArt, drawEnemy, drawTower, drawProjectile, emoji, softGlow } from './sprites.js';
 import { hasTileset, sprite, frames, texture } from './tileset.js';
 import { isWater } from './map.js';
 
-const { Container, Graphics, Text } = PIXI;
+const { Container, Graphics, Text, Sprite, Assets } = PIXI;
+
+// The Yellow Sign as the streamer drew it (yellow on black, so added onto
+// the field), the one the king shows close up before it lands; SIGN_H is its
+// height over a marked building. Until it loads the sign is drawn here.
+export const SIGN_H = 64;
+let signTex = null;
+Assets.load('assets/king/sign/yellow_sign.jpg').then((t) => (signTex = t)).catch(() => {});
 
 // Icons of an artifact ballista's arrows.
 const AMMO_ICONS = { poison: '☠️', fire: '🔥', blast: '💥' };
@@ -102,6 +109,7 @@ export class Entities {
     for (const f of this.gateFires.values()) out.push({ x: f.cx, y: f.cy, r: 130, color: 0xff7a2a, a: 0.9 });
     for (const e of this.enemies.values()) {
       if (e.kind === 'golden_golem') out.push({ x: e.root.x, y: e.root.y, r: 170, color: 0xffd24a, a: 0.8 }); // it glitters
+      else if (e.kind === 'king') out.push({ x: e.root.x, y: e.root.y + 40, r: 190 + 40 * (e.opened ?? 0), color: 0xfff2c0, a: 0.85 }); // a pale glow, so his yellow stays yellow; wider with the cloak open
       else if (e.boss) out.push({ x: e.root.x, y: e.root.y, r: 160, color: 0xff3b3b, a: 0.6 });
       else if (e.burn) out.push({ x: e.root.x, y: e.root.y, r: 60, color: 0xff7a2a, a: 0.7 });
     }
@@ -207,7 +215,27 @@ class EnemyView {
     }
     this.dive = !!e.dive;
     this.bar.visible = !this.dive;
-    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '') + (e.swim ? 'w' : '') + (e.dive ? 'd' : '');
+    if (e.open && !this.breath) {
+      // The King in Yellow's cloak is open (nets and slows take now): it
+      // breathes, a soft golden light swelling behind him and motes of it
+      // drifting up the cloak (see frame).
+      this.breath = softGlow(0xffc83a, this.r * 2.2);
+      this.motes = new Graphics();
+      this.motes.blendMode = 'add';
+      this.root.addChildAt(this.breath, 0);
+      // The cloak itself glows on each breath: the body again, added on top.
+      if (this.body.texture) {
+        this.shine = new PIXI.Sprite(this.body.texture);
+        this.shine.anchor.copyFrom(this.body.anchor);
+        this.shine.blendMode = 'add';
+        this.shine.tint = 0xffb020;
+        this.root.addChildAt(this.shine, this.root.getChildIndex(this.body) + 1);
+      }
+      this.root.addChild(this.motes);
+      this.opened = 0;
+    }
+    this.open = !!e.open;
+    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '') + (e.swim ? 'w' : '') + (e.dive ? 'd' : '') + (e.open ? 'o' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
@@ -255,7 +283,7 @@ class EnemyView {
     }
     if (this.art?.dirs) {
       this.animate(dx, dy);
-    } else if (Math.abs(dx) > 0.5 && this.body.anchor) {
+    } else if (Math.abs(dx) > 0.5 && this.body.anchor && !this.art?.front) {
       // Sprites face the way they walk.
       this.body.scale.x = Math.abs(this.body.scale.x) * (dx < 0 ? -1 : 1);
     }
@@ -275,6 +303,34 @@ class EnemyView {
     else if (this.cursed) this.body.tint = Math.sin(t * 5) > 0 ? 0xc07aff : 0xe0c0ff;
     else this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
     this.bar.position.set(r.x, r.y - this.r - (this.boss ? 34 : 14));
+    if (this.breath) this.breathe(k, t);
+  }
+
+  // breathe swells the open cloak's light in and out, fading it in as the
+  // cloak opens and out as it closes.
+  breathe(k, t) {
+    this.opened += ((this.open ? 1 : 0) - this.opened) * Math.min(1, k * 0.5);
+    const o = this.opened;
+    const b = 0.5 + 0.5 * Math.sin(t * 3.2);
+    const h = this.r * 2;
+    const foot = this.footY ?? this.r;
+    this.breath.position.set(0, foot - h * 0.5);
+    this.breath.scale.set(((this.r * 1.7) / 64) * (0.85 + 0.3 * b), ((this.r * 2.3) / 64) * (0.85 + 0.3 * b));
+    this.breath.alpha = o * (0.75 + 0.25 * b);
+    if (this.shine) {
+      this.shine.texture = this.body.texture;
+      this.shine.position.copyFrom(this.body.position);
+      this.shine.scale.copyFrom(this.body.scale);
+      this.shine.alpha = o * 0.55 * b;
+    }
+    this.motes.clear();
+    if (o < 0.02) return;
+    for (let i = 0; i < 12; i++) {
+      const p = (t * 0.45 + i / 12) % 1; // each mote rises from the hem and fades
+      const x = Math.sin(i * 2.4 + t * 1.3) * this.r * 0.75;
+      const y = foot - p * h * 1.05;
+      this.motes.circle(x, y, 3 + 3 * (1 - p)).fill({ color: 0xffe08a, alpha: o * Math.sin(p * Math.PI) });
+    }
   }
 
   // animate picks the walk cycle for the heading, or plays an act (the
@@ -336,17 +392,20 @@ class TowerView {
     for (let i = -1; i <= 1; i++) this.wave.moveTo(-34, i * 20).quadraticCurveTo(-17, i * 20 - 8, 0, i * 20).quadraticCurveTo(17, i * 20 + 8, 34, i * 20);
     this.wave.stroke({ width: 3, color: 0xbfe8ff, alpha: 0.8 });
     this.wave.visible = false;
-    // The Yellow Sign over a marked building: three hooked arms round a ring.
-    this.signMark = new Graphics();
+    // The Yellow Sign over a marked building: the drawn one once it loads
+    // (see frame), three hooked arms round a ring till then.
+    this.signMark = new Container();
     this.signMark.position.set(this.cx, this.cy - 8);
-    this.signMark.circle(0, 0, 9).stroke({ width: 5, color: 0xffd23a });
+    const mark = new Graphics();
+    this.signMark.addChild(mark);
+    mark.circle(0, 0, 9).stroke({ width: 5, color: 0xffd23a });
     for (let i = 0; i < 3; i++) {
       const a = (i * Math.PI * 2) / 3 - Math.PI / 2;
       const x = Math.cos(a);
       const y = Math.sin(a);
-      this.signMark.moveTo(x * 12, y * 12).lineTo(x * 30, y * 30).quadraticCurveTo(x * 40 - y * 14, y * 40 + x * 14, x * 30 - y * 18, y * 30 + x * 18);
+      mark.moveTo(x * 12, y * 12).lineTo(x * 30, y * 30).quadraticCurveTo(x * 40 - y * 14, y * 40 + x * 14, x * 30 - y * 18, y * 30 + x * 18);
     }
-    this.signMark.stroke({ width: 5, color: 0xffd23a, cap: 'round' });
+    mark.stroke({ width: 5, color: 0xffd23a, cap: 'round' });
     this.signMark.visible = false;
     layer.world.addChild(this.root, this.web, this.wave);
     layer.labels.addChild(this.signMark);
@@ -446,8 +505,21 @@ class TowerView {
     this.wave.visible = this.flood;
     this.signMark.visible = this.signed;
     if (this.signed) {
-      this.signMark.rotation = t * 0.6;
-      this.signMark.alpha = 0.75 + 0.25 * Math.sin(t * 5);
+      if (signTex && !this.signMark.drawn) {
+        const s = new Sprite(signTex);
+        s.anchor.set(0.5);
+        s.blendMode = 'add';
+        s.scale.set(SIGN_H / signTex.height);
+        const halo = new Graphics();
+        for (let r = 40; r > 0; r -= 8) halo.circle(0, 0, r).fill({ color: 0xffd23a, alpha: 0.07 });
+        this.signMark.removeChildren().forEach((c) => c.destroy());
+        this.signMark.addChild(halo, s);
+        this.signMark.drawn = true;
+      }
+      // It sways and glows, the drawn sign upright, the stand-in turning.
+      this.signMark.rotation = this.signMark.drawn ? Math.sin(t * 1.5) * 0.12 : t * 0.6;
+      this.signMark.scale.set(1 + 0.06 * Math.sin(t * 5));
+      this.signMark.alpha = 0.8 + 0.2 * Math.sin(t * 5);
     }
     if (this.flood) this.wave.alpha = 0.55 + 0.15 * Math.sin(t * 4);
     this.web.rotation = Math.sin(t) * 0.05;
@@ -521,7 +593,7 @@ class TowerView {
     this.root.destroy({ children: true });
     this.web.destroy();
     this.wave.destroy();
-    this.signMark.destroy();
+    this.signMark.destroy({ children: true });
     this.frog.destroy();
     this.glow.destroy();
     this.ammoIcon.destroy();
