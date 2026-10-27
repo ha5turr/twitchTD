@@ -36,19 +36,17 @@ const (
 	facelessKind = "faceless"
 
 	kingSignRadius   = 4.0  // the sign falls on a building this close
+	kingSignWall     = 1.0  // and before anything else on a barricade this close
 	kingSignHeal     = 0.5  // a marked shooter heals him this share of its damage
 	kingSignDrainSec = 5.0  // a marked support loses a level this often
 	kingHeatHalfLife = 30.0 // seconds over which a building's recent damage halves
-
-	kingCloak = 0.15 // a player's damage to him halves after this share of his max HP
 
 	kingNameHeal  = 0.01 // every "Хастур" heals him this share of his max HP
 	kingNameHaste = 0.05 // and speeds him up this much
 	kingNameMax   = 0.30 // up to this much
 	kingNameSec   = 10.0 // for this long, and one player counts this often
 
-	kingPhase2 = 0.70 // the retinue and the song from this share of his health
-	kingPhase3 = 0.40
+	kingPhase2 = 0.70 // the retinue and the song from this share of his health; the third phase starts with the mask (KingMaskAt)
 
 	retinueEvery = 15.0
 	retinueN     = 3
@@ -147,6 +145,17 @@ func (g *Game) startKingIntro() {
 	g.emit(Event{Kind: "kingIntro", Text: string(b), Amount: int(math.Ceil(g.Cfg.KingIntroSec))})
 }
 
+// KingSceneDone lets the king in once the overlay has played his scene to
+// the end: its length follows the recorded lines, and KingIntroSec only
+// caps it for when no overlay is watching.
+func (g *Game) KingSceneDone() {
+	if g.introLeft <= 0 {
+		return
+	}
+	g.introLeft = 0
+	g.emit(Event{Kind: "kingGo"})
+}
+
 // skipKingIntro ends the scene now (!tdskip).
 func (g *Game) skipKingIntro() {
 	if g.introLeft <= 0 {
@@ -162,18 +171,45 @@ func (g *Game) kingHP(waveHP float64) float64 {
 	return waveHP * g.Cfg.BossHPMult * g.Cfg.FinalBossMult * g.Cfg.KingHPMult * g.Cfg.Enemies[kingKind].HPMult
 }
 
-// unheld keeps the king free of everything that would hold him.
+// unheld keeps the king free of everything that would hold him while his
+// cloak is whole; in its open spells nets, slows and stuns take as on any
+// boss (shoves never do).
 func (g *Game) unheld(e *Enemy) {
+	if e.open {
+		return
+	}
 	e.slowMult, e.slowLeft = 1, 0
 	e.netLeft, e.stunLeft = 0, 0 // barricades still stop him: he hacks through them
 }
 
+// tickCloak lets the king's cloak breathe: KingGuardSec whole, KingOpenSec open.
+func (g *Game) tickCloak(e *Enemy, dt float64) {
+	if g.Cfg.KingOpenSec <= 0 {
+		e.open = false
+		return
+	}
+	if e.cloakCD -= dt; e.cloakCD > 0 {
+		return
+	}
+	e.open = !e.open
+	if e.open {
+		e.cloakCD = g.Cfg.KingOpenSec
+		g.emit(Event{Kind: "kingOpen", X: e.Pos.X, Y: e.Pos.Y, Amount: int(math.Ceil(g.Cfg.KingOpenSec))})
+	} else {
+		e.cloakCD = g.Cfg.KingGuardSec
+		g.emit(Event{Kind: "kingGuard", X: e.Pos.X, Y: e.Pos.Y})
+	}
+}
+
 // tickKing runs the king's powers.
 func (g *Game) tickKing(e *Enemy, dt float64) {
-	g.unheld(e)
 	if e.phase == 0 {
 		e.signCD = g.Cfg.KingSignEvery / 4 // the first sign soon after he comes in
+		e.cloakCD = g.Cfg.KingGuardSec     // he comes in with his cloak whole
 	}
+	g.tickCloak(e, dt)
+	g.unheld(e)
+	e.drawLeft = max(0, e.drawLeft-dt)
 	e.nameLeft = max(0, e.nameLeft-dt)
 	if e.nameLeft <= 0 {
 		e.nameHaste = 0
@@ -188,7 +224,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 	// The phases.
 	share := e.HP / e.MaxHP
 	phase := 1
-	if share <= kingPhase3 {
+	if share <= g.Cfg.KingMaskAt {
 		phase = 3
 	} else if share <= kingPhase2 {
 		phase = 2
@@ -203,9 +239,10 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		}
 	}
 	if e.phase >= 2 {
-		if e.retinueCD -= dt; e.retinueCD <= 0 {
+		// The faceless come only in the second phase; the song plays on to the end.
+		if e.retinueCD -= dt; e.phase == 2 && e.retinueCD <= 0 {
 			e.retinueCD = retinueEvery
-			g.summon(e, facelessKind, retinueN)
+			g.summon(e, facelessKind, max(1, int(math.Round(retinueN*g.teamShare()))))
 		}
 		if e.songCD -= dt; e.songCD <= 0 {
 			e.songCD = songEvery
@@ -217,7 +254,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		e.masked = true
 		g.maskLeft = maskSec
 		g.emit(Event{Kind: "unmask", X: e.Pos.X, Y: e.Pos.Y})
-		g.reply("", "Маска снята! Святилища и барабаны ослабляют постройки")
+		g.reply("", "Маска снята! Свита больше не приходит, но святилища и барабаны ослабляют постройки")
 	}
 	g.kingBiome(e, dt)
 }
@@ -231,16 +268,45 @@ func (g *Game) placeSign(king *Enemy) {
 	for _, s := range g.signs {
 		marked[s.Tower] = true
 	}
-	var shooter, support *Tower
+	// Of each type he takes first a building still ahead of him, then one
+	// of the kind that has hurt him most so far, then as before: the
+	// deadliest shooter of late, the support of the highest level.
+	fav := map[bool]string{} // support or not -> the kind that hurt him most
+	for kind, dmg := range king.hurtByKind {
+		sup := supportTower(g.Cfg.Towers[kind])
+		if f := fav[sup]; f == "" || dmg > king.hurtByKind[f] || dmg == king.hurtByKind[f] && kind < f {
+			fav[sup] = kind
+		}
+	}
+	ahead := func(t *Tower) bool { return g.routeAhead(center(t.Cell), king.Dist) }
+	first := func(t, best *Tower) int { // 1: t goes before best, -1: after, 0: a tie
+		for _, b := range [][2]bool{{ahead(t), ahead(best)}, {t.Kind == fav[supportTower(g.Cfg.Towers[t.Kind])], best.Kind == fav[supportTower(g.Cfg.Towers[best.Kind])]}} {
+			if b[0] != b[1] {
+				if b[0] {
+					return 1
+				}
+				return -1
+			}
+		}
+		return 0
+	}
+	var shooter, support, wall *Tower
 	for _, t := range g.Towers {
 		if !t.Built || marked[t] || t.Kind == "clown" || center(t.Cell).sub(king.Pos).len() > kingSignRadius {
 			continue
 		}
+		if l := center(t.Cell).sub(king.Pos).len(); g.Cfg.Towers[t.Kind].Role == RoleWall && l <= kingSignWall && (wall == nil || l < center(wall.Cell).sub(king.Pos).len()) {
+			wall = t // the barricade in his way
+		}
 		if supportTower(g.Cfg.Towers[t.Kind]) {
-			if support == nil || t.Level > support.Level || t.Level == support.Level && t.ID < support.ID {
+			if support == nil {
+				support = t
+			} else if c := first(t, support); c > 0 || c == 0 && (t.Level > support.Level || t.Level == support.Level && t.ID < support.ID) {
 				support = t
 			}
-		} else if shooter == nil || t.heat > shooter.heat || t.heat == shooter.heat && t.Level > shooter.Level {
+		} else if shooter == nil {
+			shooter = t
+		} else if c := first(t, shooter); c > 0 || c == 0 && (t.heat > shooter.heat || t.heat == shooter.heat && t.Level > shooter.Level) {
 			shooter = t
 		}
 	}
@@ -248,15 +314,31 @@ func (g *Game) placeSign(king *Enemy) {
 	if g.signSupport && support != nil || at == nil {
 		at = support
 	}
+	if wall != nil {
+		at = wall // a barricade he has come up to goes first, whoever's turn it is
+	}
 	if at == nil {
 		king.signCD = 2 // nothing near: look again soon
 		return
 	}
 	g.signSupport = !supportTower(g.Cfg.Towers[at.Kind]) // the other kind next time
 	g.signs = append(g.signs, &Sign{Tower: at, Left: g.Cfg.KingSignSec, By: map[string]bool{}, drain: kingSignDrainSec})
+	king.drawLeft = g.Cfg.KingSignPause // he stops to draw it
 	cp := center(at.Cell)
 	g.emit(Event{Kind: "sign", X: cp.X, Y: cp.Y, Text: at.Cell.Name()})
 	g.reply("", fmt.Sprintf("Жёлтый знак на %s! Развеять: !рз %s", at.Cell.Name(), at.Cell.Name()))
+}
+
+// routeAhead reports whether p borders the stretch of the route the king
+// at distance d has yet to walk, within the sign's reach: a building there
+// still stands in his way, whatever it borders behind him.
+func (g *Game) routeAhead(p vec, d float64) bool {
+	for x := d + 0.5; x <= min(g.total, d+kingSignRadius+1); x += 0.2 {
+		if g.routePos(x).sub(p).len() <= 1.6 {
+			return true
+		}
+	}
+	return false
 }
 
 // supportTower reports whether a building helps others rather than hurts:
@@ -278,6 +360,9 @@ func (g *Game) signOn(t *Tower) *Sign {
 // tickSigns fades signs, drains the supports under them and drops those
 // whose building is gone.
 func (g *Game) tickSigns(dt float64) {
+	if len(g.demoDispel) > 0 {
+		g.tickDemo()
+	}
 	g.signs = slices.DeleteFunc(g.signs, func(s *Sign) bool {
 		if g.Towers[s.Tower.Cell] != s.Tower {
 			return true
@@ -333,8 +418,17 @@ func (g *Game) signHeal(t *Tower, dmg float64) {
 	}
 }
 
-// warm counts damage a building deals, for the sign to find the deadliest.
-func (t *Tower) warm(dmg float64) { t.heat += dmg }
+// warm counts damage a building deals, for the sign to find the deadliest;
+// what it deals the king counts for its kind too.
+func (t *Tower) warm(dmg float64, e *Enemy) {
+	t.heat += dmg
+	if e != nil && e.Kind == kingKind {
+		if e.hurtByKind == nil {
+			e.hurtByKind = map[string]float64{}
+		}
+		e.hurtByKind[t.Kind] += dmg
+	}
+}
 
 // cool lets a building's recent damage fade.
 func (t *Tower) cool(dt float64) { t.heat *= math.Pow(0.5, dt/kingHeatHalfLife) }
@@ -386,8 +480,9 @@ func (g *Game) clearKing() {
 
 // kingCut is what the king's torn cloak and his retinue leave of a hit.
 func (g *Game) kingCut(e *Enemy, dmg float64, owner string) float64 {
-	if owner != "" {
-		dmg /= 1 + e.hurtBy[owner]/(kingCloak*e.MaxHP)
+	if owner != "" && g.Cfg.KingCloak > 0 {
+		// The cloak stretches over the team: a smaller one has fewer to share the work.
+		dmg /= 1 + e.hurtBy[owner]/(g.Cfg.KingCloak/g.teamShare()*e.MaxHP)
 	}
 	for _, o := range g.Enemies {
 		if o.Kind == facelessKind && !o.dead {
@@ -493,7 +588,7 @@ func (g *Game) kingBiome(e *Enemy, dt float64) {
 
 // kingFreezes (ice) freezes a building that tried to slow the king.
 func (g *Game) kingFreezes(e *Enemy, t *Tower) {
-	if e.Kind != kingKind || t == nil || g.Map.Biome != BiomeIce {
+	if e.Kind != kingKind || t == nil || g.Map.Biome != BiomeIce || e.open {
 		return
 	}
 	t.Disabled = max(t.Disabled, frostSec)

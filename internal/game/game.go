@@ -167,6 +167,8 @@ type Game struct {
 	songLeft    float64              // seconds Cassilda's song still breaks skills
 	brokenLinks map[int]bool         // soul links the king tore (crypt)
 	nameWarned  bool                 // the chat was told not to say his name
+	demoDispel  []string             // the -kingdemo players who wipe the signs (kingdemo.go)
+	finalTeam   float64              // players the final was sized for (teamShare)
 	cellDist    []float64            // route distance to the centre of each path cell
 	waveHP      float64              // base enemy HP of the current wave
 	rushLeft    float64              // seconds of the frost demon's speed-up left
@@ -243,6 +245,7 @@ func (g *Game) NewGame(biome Biome) {
 	g.ready, g.readyGo, g.tempoSaved = nil, false, 0
 	g.clearKing()
 	g.nameWarned = false
+	g.demoDispel = nil
 	for _, c := range g.Chatters {
 		if !g.Cfg.KeepGold {
 			c.Gold = g.Cfg.StartGold

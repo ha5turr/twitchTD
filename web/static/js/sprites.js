@@ -150,6 +150,14 @@ export function qualityDots(g, rarity, level) {
   }
 }
 
+// drawDrum draws the war drum at the bard's side, in the pack's dark outline style.
+export function drawDrum(g) {
+  g.rect(10, 6, 22, 22).fill(0x8a3a2a).stroke({ width: 3, color: 0x1a0f0f });
+  g.ellipse(21, 6, 11, 5).fill(0xe8d4a8).stroke({ width: 3, color: 0x1a0f0f });
+  g.moveTo(12, 14).lineTo(30, 24).moveTo(30, 14).lineTo(12, 24).stroke({ width: 2, color: 0xd8b070 });
+  g.moveTo(26, -10).lineTo(20, 2).stroke({ width: 3, color: 0x5a3a1f });
+}
+
 // drawTower draws a building centred on (0, 0). pixel: the tileset is
 // loaded, so buildings stand on the floor with no stone plate behind them;
 // art: the building has sprites, and this only adds the quality dots.
@@ -160,13 +168,7 @@ export function drawTower(g, kind, rarity, level, { pixel = false, art = false, 
     return;
   }
   if (art) {
-    if (kind === 'drums') {
-      // A war drum at the bard's side, in the pack's dark outline style.
-      g.rect(10, 6, 22, 22).fill(0x8a3a2a).stroke({ width: 3, color: 0x1a0f0f });
-      g.ellipse(21, 6, 11, 5).fill(0xe8d4a8).stroke({ width: 3, color: 0x1a0f0f });
-      g.moveTo(12, 14).lineTo(30, 24).moveTo(30, 14).lineTo(12, 24).stroke({ width: 2, color: 0xd8b070 });
-      g.moveTo(26, -10).lineTo(20, 2).stroke({ width: 3, color: 0x5a3a1f });
-    }
+    if (kind === 'drums') drawDrum(g);
     qualityDots(g, rarity, level);
     return;
   }
@@ -285,9 +287,10 @@ export const ENEMY_ART = {
   drowned: { name: 'tc_drowned', scale: 2.8, hop: true, tint: 0xa8d0c8 },
   octopling: { name: 'tc_octopus', scale: 2, float: true },
   octopus: { name: 'tc_octopus', scale: 5.5, float: true },
-  // The King in Yellow: his own sprite when assets/king/king_field.png is
-  // there, a wraith in yellow until then; his faceless retinue in grey.
-  king: { name: 'king_field', scale: 3, float: true, fallback: { name: 'tc_wraith', scale: 5.5, float: true, tint: 0xffd84a } },
+  // The King in Yellow: his own sprite (40x93, finer than the 16 px pack,
+  // so drawn at half its scale), a wraith in yellow if it is missing; his
+  // faceless retinue in grey. front: drawn facing us, never mirrored.
+  king: { name: 'king_field', scale: 1.5, float: true, front: true, fallback: { name: 'tc_wraith', scale: 5.5, float: true, tint: 0xffd84a } },
   faceless: { name: 'tc_wraith', scale: 2.6, float: true, tint: 0xb8b8b0, alpha: 0.9 },
   leviathan: { name: 'tc_serpent', scale: 6.4, float: true, tint: 0x9ae0d0 },
   spider: { name: 'spider_dark', scale: 3.6 },
@@ -343,6 +346,30 @@ const PATH_ART = {
   trap: [[{ name: 'floor_spikes', scale: 3, y: 28, speed: 0.08 }]],
   wall: [[{ name: 'spear_wall', scale: 3, y: 30 }], [{ name: 'crate', scale: 2, x: -16, y: 30 }, { name: 'crate', scale: 2, x: 16, y: 30 }]],
 };
+
+// softGlow makes a soft round light of the given colour and radius, added onto
+// what lies under it.
+let glowTex = null;
+export function softGlow(color, r = 64) {
+  if (!glowTex) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,255,255,1)');
+    g.addColorStop(0.35, 'rgba(255,255,255,0.45)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+    glowTex = PIXI.Texture.from(c);
+  }
+  const s = new PIXI.Sprite(glowTex);
+  s.anchor.set(0.5);
+  s.tint = color;
+  s.blendMode = 'add';
+  s.scale.set(r / 64);
+  return s;
+}
 
 // emoji makes a centred emoji, drawn by the system's colour emoji font.
 export function emoji(s, size, x = 0, y = 0) {

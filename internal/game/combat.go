@@ -23,6 +23,7 @@ type Enemy struct {
 	summoned  bool    // raised by a boss: worth almost no gold
 	blocked   *Tower  // barricade it is hacking at
 	siegeSec  float64 // seconds spent at barricades since it last walked
+	healGot   float64 // share of its health healers gave it this tick: theirs do not add up
 	rage      bool    // held too long: heals no more and hits the barricade harder
 	slowLeft  float64 // seconds of slow left
 	slowMult  float64
@@ -74,6 +75,9 @@ type Enemy struct {
 	nameLeft  float64            // seconds that haste lasts
 	namedBy   map[string]float64 // when each player last said his name
 	torn      map[int]bool       // nets and booms he tore (river)
+	open      bool               // his cloak is open: nets, slows and stuns take
+	cloakCD   float64            // seconds until it opens or closes again
+	drawLeft  float64            // seconds he stands drawing a Yellow Sign
 
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
@@ -85,6 +89,7 @@ type Enemy struct {
 	tavernLeft float64            // seconds left robbing the tavern
 	loot       map[string]int     // gold stolen from each chatter
 	hurtBy     map[string]float64 // damage dealt to him, by chatter
+	hurtByKind map[string]float64 // and by kind of building (the King in Yellow's sign looks for that kind)
 }
 
 type Tower struct {
@@ -200,6 +205,7 @@ func (g *Game) StartWave() {
 	}
 	boss := ""
 	if g.finalDue {
+		g.finalTeam = max(players, 1)
 		g.finalQueue(sq)
 		g.spawnTimer = 0
 		g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: "final"})
@@ -333,6 +339,9 @@ func (g *Game) speedMult() float64 {
 func (g *Game) tickEnemies(dt float64) {
 	g.rushLeft = max(0, g.rushLeft-dt)
 	for _, e := range g.Enemies {
+		e.healGot = 0
+	}
+	for _, e := range g.Enemies {
 		if e.dead {
 			continue
 		}
@@ -368,7 +377,11 @@ func (g *Game) tickEnemies(dt float64) {
 		e.curseLeft = max(0, e.curseLeft-dt)
 		e.stunLeft = max(0, e.stunLeft-dt)
 		// Every enemy slowly closes its wounds; trolls much faster.
-		g.heal(e, (g.Cfg.EnemyRegen+spec.Regen)*e.MaxHP*dt)
+		regen := g.Cfg.EnemyRegen + spec.Regen
+		if e.Kind == kingKind {
+			regen = g.Cfg.KingRegen // the king mends at his own pace
+		}
+		g.heal(e, regen*e.MaxHP*dt)
 		if spec.Heal > 0 {
 			g.healAround(e, spec.Heal*dt)
 		}
@@ -411,7 +424,7 @@ func (g *Game) tickEnemies(dt float64) {
 			// Guards on the walls shoot back, so a leak costs hit points but
 			// is not the end by itself; a boss at the gate still is.
 			g.damage(e, g.Cfg.GateDPS*dt, "", true)
-		case e.netLeft > 0 || e.stunLeft > 0: // netted or stunned: neither walks nor hacks
+		case e.netLeft > 0 || e.stunLeft > 0 || e.drawLeft > 0: // netted, stunned or drawing a sign: neither walks nor hacks
 		case e.blocked != nil:
 			g.hackBarricade(e, spec, blows, dt)
 		case e.pause > 0 || e.tavernLeft > 0: // ЭссДиЭф busy with a trick
@@ -502,7 +515,7 @@ func (g *Game) springTrap(e *Enemy, t *Tower, spec EnemySpec) {
 	if g.artifact(t) {
 		dmg *= g.Cfg.TrapArtSnap // its charges never run out, so the snap itself is milder
 	}
-	t.warm(dmg)
+	t.warm(dmg, e)
 	g.signHeal(t, dmg)
 	g.damage(e, dmg, t.Owner, false)
 	cp := center(t.Cell)
@@ -516,7 +529,7 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, blows, dt float64) {
 		return
 	}
 	t.HP -= spec.WallDPS * blows * g.siege(e, dt) * g.cramped(e) * dt
-	if g.artifact(t) {
+	if g.artifact(t) && !(e.Kind == kingKind && !e.open) { // the King in Yellow's whole cloak turns them
 		g.damage(e, g.skillHP()*g.Cfg.WallSpikeDPS*dt, t.Owner, false) // its spikes
 	}
 	g.payHold(t, dt)
@@ -556,8 +569,17 @@ func (g *Game) breakWall(t *Tower) {
 
 func (g *Game) healAround(healer *Enemy, share float64) {
 	for _, o := range g.Enemies {
-		if o != healer && !o.dead && o.Pos.sub(healer.Pos).len() <= 1.5 {
-			g.heal(o, share*o.MaxHP)
+		// The King in Yellow takes no one's healing: a share of his health
+		// would be a fortune, and the final would never end.
+		if o == healer || o.dead || o.Kind == kingKind || o.Pos.sub(healer.Pos).len() > 1.5 {
+			continue
+		}
+		// Healers do not add up: in a crowd of them each enemy gets only the
+		// strongest one's healing, or a barricade's crowd heals faster than
+		// any defence can hurt it.
+		if share > o.healGot {
+			g.heal(o, (share-o.healGot)*o.MaxHP)
+			o.healGot = share
 		}
 	}
 }
@@ -653,7 +675,7 @@ func (g *Game) shoot(t *Tower, spec TowerSpec, dt float64) {
 	if spec.BossPct > 0 {
 		damage = spec.BossPct * target.MaxHP * mult
 	}
-	t.warm(damage)
+	t.warm(damage, target)
 	g.signHeal(t, damage) // a building under the Yellow Sign heals the king
 	if spec.Chain > 0 {
 		damage *= g.stormGrowth()

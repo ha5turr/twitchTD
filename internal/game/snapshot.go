@@ -103,6 +103,7 @@ type EnemyView struct {
 	Dive  bool    `json:"dive,omitempty"`
 	Swim  bool    `json:"swim,omitempty"`
 	Cling bool    `json:"cling,omitempty"`
+	Open  bool    `json:"open,omitempty"` // the King in Yellow's cloak is open
 }
 
 type TowerView struct {
@@ -199,7 +200,7 @@ func (g *Game) StateMessage() StateMsg {
 		s.Enemies = append(s.Enemies, EnemyView{
 			e.ID, e.Kind, round2(e.Pos.X), round2(e.Pos.Y), math.Ceil(e.HP), math.Ceil(e.MaxHP),
 			e.Title, g.Cfg.Enemies[e.Kind].Boss, e.slowLeft > 0, e.burnLeft > 0, e.shieldUp, e.act, e.netLeft > 0, e.stunLeft > 0, e.rage, e.curseLeft > 0,
-			round2(boatLeft(e)), e.boatMax > 0 && e.boatHP <= 0, e.submerged(), g.swimming(e), e.cling != nil,
+			round2(boatLeft(e)), e.boatMax > 0 && e.boatHP <= 0, e.submerged(), g.swimming(e), e.cling != nil, e.open,
 		})
 	}
 	owners := map[string]int{}
