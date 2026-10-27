@@ -15,6 +15,12 @@ const FIELD_W = COLS * CELL;
 const FIELD_H = ROWS * CELL;
 const ART = ['king_cat_idle', 'king_cat_talk', 'king_cat_grin', 'king_cat_point', 'king_transform', 'king_dark'];
 const LINE_SEC = 3.2; // a line stays this long without a voice to time it
+// The King in Yellow's theme, from his first appearance to the end of the
+// final: under the dialogue at MUSIC_TALK, in the fight at full level,
+// dipping to MUSIC_LINE while he speaks.
+const MUSIC = 'assets/king/music/lost_carcosa.ogg';
+const MUSIC_TALK = 0.35;
+const MUSIC_LINE = 0.55;
 // The king stands on the right, the player he talks about on the left.
 const KING_X = FIELD_X + FIELD_W * 0.75;
 const CARD_X = FIELD_X + FIELD_W * 0.05;
@@ -161,9 +167,11 @@ export class KingScene {
         break;
       case 'victory':
         if (finalOn) this.say(FIGHT.fall);
+        this.endMusic(6); // the theme fades with his last words
         break;
       case 'gameOver':
         if (finalOn) this.say(FIGHT.rules);
+        this.endMusic(6);
         break;
     }
   }
@@ -179,6 +187,53 @@ export class KingScene {
     this.root.visible = true;
     this.dark.alpha = 0;
     this.sound?.ambientBus?.gain.setTargetAtTime(0.1, this.sound.ctx.currentTime, 0.5);
+    this.startMusic();
+  }
+
+  // startMusic begins his theme from the top, quiet under the dialogue.
+  startMusic() {
+    const s = this.sound;
+    if (!s?.ctx) return;
+    if (!this.music) {
+      this.music = new Audio(MUSIC);
+      this.music.loop = true;
+      this.music.preload = 'auto';
+      this.musicGain = s.ctx.createGain();
+      this.musicGain.gain.value = 0;
+      s.ctx.createMediaElementSource(this.music).connect(this.musicGain);
+      this.musicGain.connect(s.master);
+    }
+    clearTimeout(this.musicStop);
+    this.music.currentTime = 0;
+    this.music.play().catch(() => {});
+    this.musicOn = true;
+    this.musicLevel(MUSIC_TALK, 1.5);
+  }
+
+  // keepMusic starts the theme at full level if the king is on the field
+  // and it is not playing (the overlay was reloaded after his scene).
+  keepMusic() {
+    if (this.musicOn || this.scene) return;
+    this.startMusic();
+    this.musicLevel(1, 2);
+  }
+
+  // musicLevel glides the theme to a level over about secs.
+  musicLevel(level, secs) {
+    if (!this.musicGain) return;
+    const g = this.musicGain.gain;
+    g.cancelScheduledValues(this.sound.ctx.currentTime);
+    g.setTargetAtTime(level, this.sound.ctx.currentTime, Math.max(0.05, secs / 3));
+  }
+
+  // endMusic fades the theme out and stops it: the final is over, or a new map.
+  endMusic(secs = 4) {
+    if (!this.musicOn) return;
+    this.musicOn = false;
+    this.musicLevel(0, secs);
+    clearTimeout(this.musicStop);
+    this.musicStop = setTimeout(() => this.music?.pause(), secs * 1000 + 500);
+    this.sound?.ambientBus?.gain.setTargetAtTime(0.7, this.sound.ctx.currentTime, 1);
   }
 
   stop() {
@@ -187,7 +242,9 @@ export class KingScene {
     this.figure.removeChildren();
     this.card.visible = false;
     this.sub.text = '';
-    this.sound?.ambientBus?.gain.setTargetAtTime(0.7, this.sound.ctx.currentTime, 0.8);
+    // The dialogue is over: the theme comes up to full, the ambience stays low under it.
+    this.sound?.ambientBus?.gain.setTargetAtTime(this.musicOn ? 0.3 : 0.7, this.sound.ctx.currentTime, 0.8);
+    if (this.musicOn) this.musicLevel(1, 2);
   }
 
   say(line) {
@@ -195,6 +252,12 @@ export class KingScene {
     this.fightLeft = LINE_SEC;
     this.fightLeft = Math.max(LINE_SEC, this.voice(line.voice) + 0.5); // the subtitle stays while he talks
     this.fightSec = this.fightLeft;
+    if (this.musicOn && !this.scene) {
+      // The theme dips under his voice and comes back.
+      this.musicLevel(MUSIC_LINE, 0.4);
+      clearTimeout(this.musicDip);
+      this.musicDip = setTimeout(() => this.musicOn && !this.scene && this.musicLevel(1, 1.5), this.fightLeft * 1000);
+    }
   }
 
   // loadVoice fetches a recorded line once; it resolves to the audio, or

@@ -56,6 +56,7 @@ async function start() {
   let walls = null;
   const net = connect({
     map(m) {
+      king.endMusic(1); // a new map: the King's theme stops
       mapLayer.removeChildren().forEach((c) => c.destroy({ children: true }));
       mapLayer.addChild(buildMap(m));
       ents.clear();
@@ -76,6 +77,7 @@ async function start() {
         king.onEvent(ev, finalOn);
       }
       finalOn = !!s.match?.final && s.phase === 'wave';
+      if (finalOn && s.enemies.some((e) => e.kind === 'king')) king.keepMusic(); // the overlay reloaded mid-final
     },
     settings(s) {
       sound.configure(s.values ?? {});
