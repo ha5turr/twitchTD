@@ -283,3 +283,25 @@ func TestKingBiomePowers(t *testing.T) {
 		}
 	})
 }
+
+func TestKingSpotsTheBestPlayers(t *testing.T) {
+	g, _ := newTestGame(t)
+	for _, u := range []string{"anna", "boris"} {
+		g.HandleChat(ChatMessage{User: u, Text: "!play"})
+	}
+	g.Chatters["anna"].GameDamage = 5000
+	g.Chatters["boris"].GameDrinks = 9
+	g.Chatters["boris"].GameDances = 2 // too few to mention
+	g.Chatters["anna"].GameRepairs = 7
+	got := map[string]string{}
+	for _, s := range g.kingSpots() {
+		got[s.Kind] = s.Name
+	}
+	if got["damage"] != "anna" || got["drinks"] != "boris" || got["repairs"] != "anna" || got["dances"] != "" {
+		t.Fatalf("the king names the best at each, when it is worth it: %v", got)
+	}
+	g.HandleChat(ChatMessage{User: "anna", Text: "!dance"})
+	if g.Chatters["anna"].GameDances != 1 {
+		t.Fatal("dances are counted")
+	}
+}

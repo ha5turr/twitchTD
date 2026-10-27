@@ -104,6 +104,7 @@ func (g *Game) cmdRepair(c *Chatter, key string, args []string) {
 		}
 		c.Gold -= cost
 	}
+	c.GameRepairs++
 	cp := center(t.Cell)
 	g.emit(Event{Kind: "upgrade", User: c.Name, X: cp.X, Y: cp.Y, Amount: -cost})
 	if streamer {

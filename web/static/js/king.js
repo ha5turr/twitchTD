@@ -4,7 +4,9 @@
 // from assets/king/ and voice lines from assets/king/voice/<line>.ogg (or
 // .mp3) when they are there; without them the scene draws its own stand-ins
 // and plays in silence with the subtitles.
-import { LEFT, TOP, COLS, ROWS, CELL, FONT_UI } from './layout.js';
+import { LEFT, TOP, COLS, ROWS, CELL, FONT_UI, nickColor } from './layout.js';
+import { HERO_ART } from './sprites.js';
+import { hasTileset, sprite } from './tileset.js';
 
 const { Container, Graphics, Text, Sprite, Assets } = PIXI;
 
@@ -13,6 +15,9 @@ const FIELD_W = COLS * CELL;
 const FIELD_H = ROWS * CELL;
 const ART = ['king_cat_idle', 'king_cat_talk', 'king_cat_grin', 'king_cat_point', 'king_transform', 'king_dark'];
 const LINE_SEC = 3.2; // a line stays this long without a voice to time it
+// The king stands on the right, the player he talks about on the left.
+const KING_X = FIELD_X + FIELD_W * 0.75;
+const CARD_X = FIELD_X + FIELD_W * 0.05;
 
 const plural = (n, one, few, many) => {
   const m10 = n % 10;
@@ -34,8 +39,14 @@ function introLines(d) {
   if (n < 15) out.push({ text: `${towers} Так мало.`, voice: 'king_towers_few', pose: 'king_cat_grin' });
   else if (n <= 40) out.push({ text: `${towers} Как мило.`, voice: 'king_towers_some', pose: 'king_cat_grin' });
   else out.push({ text: `${towers} Вы и правда старались.`, voice: 'king_towers_many', pose: 'king_cat_grin' });
-  if (d.top) out.push({ text: `${d.top}… Это ты бил больше всех? Я запомню твоё имя.`, voice: 'king_top', pose: 'king_cat_point' });
-  if ((d.drinks ?? 0) >= 20) {
+  // Players he singles out: the one who hit hardest, then a couple of the
+  // others he has something to say about. The card beside him shows who
+  // and for what, so the voice never has to say a name.
+  const spots = Object.fromEntries((d.spots ?? []).map((s) => [s.kind, s]));
+  if (spots.damage) out.push(spotLine(spots.damage));
+  const extra = ['drinks', 'dances', 'repairs'].filter((k) => spots[k]).sort(() => Math.random() - 0.5).slice(0, 2);
+  for (const k of extra) out.push(spotLine(spots[k]));
+  if ((d.drinks ?? 0) >= 20 && !extra.includes('drinks')) {
     out.push({ text: `${d.drinks} ${plural(d.drinks, 'кружка', 'кружки', 'кружек')} эля. Вы встречаете короля пьяными?`, voice: 'king_drunk', pose: 'king_cat_grin' });
   } else {
     const w = d.waves ?? 0;
@@ -44,6 +55,22 @@ function introLines(d) {
   out.push({ text: 'А теперь… снимем маски.', voice: 'king_transform', pose: 'king_transform', transform: true });
   out.push({ text: 'Узрите Жёлтый знак.', voice: 'king_dark', pose: 'king_dark', dark: true });
   return out;
+}
+
+// spotLine is what the king says to a player he singles out, and the card
+// that shows them.
+function spotLine(s) {
+  const n = s.value;
+  switch (s.kind) {
+    case 'damage':
+      return { text: `${s.name}… Это ты бил больше всех? Я запомню твоё имя.`, voice: 'king_top', pose: 'king_cat_point', spot: s, stat: `урон за партию: ${n.toLocaleString('ru-RU')}` };
+    case 'drinks':
+      return { text: `Был у Боба ${n} ${plural(n, 'раз', 'раза', 'раз')}… ${s.name}, что с лицом?!`, voice: 'king_bob', pose: 'king_cat_grin', spot: s, stat: `у Боба: ${n} ${plural(n, 'кружка', 'кружки', 'кружек')}` };
+    case 'dances':
+      return { text: `Ты, ${s.name}, танцевал до упаду, пока остальные пахали… НЕ СИЛЬНО ЗАПАХАЛСЯ?`, voice: 'king_dance', pose: 'king_cat_grin', spot: s, stat: `танцев: ${n}` };
+    default:
+      return { text: `Кто реально запахался, так это ${s.name}: ${n} ${plural(n, 'починка', 'починки', 'починок')} баррикад?!`, voice: 'king_repair', pose: 'king_cat_point', spot: s, stat: `починок баррикад: ${n}` };
+  }
 }
 
 // Lines during the fight, by the event that calls them.
@@ -65,17 +92,21 @@ export class KingScene {
     this.dark = new Graphics();
     this.dark.rect(FIELD_X, TOP, FIELD_W, FIELD_H).fill(0x000000);
     this.figure = new Container();
-    this.figure.position.set(FIELD_X + FIELD_W * 0.3, TOP + FIELD_H);
+    this.figure.position.set(KING_X, TOP + FIELD_H);
     this.sub = new Text({
       text: '',
       style: {
         fontFamily: FONT_UI, fontSize: 38, fontWeight: '700', fill: 0xffe08a, align: 'center',
-        wordWrap: true, wordWrapWidth: FIELD_W * 0.7, stroke: { color: 0x000000, width: 8 },
+        wordWrap: true, wordWrapWidth: FIELD_W * 0.56, stroke: { color: 0x000000, width: 8 },
       },
     });
     this.sub.anchor.set(0.5, 1);
-    this.sub.position.set(FIELD_X + FIELD_W * 0.6, TOP + FIELD_H - 60);
-    this.root.addChild(this.dark, this.figure, this.sub);
+    this.sub.position.set(FIELD_X + FIELD_W * 0.33, TOP + FIELD_H - 60);
+    // The card of the player he is talking about: their mercenary, nick and deed.
+    this.card = new Container();
+    this.card.position.set(CARD_X, TOP + FIELD_H * 0.3);
+    this.card.visible = false;
+    this.root.addChild(this.dark, this.figure, this.card, this.sub);
     // A line over the field during the fight, without the darkness.
     this.fightLine = new Text({ text: '', style: { ...this.sub.style, fontSize: 32 } });
     this.fightLine.anchor.set(0.5, 1);
@@ -148,6 +179,7 @@ export class KingScene {
     this.scene = null;
     this.root.visible = false;
     this.figure.removeChildren();
+    this.card.visible = false;
     this.sub.text = '';
     this.sound?.ambientBus?.gain.setTargetAtTime(0.7, this.sound.ctx.currentTime, 0.8);
   }
@@ -222,8 +254,39 @@ export class KingScene {
     this.figure.addChild(g);
   }
 
+  // showCard puts up (or takes down) the singled-out player's card.
+  showCard(line) {
+    this.card.removeChildren().forEach((c) => c.destroy({ children: true }));
+    this.card.visible = !!line.spot;
+    if (!line.spot) return;
+    const w = 520;
+    const h = 210;
+    const bg = new Graphics();
+    bg.roundRect(0, 0, w, h, 16).fill({ color: 0x14110a, alpha: 0.92 }).stroke({ width: 4, color: 0xd8b020 });
+    bg.roundRect(18, 18, 174, 174, 12).fill({ color: 0x2a2414 }).stroke({ width: 2, color: 0x6a5a28 });
+    this.card.addChild(bg);
+    const hero = hasTileset() && HERO_ART[line.spot.class] && sprite(`${HERO_ART[line.spot.class]}_idle`, 5, 0.12);
+    if (hero) {
+      hero.position.set(105, 178);
+      this.card.addChild(hero);
+    }
+    const name = new Text({
+      text: line.spot.name,
+      style: { fontFamily: FONT_UI, fontSize: 40, fontWeight: '700', fill: nickColor(line.spot.name), stroke: { color: 0x000000, width: 6 }, wordWrap: true, wordWrapWidth: w - 230 },
+    });
+    name.position.set(212, 34);
+    const stat = new Text({
+      text: line.stat,
+      style: { fontFamily: FONT_UI, fontSize: 28, fontWeight: '700', fill: 0xffe08a, stroke: { color: 0x000000, width: 5 }, wordWrap: true, wordWrapWidth: w - 230 },
+    });
+    stat.position.set(212, 34 + name.height + 14);
+    this.card.addChild(name, stat);
+    this.card.alpha = 0;
+  }
+
   frame(dt) {
     this.t += dt;
+    if (this.card.visible) this.card.alpha = Math.min(1, this.card.alpha + dt * 4);
     if (this.fightLeft > 0) {
       this.fightLeft -= dt;
       this.fightLine.alpha = Math.min(1, this.fightLeft * 2, (LINE_SEC - this.fightLeft) * 4);
@@ -246,6 +309,7 @@ export class KingScene {
       const line = sc.lines[i];
       this.pose(line);
       this.sub.text = line.text;
+      this.showCard(line);
       // Without a recording the mouth moves for about as long as the line reads.
       this.talking = Math.min(sc.per - 0.4, 0.4 + line.text.length * 0.06);
       this.voice(line.voice);
@@ -260,7 +324,7 @@ export class KingScene {
     // A slow breath, and the transformation shudders.
     const k = sc.at - i * sc.per;
     this.figure.scale.set(1 + 0.01 * Math.sin(this.t * 2));
-    this.figure.x = FIELD_X + FIELD_W * 0.3 + (line.transform ? Math.sin(this.t * 40) * 4 * Math.min(1, k) : 0);
+    this.figure.x = KING_X + (line.transform ? Math.sin(this.t * 40) * 4 * Math.min(1, k) : 0);
     this.figure.tint = line.transform ? 0xffffff - Math.floor(Math.min(1, k / sc.per) * 0x60) * 0x10101 : 0xffffff;
   }
 }

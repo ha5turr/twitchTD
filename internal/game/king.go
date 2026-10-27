@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -77,11 +78,46 @@ type Sign struct {
 
 // kingIntro is what the scene before the final says about the game.
 type kingIntro struct {
-	Players int    `json:"players"`
-	Towers  int    `json:"towers"`
-	Top     string `json:"top,omitempty"`
-	Waves   int    `json:"waves"`
-	Drinks  int    `json:"drinks"`
+	Players int        `json:"players"`
+	Towers  int        `json:"towers"`
+	Waves   int        `json:"waves"`
+	Drinks  int        `json:"drinks"`
+	Spots   []kingSpot `json:"spots,omitempty"`
+}
+
+// kingSpot is a player the king singles out, shown beside him with what
+// they did: the most damage, the most drinks from Bob, the most dances,
+// the most barricades mended.
+type kingSpot struct {
+	Kind  string `json:"kind"` // damage | drinks | dances | repairs
+	Name  string `json:"name"`
+	Class string `json:"class"`
+	Value int    `json:"value"`
+}
+
+// spotMin is how much of a thing makes it worth the king's notice.
+var spotMin = map[string]int{"damage": 1, "drinks": 5, "dances": 3, "repairs": 5}
+
+// kingSpots finds the best player at each thing the king talks about.
+func (g *Game) kingSpots() []kingSpot {
+	var out []kingSpot
+	for _, kind := range []string{"damage", "drinks", "dances", "repairs"} {
+		best := kingSpot{Kind: kind}
+		for _, key := range slices.Sorted(maps.Keys(g.Chatters)) {
+			c := g.Chatters[key]
+			if key == StreamerName {
+				continue
+			}
+			v := map[string]int{"damage": int(c.GameDamage), "drinks": c.GameDrinks, "dances": c.GameDances, "repairs": c.GameRepairs}[kind]
+			if v > best.Value {
+				best.Name, best.Class, best.Value = c.Name, c.Class, v
+			}
+		}
+		if best.Value >= spotMin[kind] {
+			out = append(out, best)
+		}
+	}
+	return out
 }
 
 // king is the King in Yellow on the field, or nil.
@@ -97,13 +133,9 @@ func (g *Game) king() *Enemy {
 // startKingIntro holds the final wave for the scene and gives the overlay
 // what the king will talk about.
 func (g *Game) startKingIntro() {
-	in := kingIntro{Players: len(g.mapVoters()), Waves: g.Wave - 1}
-	best := 0.0
-	for key, c := range g.Chatters {
+	in := kingIntro{Players: len(g.mapVoters()), Waves: g.Wave - 1, Spots: g.kingSpots()}
+	for _, c := range g.Chatters {
 		in.Drinks += c.GameDrinks
-		if key != StreamerName && c.GameDamage > best {
-			best, in.Top = c.GameDamage, c.Name
-		}
 	}
 	for _, t := range g.Towers {
 		if t.Owner != StreamerName {

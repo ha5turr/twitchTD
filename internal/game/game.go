@@ -46,6 +46,8 @@ type Chatter struct {
 	GameDamage  float64
 	GameKills   int
 	GameDrinks  int
+	GameDances  int  // !dance on the table (the king's scene teases the best dancer)
+	GameRepairs int  // barricades mended
 	classLocked bool // the class was changed this game
 
 	// The jail (jail.go): seconds left behind bars, the ransom that frees
@@ -246,6 +248,7 @@ func (g *Game) NewGame(biome Biome) {
 			c.Gold = g.Cfg.StartGold
 		}
 		c.GameDamage, c.GameKills, c.GameDrinks, c.classLocked = 0, 0, 0, false
+		c.GameDances, c.GameRepairs = 0, 0
 		c.Grant, c.arrived = 0, c.Joined // those still in the tavern start this game with it
 		c.out, c.veilWave = 0, 0
 		c.jailLeft, c.jailedOnce, c.ransom, c.jailVoteAt = 0, false, 0, time.Time{}
