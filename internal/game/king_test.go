@@ -512,3 +512,39 @@ func TestYellowSignHitsTheBarricadeAhead(t *testing.T) {
 		t.Fatal("without it the shooter's turn goes on as before")
 	}
 }
+
+func TestKingMutesTheStream(t *testing.T) {
+	g, _ := kingGame(t, BiomeRuins)
+	sent := func() (out []string) {
+		for _, e := range g.TakeEvents() {
+			if e.Kind == "chatCommand" {
+				out = append(out, e.Text)
+			}
+		}
+		return out
+	}
+	sent()
+	g.startKingIntro()
+	if got := sent(); len(got) != 1 || got[0] != "!mute" {
+		t.Fatalf("the scene starts with !mute: %v", got)
+	}
+	g.startKingIntro()
+	if got := sent(); len(got) != 0 {
+		t.Fatalf("only once: %v", got)
+	}
+	g.endMatch(true)
+	run(g, kingUnmuteSec-1)
+	if got := sent(); len(got) != 0 {
+		t.Fatalf("not while his theme fades: %v", got)
+	}
+	run(g, 1.5)
+	if got := sent(); len(got) != 1 || got[0] != "!unmute" {
+		t.Fatalf("then !unmute: %v", got)
+	}
+	g.startKingIntro()
+	sent()
+	g.NewGame(BiomeRuins)
+	if got := sent(); len(got) != 1 || got[0] != "!unmute" {
+		t.Fatalf("a new map unmutes at once: %v", got)
+	}
+}

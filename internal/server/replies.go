@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ type replier struct {
 
 	mu    sync.Mutex
 	queue []string
+	alone map[string]bool // lines that go out as a message of their own: commands for other bots
 }
 
 const maxQueued = 40
@@ -42,6 +44,23 @@ func (r *replier) add(user, text string) {
 	}
 }
 
+// command queues a chat command for another bot (say !mute): it is sent
+// on its own, never joined to other lines, or the bot would not see it.
+func (r *replier) command(text string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.alone == nil {
+		r.alone = map[string]bool{}
+	}
+	if slices.Contains(r.queue, text) {
+		return // already on its way
+	}
+	r.alone[text] = true
+	if len(r.queue) < maxQueued {
+		r.queue = append(r.queue, text)
+	}
+}
+
 // next takes as many queued lines as fit into one message.
 func (r *replier) next() string {
 	r.mu.Lock()
@@ -49,6 +68,13 @@ func (r *replier) next() string {
 	var b strings.Builder
 	n := 0
 	for _, line := range r.queue {
+		if r.alone[line] {
+			if n == 0 {
+				b.WriteString(line)
+				n++
+			}
+			break // a command goes alone, and nothing joins it
+		}
 		sep := 0
 		if n > 0 {
 			sep = len(" • ")
@@ -63,6 +89,7 @@ func (r *replier) next() string {
 		n++
 	}
 	r.queue = r.queue[n:]
+	delete(r.alone, b.String())
 	return b.String()
 }
 

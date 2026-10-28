@@ -169,6 +169,12 @@ func (g *Game) reply(user, text string) {
 	g.emit(Event{Kind: "reply", User: user, Text: text})
 }
 
+// chatCommand sends a command for another bot to the chat, as a message of
+// its own.
+func (g *Game) chatCommand(text string) {
+	g.emit(Event{Kind: "chatCommand", Text: text})
+}
+
 func (g *Game) isStreamer(key string) bool { return key == StreamerName }
 
 // cellArg joins "C 4" style arguments back together and returns the rest.
