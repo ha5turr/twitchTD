@@ -196,6 +196,12 @@ func (g *Game) kingHP(waveHP float64) float64 {
 	return waveHP * g.Cfg.BossHPMult * g.Cfg.FinalBossMult * g.Cfg.KingHPMult * g.Cfg.Enemies[kingKind].HPMult
 }
 
+// guarded reports whether the enemy is the king under his whole cloak,
+// which nothing holds.
+func (e *Enemy) guarded() bool {
+	return e.Kind == kingKind && !e.open
+}
+
 // unheld keeps the king free of everything that would hold him while his
 // cloak is whole; in its open spells nets, slows and stuns take as on any
 // boss (shoves never do).
@@ -232,6 +238,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		e.signCD = g.Cfg.KingSignEvery / 4 // the first sign soon after he comes in
 		e.cloakCD = g.Cfg.KingGuardSec     // he comes in with his cloak whole
 	}
+	g.unheld(e) // what got on him while it was whole does not carry into an open spell
 	g.tickCloak(e, dt)
 	g.unheld(e)
 	e.drawLeft = max(0, e.drawLeft-dt)

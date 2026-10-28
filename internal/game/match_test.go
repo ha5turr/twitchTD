@@ -51,7 +51,7 @@ func TestMatchClockWarnsAndCallsTheFinal(t *testing.T) {
 			bosses++
 		}
 	}
-	if bosses != 1 || g.queue[0].kind != kingKind {
+	if bosses != 1 || kingIndex(g) < 0 {
 		t.Fatalf("the King in Yellow alone leads it: %d bosses", bosses)
 	}
 	// The final is as strong as wave FinalWave, whatever wave was reached.

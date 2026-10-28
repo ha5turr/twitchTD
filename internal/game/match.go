@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"math"
+	"slices"
 )
 
 // A game is a match against the clock: MatchMinutes of play, counted in
@@ -72,7 +73,6 @@ func (g *Game) finalQueue(sq float64) {
 	g.waveHP = hp
 	pool := biomeEnemies[g.Map.Biome]
 	g.queue = g.queue[:0]
-	g.queue = append(g.queue, spawn{kingKind, g.kingHP(hp) * g.kingTeamMult()}) // the King in Yellow, always
 	count := g.Cfg.BaseCount + g.Cfg.CountPerWave*w + int(sq)
 	// A small team meets a smaller escort, by the square of its share: its
 	// buildings are fewer and each one has to hold more of the path.
@@ -82,9 +82,18 @@ func (g *Game) finalQueue(sq float64) {
 		kind := pickEnemy(g.rng.Float64(), pool, w)
 		g.queue = append(g.queue, spawn{kind, hp * g.Cfg.Enemies[kind].HPMult})
 	}
+	// The King in Yellow, always, behind the first half of his escort: it
+	// goes ahead of him, the rest follows.
+	g.queue = slices.Insert(g.queue, kingAhead(count), spawn{kingKind, g.kingHP(hp) * g.kingTeamMult()})
 	g.finalWave = true
 	g.startKingIntro()
 	g.reply("", "ФИНАЛ! Король в Жёлтом идёт на таверну. Выстоим — победа")
+}
+
+// kingAhead is how much of an escort of n walks ahead of the king: half
+// of it, and at least one.
+func kingAhead(n int) int {
+	return min(n, max(1, n/2))
 }
 
 // teamShare is how much of a full team (FinalTeamSize) plays the final, at
