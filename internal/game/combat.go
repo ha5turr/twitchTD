@@ -1047,6 +1047,15 @@ func (g *Game) tickNet(t *Tower, spec TowerSpec, dt float64) {
 	p := at.Pos
 	for _, e := range g.Enemies {
 		if !e.dead && e.netImmune <= 0 && e.Pos.sub(p).len() <= spec.NetRadius {
+			if e.guarded() {
+				// The king under his whole cloak: the net slides off, it
+				// leaves nothing on him, not even the wariness. Only the
+				// ballista that aimed at him pays for it (ice).
+				if e == at {
+					g.kingFreezes(e, t)
+				}
+				continue
+			}
 			e.netLeft = spec.NetSec
 			// A boss tears free and stays wary for a while, so a row of
 			// ballistas cannot hold him for good.
