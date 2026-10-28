@@ -1,6 +1,7 @@
 package game
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -32,7 +33,7 @@ func TestKingIntroHoldsTheFinal(t *testing.T) {
 	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
 	g.finalDue = true
 	g.StartWave()
-	if g.queue[0].kind != kingKind || g.introLeft <= 0 {
+	if kingIndex(g) < 0 || g.introLeft <= 0 {
 		t.Fatal("the final is the king's, after his scene")
 	}
 	var intro Event
@@ -50,8 +51,8 @@ func TestKingIntroHoldsTheFinal(t *testing.T) {
 	}
 	g.HandleChat(ChatMessage{User: "streamer", Text: "!tdskip", Mod: true, Broadcaster: true})
 	run(g, 0.2)
-	if len(g.Enemies) == 0 || g.Enemies[0].Kind != kingKind {
-		t.Fatal("!tdskip lets him in")
+	if len(g.Enemies) == 0 {
+		t.Fatal("!tdskip lets the final in")
 	}
 }
 
@@ -331,8 +332,8 @@ func TestKingSceneDoneLetsHimIn(t *testing.T) {
 	g.StartWave()
 	g.KingSceneDone()
 	run(g, 0.2)
-	if len(g.Enemies) == 0 || g.Enemies[0].Kind != kingKind {
-		t.Fatal("the overlay's end of the scene lets the king in")
+	if len(g.Enemies) == 0 {
+		t.Fatal("the overlay's end of the scene lets the final in")
 	}
 }
 
@@ -429,7 +430,7 @@ func TestFinalScalesWithTheTeam(t *testing.T) {
 		}
 		g.finalDue = true
 		g.StartWave()
-		return len(g.queue), g.queue[0].hp
+		return len(g.queue), g.queue[kingIndex(g)].hp
 	}
 	duoN, duoHP := size([]string{"anna", "boris"})
 	fullN, fullHP := size([]string{"anna", "boris", "vera", "gleb", "dina"})
@@ -547,4 +548,119 @@ func TestKingMutesTheStream(t *testing.T) {
 	if got := sent(); len(got) != 1 || got[0] != "!unmute" {
 		t.Fatalf("a new map unmutes at once: %v", got)
 	}
+}
+
+// kingNet sets the king on the path at cell 6 with a skeleton just ahead of
+// him under one net, and a ballista over them.
+func kingNet(t *testing.T, biome Biome) (*Game, *Enemy, *Enemy, *Tower, TowerSpec) {
+	t.Helper()
+	g, k := kingGame(t, biome)
+	k.Dist = g.cellDist[6]
+	k.Pos = g.routePos(k.Dist)
+	sk := g.spawnEnemy("skeleton", 1e9, k.Dist+0.1)
+	sk.Pos = vec{k.Pos.X + 0.2, k.Pos.Y}
+	return g, k, sk, &Tower{Cell: g.Map.Path[6], Level: 1, Kind: "arrow", Owner: "anna"}, g.Cfg.Towers["arrow"]
+}
+
+func TestNetSlidesOffTheWholeCloak(t *testing.T) {
+	g, k, sk, tw, spec := kingNet(t, BiomeRuins)
+	g.tickNet(tw, spec, 1)
+	if sk.netLeft <= 0 {
+		t.Fatal("the net catches the skeleton it was thrown at")
+	}
+	if k.netLeft > 0 || k.netImmune > 0 {
+		t.Fatalf("under the whole cloak it leaves nothing on the king: net %.1f, wariness %.1f", k.netLeft, k.netImmune)
+	}
+	// Nor at him: the net is spent on those around, he walks on.
+	sk.Dist = k.Dist - 1
+	tw.netCD = 0
+	g.tickNet(tw, spec, 1)
+	if k.netLeft > 0 || k.netImmune > 0 {
+		t.Fatal("a net thrown at him does not hold him either")
+	}
+	d := k.Dist
+	run(g, 0.5)
+	if k.Dist <= d {
+		t.Fatal("he walks on")
+	}
+}
+
+func TestNetFromTheWholeCloakDoesNotCarryOver(t *testing.T) {
+	g, k := kingGame(t, BiomeRuins)
+	run(g, 0.1)
+	k.cloakCD = 0.01 // it opens on the next tick
+	k.netLeft, k.stunLeft, k.slowMult, k.slowLeft = 2, 2, 0.3, 2
+	g.Tick(0.05)
+	if !k.open {
+		t.Fatal("the cloak opens")
+	}
+	if k.netLeft > 0 || k.stunLeft > 0 || k.slowMult != 1 {
+		t.Fatal("what got on him while it was whole does not hold him in the open spell")
+	}
+}
+
+func TestNetHoldsTheOpenCloak(t *testing.T) {
+	g, k, sk, tw, spec := kingNet(t, BiomeRuins)
+	k.open, k.cloakCD = true, 100
+	g.tickNet(tw, spec, 1)
+	if k.netLeft <= 0 || sk.netLeft <= 0 {
+		t.Fatal("while the cloak is open a net on his neighbour holds him too")
+	}
+	if k.netImmune <= 0 {
+		t.Fatal("and he tears free like any boss")
+	}
+}
+
+func TestIceFreezesOnlyTheBallistaAimedAtHim(t *testing.T) {
+	g, k, sk, tw, spec := kingNet(t, BiomeIce)
+	g.tickNet(tw, spec, 1)
+	if tw.Disabled > 0 {
+		t.Fatal("a net thrown at his neighbour does not freeze the ballista")
+	}
+	sk.Dist = k.Dist - 1
+	tw.netCD = 0
+	g.tickNet(tw, spec, 1)
+	if tw.Disabled <= 0 {
+		t.Fatal("one thrown at him does")
+	}
+}
+
+func TestKingWalksBehindHalfHisEscort(t *testing.T) {
+	g, _ := newTestGame(t)
+	for _, u := range []string{"anna", "boris", "vera", "gleb", "dina"} {
+		g.HandleChat(ChatMessage{User: u, Text: "!play"})
+	}
+	g.finalDue = true
+	g.StartWave()
+	at := kingIndex(g)
+	escort := len(g.queue) - 1
+	if at < 1 || at != kingAhead(escort) || at >= len(g.queue)-1 {
+		t.Fatalf("half the escort goes ahead of him, the rest after: king %d of %d", at, len(g.queue))
+	}
+	g.skipKingIntro()
+	for range at {
+		g.spawnTimer = 0
+		g.tickSpawns(0.05)
+	}
+	for _, e := range g.Enemies {
+		if e.Kind == kingKind {
+			t.Fatal("he does not lead")
+		}
+	}
+	g.spawnTimer = 0
+	g.tickSpawns(0.05)
+	if last := g.Enemies[len(g.Enemies)-1]; last.Kind != kingKind {
+		t.Fatalf("then he comes: %s", last.Kind)
+	}
+}
+
+func TestSmallEscortStillGoesAhead(t *testing.T) {
+	if kingAhead(1) != 1 || kingAhead(0) != 0 || kingAhead(7) != 3 {
+		t.Fatal("at least one goes ahead, never more than there are")
+	}
+}
+
+// kingIndex finds the king in the wave's queue.
+func kingIndex(g *Game) int {
+	return slices.IndexFunc(g.queue, func(s spawn) bool { return s.kind == kingKind })
 }
