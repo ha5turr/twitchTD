@@ -163,6 +163,9 @@ func (g *Game) payTempo(saved float64) {
 func (g *Game) endMatch(won bool) {
 	g.Phase = PhaseGameOver
 	g.clearKing()
+	if g.muted {
+		g.unmuteLeft = kingUnmuteSec // once his theme has faded out
+	}
 	g.Timer = g.Cfg.GameOverSec
 	g.Workers = map[string]*Worker{}
 	g.summary = g.makeSummary()

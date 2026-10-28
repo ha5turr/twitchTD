@@ -161,6 +161,8 @@ type Game struct {
 	summary       *Summary
 	// The King in Yellow (king.go).
 	introLeft   float64              // seconds of the scene before the final
+	muted       bool                 // the streamer's other sounds are off for the King (!mute sent)
+	unmuteLeft  float64              // seconds till !unmute, once his theme has faded
 	signs       []*Sign              // Yellow Signs on buildings
 	signSupport bool                 // the next sign goes on a support
 	maskLeft    float64              // seconds the auras still work the other way
@@ -244,6 +246,9 @@ func (g *Game) NewGame(biome Biome) {
 	g.matchElapsed, g.finalDue, g.finalWave = 0, false, false
 	g.ready, g.readyGo, g.tempoSaved = nil, false, 0
 	g.clearKing()
+	if g.muted {
+		g.unmute() // a new map: the King's theme is gone at once
+	}
 	g.nameWarned = false
 	g.demoDispel = nil
 	for _, c := range g.Chatters {
@@ -347,6 +352,7 @@ func (g *Game) Tick(dt float64) {
 	g.tickJail(dt)
 	g.tickMapVote(dt)
 	g.tickMatch(dt)
+	g.tickMute(dt)
 	switch g.Phase {
 	case PhaseBuild:
 		g.Timer -= dt

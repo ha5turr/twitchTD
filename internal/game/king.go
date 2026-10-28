@@ -141,8 +141,33 @@ func (g *Game) startKingIntro() {
 		}
 	}
 	b, _ := json.Marshal(in)
+	if !g.muted {
+		// The streamer's other sounds go quiet for the King's scene and his
+		// theme (a command for the streamer's own bot), back on when it ends.
+		g.chatCommand("!mute")
+		g.muted = true
+	}
 	g.introLeft = g.Cfg.KingIntroSec
 	g.emit(Event{Kind: "kingIntro", Text: string(b), Amount: int(math.Ceil(g.Cfg.KingIntroSec))})
+}
+
+// kingUnmuteSec is how long after the final ends the sounds come back: the
+// King's theme fades out over 6 s (king.js).
+const kingUnmuteSec = 6.5
+
+// tickMute sends !unmute when the theme has faded after the final.
+func (g *Game) tickMute(dt float64) {
+	if g.unmuteLeft <= 0 {
+		return
+	}
+	if g.unmuteLeft -= dt; g.unmuteLeft <= 0 {
+		g.unmute()
+	}
+}
+
+func (g *Game) unmute() {
+	g.chatCommand("!unmute")
+	g.muted, g.unmuteLeft = false, 0
 }
 
 // KingSceneDone lets the king in once the overlay has played his scene to
