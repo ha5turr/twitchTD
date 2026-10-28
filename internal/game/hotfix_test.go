@@ -156,3 +156,41 @@ func TestRepairCooldown(t *testing.T) {
 		t.Fatalf("after the cooldown it can be mended again: %q", lastReply(g))
 	}
 }
+
+func TestCancelOrders(t *testing.T) {
+	g, _ := newTestGame(t)
+	chatters(g, "anna")
+	anna := g.Chatters["anna"]
+	anna.Gold = 600 // under the wallet cap, so refunds land in it
+	say := func(s string) { g.HandleChat(ChatMessage{User: "anna", Text: s}) }
+	g.HandleChat(ChatMessage{User: "anna", Text: "!отмена"})
+	if !strings.Contains(lastReply(g), "нет приказов") {
+		t.Fatal("nothing to call off")
+	}
+	gun := placeAs(g, "anna", "arrow", freeCell(t, g))
+	wall := placeAs(g, "anna", "wall", g.Map.Path[3])
+	wall.HP = wall.MaxHP / 2
+	site := freeCell(t, g)
+	say("!up " + gun.Cell.Name())
+	say("!чинить " + wall.Cell.Name())
+	say("!b " + site.Name() + " magic")
+	if g.Workers["anna"] == nil || len(g.Workers["anna"].Orders) != 3 || anna.Gold == 600 {
+		t.Fatal("three orders, paid for")
+	}
+	run(g, 0.5)
+	say("!отмена")
+	if anna.Gold != 600 {
+		t.Fatalf("all the gold comes back: %d", anna.Gold)
+	}
+	if g.Towers[site] != nil || gun.PendingCost != 0 || gun.Level != 1 || wall.repairing {
+		t.Fatal("the site comes down, the upgrade and the mending are called off")
+	}
+	run(g, 30)
+	if g.Workers["anna"] != nil || gun.Level != 1 || wall.HP == wall.MaxHP {
+		t.Fatal("the mercenary goes home and does nothing")
+	}
+	say("!up " + gun.Cell.Name())
+	if gun.PendingCost == 0 {
+		t.Fatal("new orders can be given")
+	}
+}
