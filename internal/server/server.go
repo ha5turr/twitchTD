@@ -122,8 +122,11 @@ func (s *Server) Run(ctx context.Context) {
 			}
 			st := s.game.StateMessage()
 			for _, e := range st.Events {
-				if e.Kind == "reply" {
+				switch e.Kind {
+				case "reply":
 					s.reply.add(e.User, e.Text)
+				case "chatCommand":
+					s.reply.command(e.Text)
 				}
 			}
 			s.broadcast(mustJSON(st))

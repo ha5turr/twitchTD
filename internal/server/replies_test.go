@@ -25,3 +25,15 @@ func TestReplierBatchesAndDedupes(t *testing.T) {
 		t.Fatalf("long batches must split: first %d bytes", len(first))
 	}
 }
+
+func TestReplierSendsCommandsAlone(t *testing.T) {
+	r := newReplier(nil)
+	r.add("a", "нужно 50 золота")
+	r.command("!mute")
+	r.add("b", "клетка занята")
+	for _, want := range []string{"@a нужно 50 золота", "!mute", "@b клетка занята", ""} {
+		if got := r.next(); got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	}
+}
