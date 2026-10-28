@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
+	"strings"
 	"testing"
 
 	"twitchtd/internal/store"
@@ -52,6 +55,52 @@ func TestSettingsOverridesAndValidation(t *testing.T) {
 	}
 	if v := again.View(); v["towerLimit"] != float64(7) || v["webcamFrom"] != "N1" {
 		t.Fatalf("view %v", v)
+	}
+}
+
+// Every field the panel's settings form shows must be editable here, or the
+// panel's save is refused as a whole.
+func TestPanelFieldsEditable(t *testing.T) {
+	js, err := os.ReadFile(filepath.Join("..", "..", "web", "static", "js", "panel.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(js)
+	start := strings.Index(src, "const SETTINGS = [")
+	if start < 0 {
+		t.Fatal("SETTINGS not found in panel.js")
+	}
+	end := strings.Index(src[start:], "\n];")
+	if end < 0 {
+		t.Fatal("SETTINGS is not closed in panel.js")
+	}
+	fields := regexp.MustCompile(`\['(\w+)', '`).FindAllStringSubmatch(src[start:start+end], -1)
+	if len(fields) == 0 {
+		t.Fatal("no fields in SETTINGS")
+	}
+	for _, f := range fields {
+		if !slices.Contains(editable, f[1]) {
+			t.Errorf("panel field %q is not editable", f[1])
+		}
+	}
+}
+
+func TestKingSettings(t *testing.T) {
+	s, err := newSettings(filepath.Join(t.TempDir(), "none.json"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.apply = func(appConfig, map[string]any) {}
+	if err := s.Set(json.RawMessage(`{"kingHpMult": 9, "kingMaskAt": 0.25, "kingIntroSec": 45}`)); err != nil {
+		t.Fatal(err)
+	}
+	if c := s.Current(); c.KingHPMult != 9 || c.KingMaskAt != 0.25 || c.KingIntroSec != 45 {
+		t.Fatalf("king settings %v %v %v", c.KingHPMult, c.KingMaskAt, c.KingIntroSec)
+	}
+	for _, bad := range []string{`{"kingHpMult": 0}`, `{"kingMaskAt": 1.5}`, `{"kingIntroSec": -1}`} {
+		if s.Set(json.RawMessage(bad)) == nil {
+			t.Errorf("%s must be refused", bad)
+		}
 	}
 }
 
