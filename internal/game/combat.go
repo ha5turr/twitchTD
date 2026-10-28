@@ -115,6 +115,7 @@ type Tower struct {
 	drink       float64 // mead: this building hits drink times as hard
 	drinkLeft   float64
 	repairing   bool    // a barricade waits for its mercenary to mend it
+	repairPaid  int     // what that mending cost, for !отмена to give back
 	repairCD    float64 // seconds until the barricade can be mended again
 	holdGold    float64 // gold earned for holding enemies, not paid out yet
 	holdPaid    int     // gold paid for holding during this wave
