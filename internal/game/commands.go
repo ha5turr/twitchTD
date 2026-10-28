@@ -90,6 +90,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdRepair(c, key, args)
 	case "!sell", "!продать":
 		g.cmdSell(c, key, args)
+	case "!отмена", "!отменить", "!cancel":
+		g.cmdCancel(c, key)
 	case "!развеять", "!рз", "!dispel":
 		g.cmdDispel(c, key, args)
 	case "!me", "!я":

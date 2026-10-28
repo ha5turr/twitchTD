@@ -1,6 +1,9 @@
 package game
 
-import "slices"
+import (
+	"fmt"
+	"slices"
+)
 
 // Worker is a chatter's mercenary while it is out of the tavern. It walks
 // from the tavern gate to each ordered cell, builds or upgrades the tower
@@ -54,6 +57,48 @@ func (g *Game) order(owner, name string, cell Pos) {
 	if w.State == WorkerReturn {
 		w.State = WorkerWalk
 	}
+}
+
+// cmdCancel clears a mercenary's orders (!отмена): construction sites it has
+// not finished come down, upgrades and repairs it has not done are called
+// off, and all the gold for them comes back, as if they were never ordered.
+func (g *Game) cmdCancel(c *Chatter, key string) {
+	w := g.Workers[key]
+	if w == nil || len(w.Orders) == 0 {
+		g.reply(c.Name, "у наёмника нет приказов")
+		return
+	}
+	sites, ups, gold := 0, 0, 0
+	for _, p := range slices.Compact(slices.Clone(w.Orders)) {
+		t := g.Towers[p]
+		switch {
+		case t == nil || t.Owner != key:
+		case !t.Built:
+			gold += g.sellTower(t, c.Name) // an unfinished building comes back whole
+			sites++
+		case t.PendingCost > 0:
+			amount := t.PendingCost
+			granted := 0
+			if t.Granted > 0 && t.Invested > 0 {
+				granted = amount * min(t.Granted, t.Invested) / t.Invested
+			}
+			gold += g.refund(t, amount)
+			t.Invested -= amount
+			t.Granted -= granted
+			t.PendingCost, t.PendingUp, t.Progress = 0, 0, 0
+			ups++
+		case t.repairing:
+			gold += g.addGold(c, t.repairPaid)
+			t.repairing, t.repairPaid, t.Progress = false, 0, 0
+			c.GameRepairs--
+			ups++
+		}
+	}
+	w.Orders = nil
+	if w.State == WorkerWalk || w.State == WorkerBuild {
+		w.State = WorkerReturn // home, empty-handed
+	}
+	g.reply(c.Name, fmt.Sprintf("приказы отменены: стройплощадок %d, улучшений и починок %d, вернулось %d золота", sites, ups, gold))
 }
 
 // removeTower deletes a tower and any orders that pointed at it.

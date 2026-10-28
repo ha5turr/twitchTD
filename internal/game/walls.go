@@ -111,6 +111,6 @@ func (g *Game) cmdRepair(c *Chatter, key string, args []string) {
 		t.HP = t.MaxHP
 		return
 	}
-	t.repairing = true
+	t.repairing, t.repairPaid = true, cost
 	g.order(key, c.Name, t.Cell)
 }
