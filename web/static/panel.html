@@ -38,6 +38,10 @@
   .tablewrap { max-height: 320px; overflow: auto; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px 12px; }
   .grid label { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+  #settings { display: grid; gap: 6px; }
+  #settings details { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  #settings summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+  #settings details[open] summary { margin-bottom: 6px; }
   #msg { min-height: 1.4em; color: var(--muted); }
   #msg.err { color: var(--danger); }
   .muted { color: var(--muted); }
@@ -141,7 +145,7 @@
 
   <section>
     <h2>Баланс</h2>
-    <form id="settings" class="grid"></form>
+    <form id="settings"></form>
     <div class="row" style="margin-top:8px">
       <button id="save">Применить</button>
       <span id="msg"></span>

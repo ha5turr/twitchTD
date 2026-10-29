@@ -170,6 +170,7 @@ type Game struct {
 	brokenLinks map[int]bool         // soul links the king tore (crypt)
 	nameWarned  bool                 // the chat was told not to say his name
 	demoDispel  []string             // the -kingdemo players who wipe the signs (kingdemo.go)
+	killbox     *killbox             // the -killbox demo of finals one after another (killbox.go)
 	finalTeam   float64              // players the final was sized for (teamShare)
 	cellDist    []float64            // route distance to the centre of each path cell
 	waveHP      float64              // base enemy HP of the current wave
@@ -342,6 +343,9 @@ func activeWindow(c Config) time.Duration {
 func (g *Game) Tick(dt float64) {
 	if g.Paused {
 		return
+	}
+	if g.killbox != nil {
+		g.tickKillbox(dt)
 	}
 	g.soberUp(dt)
 	g.tickDrinks(dt)

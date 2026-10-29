@@ -66,17 +66,17 @@ func TestPanelFieldsEditable(t *testing.T) {
 		t.Fatal(err)
 	}
 	src := string(js)
-	start := strings.Index(src, "const SETTINGS = [")
+	start := strings.Index(src, "const SETTING_GROUPS = [")
 	if start < 0 {
-		t.Fatal("SETTINGS not found in panel.js")
+		t.Fatal("SETTING_GROUPS not found in panel.js")
 	}
 	end := strings.Index(src[start:], "\n];")
 	if end < 0 {
-		t.Fatal("SETTINGS is not closed in panel.js")
+		t.Fatal("SETTING_GROUPS is not closed in panel.js")
 	}
 	fields := regexp.MustCompile(`\['(\w+)', '`).FindAllStringSubmatch(src[start:start+end], -1)
 	if len(fields) == 0 {
-		t.Fatal("no fields in SETTINGS")
+		t.Fatal("no fields in SETTING_GROUPS")
 	}
 	for _, f := range fields {
 		if !slices.Contains(editable, f[1]) {
