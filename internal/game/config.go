@@ -425,7 +425,7 @@ func DefaultConfig() Config {
 		WallsHP:              1000,
 		GateDPS:              12,
 		StartGold:            120,
-		WalletCap:            1000,
+		WalletCap:            1500,
 		KeepTreasury:         true,
 		TowerLimit:           5,
 		TowerLimitMax:        10,
