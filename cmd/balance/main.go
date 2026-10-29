@@ -5,6 +5,7 @@
 //
 //	go run ./cmd/balance -games 60
 //	go run ./cmd/balance -config configs/candidate.json
+//	go run ./cmd/balance -king -games 12   (the final alone, see king.go)
 package main
 
 import (
@@ -26,6 +27,9 @@ func main() {
 	cfgPath := flag.String("config", "", "balance overrides (same format as config.json)")
 	biomeFlag := flag.String("biome", "", "play every game in this biome (ruins, dungeon, crypt, ice, swamp, river)")
 	readyFlag := flag.Bool("ready", false, "bots vote !готов once they have nothing to spend, cutting build phases short")
+	kingFlag := flag.Bool("king", false, "play only the final against the King in Yellow, a -team of artifact builders, -games per biome")
+	teamFlag := flag.String("team", "rogue,ranger,mage,pyro,warrior", "-king: one player of each of these classes")
+	trapsFlag := flag.String("traps", "art", "-king: the rogue's traps are art (artifacts), plain (level 5) or none")
 	flag.Parse()
 	biome = game.Biome(*biomeFlag)
 	hurry = *readyFlag
@@ -41,6 +45,12 @@ func main() {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
+	}
+
+	if *kingFlag {
+		trapMode = *trapsFlag
+		runKing(cfg, *games, strings.Split(*teamFlag, ","))
+		return
 	}
 
 	fmt.Println("чатерсов | волн пережито: p10 / медиана / p90 | длительность, мин: медиана | построек в конце, ср. уровень | дошли до финала | победы")

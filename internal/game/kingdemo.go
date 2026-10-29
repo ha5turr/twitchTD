@@ -88,6 +88,19 @@ func (g *Game) KingDemoTeam(biome Biome, classes []string) {
 	for _, p := range altars {
 		taken[p] = true
 	}
+	// Traps go on the path, spread along it, clear of the barricades' cells.
+	walls := map[Pos]bool{}
+	for i := 0; i < limit; i++ {
+		walls[path[len(path)/3+i*(len(path)*2/3-2)/limit]] = true
+	}
+	trapAt := func(i int) Pos {
+		for j := 3 + i*(len(path)-6)/limit; j < len(path)-2; j++ {
+			if p := path[j]; !walls[p] && g.Towers[p] == nil {
+				return p
+			}
+		}
+		return Pos{-1, -1}
+	}
 	k := 0
 	for i := 0; i < limit; i++ {
 		for _, p := range party {
@@ -97,6 +110,8 @@ func (g *Game) KingDemoTeam(biome Biome, classes []string) {
 			switch {
 			case g.Cfg.Towers[spec.Tower].Role == RoleWall:
 				at = path[len(path)/3+i*(len(path)*2/3-2)/limit] // across the path's second half
+			case g.Cfg.Towers[spec.Tower].Role == RoleTrap:
+				at = trapAt(i)
 			case spec.Tower == "curse" && i < len(altars):
 				at = altars[i]
 			default:
