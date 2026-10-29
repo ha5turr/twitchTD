@@ -180,3 +180,77 @@ func TestKingThroughAnyBarricade(t *testing.T) {
 		t.Fatalf("he is through it in %.0f s", g.Cfg.KingWallSec)
 	}
 }
+
+func TestMoreSignsEveryAct(t *testing.T) {
+	g, k := actsGame(t)
+	nearKing(g, k, freeCell(t, g))
+	for y := 0; y < GridH; y++ {
+		for x := 0; x < GridW; x++ {
+			if p := (Pos{x, y}); g.Map.Grid.At(p) == CellBuild && center(p).sub(k.Pos).len() < 3 {
+				placeAs(g, StreamerName, "arrow", p) // shooters all round him
+			}
+		}
+	}
+	k.kingAct = 1
+	k.phase = 1
+	k.signCD = 0.01
+	run(g, 0.05)
+	if len(g.signs) != 1+g.Cfg.KingSignPerAct {
+		t.Fatalf("in his second act %d signs at once, got %d", 1+g.Cfg.KingSignPerAct, len(g.signs))
+	}
+}
+
+func TestSongHoldsArtifacts(t *testing.T) {
+	g, _ := actsGame(t)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	g.Chatters["anna"].Class = "ranger"
+	gun := placeAs(g, "anna", "arrow", freeCell(t, g))
+	gun.Level = g.Cfg.Towers["arrow"].MaxLevel + 1
+	full := g.levelMult(gun)
+	if !g.artifact(gun) {
+		t.Fatal("an artifact")
+	}
+	g.songLeft = 3
+	if g.artifact(gun) || g.levelMult(gun) >= full {
+		t.Fatal("under the song it plays as a level-5 building")
+	}
+	g.songLeft = 0
+	if !g.artifact(gun) {
+		t.Fatal("and is an artifact again after it")
+	}
+}
+
+func TestRetinueHasHisHealth(t *testing.T) {
+	g, k := actsGame(t)
+	g.summonRetinue(k, 2)
+	n := 0
+	for _, e := range g.Enemies {
+		if e.Kind == facelessKind {
+			n++
+			if e.MaxHP < k.MaxHP*g.Cfg.KingRetinueHP*0.99 {
+				t.Fatalf("a faceless one has a share of his health: %.0f of %.0f", e.MaxHP, k.MaxHP)
+			}
+		}
+	}
+	if n != 2 {
+		t.Fatalf("two faceless: %d", n)
+	}
+}
+
+func TestMaskAgainInHisLastAct(t *testing.T) {
+	g, k := actsGame(t)
+	k.kingAct = 1
+	k.HP = k.MaxHP * 0.5 // a quarter of him: the mask comes off
+	run(g, 0.1)
+	if !k.masked {
+		t.Fatal("the mask is off")
+	}
+	run(g, maskSec+1)
+	if g.maskLeft > 0 {
+		t.Fatal("and back on")
+	}
+	run(g, g.Cfg.KingMaskEvery-maskSec-1+1) // just past KingMaskEvery since it first came off
+	if g.maskLeft <= 0 {
+		t.Fatal("in his last act it comes off again")
+	}
+}

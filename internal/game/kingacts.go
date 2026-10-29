@@ -269,3 +269,41 @@ func (g *Game) kingHacks(t *Tower) bool {
 	k := g.king()
 	return k != nil && k.blocked == t && g.Cfg.KingWallSec > 0
 }
+
+// Patch 0.26: his powers grow against a killbox. The Yellow Sign falls on
+// KingSignPerAct more buildings with every act; Cassilda's song turns
+// artifacts into plain level-5 buildings while it plays; his faceless have
+// a share of his own health (KingRetinueHP) instead of a wave's; and in his
+// last act the mask comes off again and again (KingMaskSec every
+// KingMaskEvery seconds).
+
+// songMutes reports whether Cassilda's song holds the artifacts now.
+func (g *Game) songMutes() bool { return g.songLeft > 0 && g.Cfg.KingSongArt }
+
+// summonRetinue calls n faceless, each with a share of the king's health.
+func (g *Game) summonRetinue(king *Enemy, n int) {
+	if g.Cfg.KingRetinueHP <= 0 {
+		g.summon(king, facelessKind, n)
+		return
+	}
+	for i := 0; i < n; i++ {
+		e := g.spawnEnemy(facelessKind, king.MaxHP*g.Cfg.KingRetinueHP, max(0, king.Dist-0.3-0.25*float64(i)))
+		e.summoned = true
+	}
+}
+
+// tickMaskAgain takes the mask off again and again in his last act.
+func (g *Game) tickMaskAgain(e *Enemy, dt float64) {
+	if !e.masked || e.kingAct < g.kingActs()-1 || g.Cfg.KingMaskEvery <= 0 {
+		return
+	}
+	if e.maskCD == 0 {
+		e.maskCD = g.Cfg.KingMaskEvery // counted from the first time it came off
+	}
+	if e.maskCD -= dt; e.maskCD > 0 {
+		return
+	}
+	e.maskCD = g.Cfg.KingMaskEvery
+	g.maskLeft = max(g.maskLeft, g.Cfg.KingMaskSec)
+	g.emit(Event{Kind: "maskAgain", X: e.Pos.X, Y: e.Pos.Y, Amount: int(math.Ceil(g.Cfg.KingMaskSec))})
+}

@@ -79,6 +79,7 @@ type Enemy struct {
 	cloakCD   float64            // seconds until it opens or closes again
 	drawLeft  float64            // seconds he stands drawing a Yellow Sign
 	kingAct   int                // bars of health he has lost: his act is kingAct+1 (kingacts.go)
+	maskCD    float64            // seconds until the mask comes off again (his last act)
 
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
@@ -159,7 +160,11 @@ type Projectile struct {
 
 // levelMult is how much a building's main stat grows with its level.
 func (g *Game) levelMult(t *Tower) float64 {
-	return math.Pow(g.Cfg.Towers[t.Kind].UpgMult, float64(t.Level-1))
+	lvl := t.Level
+	if g.songMutes() {
+		lvl = min(lvl, g.Cfg.Towers[t.Kind].MaxLevel) // an artifact plays as level 5 under the song
+	}
+	return math.Pow(g.Cfg.Towers[t.Kind].UpgMult, float64(lvl-1))
 }
 
 // auraMult is how much an aura grows with its level: +50% per level.

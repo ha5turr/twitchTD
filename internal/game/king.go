@@ -251,7 +251,9 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 	// The sign, all fight long.
 	if e.signCD -= dt; e.signCD <= 0 {
 		e.signCD = g.Cfg.KingSignEvery
-		g.placeSign(e)
+		for i := 0; i <= e.kingAct*max(g.Cfg.KingSignPerAct, 0); i++ {
+			g.placeSign(e) // more of them with every act
+		}
 	}
 	// The phases, by his health across all his acts.
 	share := g.kingShare(e)
@@ -274,7 +276,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		// The faceless come only in the second phase; the song plays on to the end.
 		if e.retinueCD -= dt; e.phase == 2 && e.retinueCD <= 0 {
 			e.retinueCD = retinueEvery
-			g.summon(e, facelessKind, max(1, int(math.Round(retinueN*g.teamShare()))))
+			g.summonRetinue(e, max(1, int(math.Round(retinueN*g.teamShare()))))
 		}
 		if e.songCD -= dt; e.songCD <= 0 {
 			e.songCD = songEvery
@@ -288,6 +290,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		g.emit(Event{Kind: "unmask", X: e.Pos.X, Y: e.Pos.Y})
 		g.reply("", "Маска снята! Свита больше не приходит, но святилища и барабаны ослабляют постройки")
 	}
+	g.tickMaskAgain(e, dt)
 	g.kingBiome(e, dt)
 }
 

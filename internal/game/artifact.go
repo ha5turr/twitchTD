@@ -62,6 +62,9 @@ func (g *Game) maxLevel(t *Tower) int {
 // only while it is its owner's class building, so no class change, a
 // restart or the panel lends a second class's artifacts.
 func (g *Game) artifact(t *Tower) bool {
+	if g.songMutes() {
+		return false // Cassilda.s song: artifacts are plain buildings while it plays
+	}
 	return t.Level > g.Cfg.Towers[t.Kind].MaxLevel && g.classBonus(t.Owner, t.Kind) > 1
 }
 

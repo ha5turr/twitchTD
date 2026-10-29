@@ -75,6 +75,15 @@ type Config struct {
 	// KingWallSec: the king hacks through any barricade in at most this long,
 	// and one he is hacking at cannot be mended (0: as any boss).
 	KingWallSec float64 `json:"kingWallSec"`
+	// 0.26: KingSignPerAct more signs at a time with every act; KingSongArt
+	// makes the song hold artifacts; KingRetinueHP is a faceless one.s health
+	// in shares of his (0: as summons); the mask comes off for KingMaskSec
+	// every KingMaskEvery seconds in his last act (0: once).
+	KingSignPerAct int     `json:"kingSignPerAct"`
+	KingSongArt    bool    `json:"kingSongArt"`
+	KingRetinueHP  float64 `json:"kingRetinueHp"`
+	KingMaskEvery  float64 `json:"kingMaskEvery"`
+	KingMaskSec    float64 `json:"kingMaskSec"`
 	// His cloak breathes: KingGuardSec nothing holds him, then for
 	// KingOpenSec nets, slows and stuns take (0: never open).
 	KingGuardSec float64 `json:"kingGuardSec"`
@@ -696,7 +705,7 @@ func DefaultConfig() Config {
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
 		KingIntroSec:   60,  // a cap: the overlay ends the scene when its lines are said
-		KingHPMult:     0.6, // a bar for each act: the killbox demo wins about 58% of its finals
+		KingHPMult:     0.5, // a bar for each act: the killbox demo wins about 64% of its finals
 		KingSignEvery:  20,
 		KingSignSec:    25,
 		KingMaskAt:     0.3,
@@ -708,6 +717,11 @@ func DefaultConfig() Config {
 		KingMoveSec:    6,
 		KingMoveCost:   100,
 		KingWallSec:    5,
+		KingSignPerAct: 1,
+		KingSongArt:    true,
+		KingRetinueHP:  0.025,
+		KingMaskEvery:  35,
+		KingMaskSec:    12,
 		KingGuardSec:   8,
 		KingOpenSec:    7,
 		KingSignPause:  2,

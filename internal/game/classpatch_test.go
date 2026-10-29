@@ -115,9 +115,14 @@ func TestBearShovesBackFromTheDoor(t *testing.T) {
 	boss := g.spawnBoss("lich", 1e6)
 	boss.ability = 1e9
 	boss.Dist, boss.AtGate = g.total, true
+	mob := enemyAt(g, "skeleton", len(g.Map.Path)-1, 1e6)
+	mob.Dist, mob.AtGate = g.total, true
 	g.bearForm("anna", c)
-	if boss.AtGate || boss.Dist > g.total-1.1 {
-		t.Fatalf("at the door the bear shoves even a boss back a cell: dist %.2f of %.2f", boss.Dist, g.total)
+	if mob.AtGate || mob.Dist > g.total-1.1 {
+		t.Fatalf("at the door the bear shoves an enemy back a cell: dist %.2f of %.2f", mob.Dist, g.total)
+	}
+	if !boss.AtGate || boss.Dist < g.total {
+		t.Fatal("but not a boss: too heavy")
 	}
 	if b := g.runOf("anna"); b == nil || !b.hold {
 		t.Fatal("and fights there")

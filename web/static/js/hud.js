@@ -464,7 +464,10 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.6, `−1 ур. (${ev.amount})`, 0xff8a6a, FONT_UI, 20);
         break;
       case 'song':
-        this.toasts.push({ text: '🎶 Песнь Кассильды: навыки наёмников сбоят', color: 0xe0c0ff });
+        this.toasts.push({ text: '🎶 Песнь Кассильды: навыки наёмников сбоят, артефакты молчат', color: 0xe0c0ff });
+        break;
+      case 'maskAgain':
+        this.toasts.push({ text: `🎭 Маска снова снята на ${ev.amount} с: святилища и барабаны ослабляют постройки`, color: 0xe0c0ff });
         break;
       case 'unmask':
         this.showBanner('Маска снята', 'третья фаза: свиты больше нет, святилища и барабаны ослабляют постройки', 4);

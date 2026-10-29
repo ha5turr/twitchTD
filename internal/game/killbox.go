@@ -468,7 +468,10 @@ func (g *Game) killboxMend(f *kbFight, m *kbMember, c *Chatter) {
 // few seconds of their own and goes to wipe it.
 func (g *Game) killboxSigns(f *kbFight) {
 	live := map[*Sign]bool{}
-	for _, s := range g.signs {
+	for _, s := range slices.Clone(g.signs) { // a wipe takes the sign out of g.signs
+		if s == nil {
+			continue
+		}
 		live[s] = true
 		r := f.signs[s]
 		if r == nil {
