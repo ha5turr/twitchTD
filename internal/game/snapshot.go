@@ -75,8 +75,10 @@ type StateMsg struct {
 	GateFires []GateFireView `json:"gateFires,omitempty"` // pyromancers' braziers on the tavern wall
 	Shield    float64        `json:"shield,omitempty"`    // artifact shrines' shield over the walls
 	ShieldMax float64        `json:"shieldMax,omitempty"`
-	Storms    [][3]float64   `json:"storms,omitempty"` // artifact totems' lightning charges: x, y, share of their time left
-	Links     []LinkView     `json:"links,omitempty"`  // warlocks' soul links, hidden until crossed or shown by !me   // seconds a warlock's blood pact still powers every building
+	Storms    [][3]float64   `json:"storms,omitempty"`   // artifact totems' lightning charges: x, y, share of their time left
+	Links     []LinkView     `json:"links,omitempty"`    // warlocks' soul links, hidden until crossed or shown by !me   // seconds a warlock's blood pact still powers every building
+	Burned    [][2]int       `json:"burned,omitempty"`   // ground the King in Yellow burned when he fell
+	KingRest  float64        `json:"kingRest,omitempty"` // seconds of his interlude left, before his next act
 }
 
 type EnemyView struct {
@@ -125,6 +127,8 @@ type TowerView struct {
 	War      bool    `json:"war,omitempty"`   // powered by an artifact drum's war beat
 	Flood    bool    `json:"flood,omitempty"` // under the leviathan's tide
 	Sign     bool    `json:"sign,omitempty"`  // under a Yellow Sign
+	Carry    bool    `json:"carry,omitempty"` // being carried elsewhere by its mercenary
+	Burnt    bool    `json:"burnt,omitempty"` // on burnt ground: silent till the King.s next act ends
 }
 
 type WorkerView struct {
@@ -213,6 +217,8 @@ func (g *Game) StateMessage() StateMsg {
 		s.Towers = append(s.Towers, TowerView{
 			t.ID, t.Kind, t.Cell.X, t.Cell.Y, t.Level, name, t.Built, round2(t.Progress),
 			math.Ceil(t.HP), math.Ceil(t.MaxHP), t.Charges, t.Disabled > 0, t.hexLeft > 0, g.artifact(t), t.Ammo, t.warLeft > 0, t.floodLeft > 0, g.signOn(t) != nil,
+			t.moveTo != nil || t.packed,
+			g.burned[t.Cell],
 		})
 	}
 	sort.Slice(s.Towers, func(i, j int) bool { return s.Towers[i].ID < s.Towers[j].ID })
@@ -271,6 +277,10 @@ func (g *Game) StateMessage() StateMsg {
 			name = c.Name
 		}
 		s.Links = append(s.Links, LinkView{l.ID, name, [4]float64{l.A.X, l.A.Y, l.B.X, l.B.Y}})
+	}
+	s.Burned = g.burnedCells()
+	if g.kingRest != nil {
+		s.KingRest = math.Ceil(g.restLeft)
 	}
 	if g.Phase == PhaseGameOver {
 		s.Summary = g.summary

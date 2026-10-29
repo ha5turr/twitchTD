@@ -13,6 +13,7 @@ func kingGame(t *testing.T, biome Biome) (*Game, *Enemy) {
 	g.NewGame(biome)
 	g.Phase = PhaseWave
 	g.Cfg.EnemyRegen = 0
+	g.Cfg.KingActs = 1 // one bar: the acts have their own tests (kingacts_test.go)
 	k := g.spawnBoss(kingKind, 100000)
 	return g, k
 }

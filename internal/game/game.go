@@ -171,6 +171,10 @@ type Game struct {
 	nameWarned  bool                 // the chat was told not to say his name
 	demoDispel  []string             // the -kingdemo players who wipe the signs (kingdemo.go)
 	killbox     *killbox             // the -killbox demo of finals one after another (killbox.go)
+	kingRest    *Enemy               // the King in Yellow between his acts, off the field (kingacts.go)
+	restLeft    float64              // seconds of that interlude left
+	burned      map[Pos]bool         // ground he burned when he fell: buildings on it are silent
+	strikeKey   int                  // the wave (and act) the rain of arrows last fell in, plus one
 	finalTeam   float64              // players the final was sized for (teamShare)
 	cellDist    []float64            // route distance to the centre of each path cell
 	waveHP      float64              // base enemy HP of the current wave
@@ -379,7 +383,7 @@ func (g *Game) Tick(dt float64) {
 			g.tickSpawns(dt)
 		}
 		g.tickSigns(dt)
-		if len(g.queue) == 0 && len(g.Enemies) == 0 {
+		if len(g.queue) == 0 && len(g.Enemies) == 0 && g.kingRest == nil {
 			g.endWave()
 		}
 	}
@@ -387,6 +391,7 @@ func (g *Game) Tick(dt float64) {
 	g.tickDruids(dt)
 	g.tickHeroes(dt)
 	g.tickWorkers(dt)
+	g.tickKingActs(dt)
 	g.tickTowers(dt)
 	g.tickGateFires(dt)
 	g.tickStorms(dt)

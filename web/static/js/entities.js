@@ -52,6 +52,14 @@ export class Entities {
 
   update(state) {
     sync(this.enemies, state.enemies, (e) => new EnemyView(e, this), (v, e) => v.set(e));
+    // A building carried to another cell (!перенести) is drawn anew there.
+    for (const t of state.towers) {
+      const v = this.towers.get(t.id);
+      if (v && (v.x !== t.x || v.y !== t.y)) {
+        v.destroy();
+        this.towers.delete(t.id);
+      }
+    }
     sync(this.towers, state.towers, (t) => new TowerView(t, this), (v, t) => v.set(t));
     sync(this.proj, state.proj, (p) => new ProjView(p, this), (v, p) => v.set(p));
     // A mercenary resting after a scare is back inside: it sits in the tavern,
@@ -364,6 +372,8 @@ class TowerView {
   constructor(t, layer) {
     this.kind = t.kind;
     this.owner = t.owner;
+    this.x = t.x;
+    this.y = t.y;
     const p = toPx(t.x, t.y);
     this.cx = p.x + CELL / 2;
     this.cy = p.y + CELL / 2;
@@ -450,6 +460,8 @@ class TowerView {
     this.hex = !!t.hex;
     this.flood = !!t.flood;
     this.signed = !!t.sign;
+    this.burnt = !!t.burnt; // on ground the King in Yellow burned
+    this.carry = !!t.carry; // being carried elsewhere by its mercenary
     // One bar above the cell: construction progress, or a barricade's health.
     const key = `${t.progress ?? 0}|${t.hp ?? 0}`;
     if (key !== this.barKey) {
@@ -499,8 +511,8 @@ class TowerView {
     this.drawGlow(t);
     // A disabled building turns grey, the colour the design keeps for that.
     this.root.tint = this.disabled ? 0x777777 : 0xffffff;
-    this.root.alpha = !this.built ? 0.85 : this.empty ? 0.45 : 1;
-    this.web.visible = this.disabled && !this.hex && !this.flood;
+    this.root.alpha = !this.built ? 0.85 : this.carry ? 0.5 : this.empty ? 0.45 : 1;
+    this.web.visible = this.disabled && !this.hex && !this.flood && !this.burnt && !this.carry; // silenced, not webbed
     // Under the tide the building sinks into the water.
     this.wave.visible = this.flood;
     this.signMark.visible = this.signed;

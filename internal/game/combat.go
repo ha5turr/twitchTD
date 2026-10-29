@@ -78,6 +78,7 @@ type Enemy struct {
 	open      bool               // his cloak is open: nets, slows and stuns take
 	cloakCD   float64            // seconds until it opens or closes again
 	drawLeft  float64            // seconds he stands drawing a Yellow Sign
+	kingAct   int                // bars of health he has lost: his act is kingAct+1 (kingacts.go)
 
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
@@ -128,6 +129,9 @@ type Tower struct {
 	warLeft     float64 // seconds an artifact drum's war beat still powers this building
 	floodLeft   float64 // seconds left under the leviathan's tide
 	heat        float64 // recent damage, fading: the Yellow Sign looks for the deadliest
+	kingDmg     float64 // damage dealt the King in Yellow this act: his fall burns the ground around the most
+	moveTo      *Pos    // carried there by its mercenary (!перенести): taken apart first
+	packed      bool    // carried and waiting to be put up again
 }
 
 type Projectile struct {
@@ -529,7 +533,11 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, blows, dt float64) {
 		e.blocked = nil // sold or already broken
 		return
 	}
-	t.HP -= spec.WallDPS * blows * g.siege(e, dt) * g.cramped(e) * dt
+	hit := spec.WallDPS * blows * g.siege(e, dt) * g.cramped(e) * dt
+	if e.Kind == kingKind && g.Cfg.KingWallSec > 0 {
+		hit = max(hit, t.MaxHP/g.Cfg.KingWallSec*dt) // the King in Yellow is through any barricade in KingWallSec
+	}
+	t.HP -= hit
 	if g.artifact(t) && !(e.Kind == kingKind && !e.open) { // the King in Yellow's whole cloak turns them
 		g.damage(e, g.skillHP()*g.Cfg.WallSpikeDPS*dt, t.Owner, false) // its spikes
 	}
@@ -829,6 +837,9 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 			}
 			e.hurtBy[owner] += min(dmg, e.HP)
 		}
+	}
+	if g.kingFalls(e, dmg) {
+		return // not yet: he falls and rises for his next act
 	}
 	e.HP -= dmg
 	if e.HP > 0 {

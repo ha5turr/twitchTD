@@ -86,6 +86,9 @@ func (g *Game) cmdRepair(c *Chatter, key string, args []string) {
 	case t.HP >= t.MaxHP:
 		g.reply(c.Name, t.Cell.Name()+": баррикада цела")
 		return
+	case g.kingHacks(t):
+		g.reply(c.Name, t.Cell.Name()+": её рубит Король, чинить поздно")
+		return
 	}
 	streamer := g.isStreamer(key)
 	if !streamer && t.repairCD > 0 {

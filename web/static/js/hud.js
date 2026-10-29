@@ -147,6 +147,8 @@ export class Hud {
     this.shieldMax = st.shieldMax ?? 0;
     this.storms = st.storms ?? [];
     this.links = st.links ?? [];
+    this.burned = st.burned ?? [];
+    this.kingRest = st.kingRest ?? 0;
     for (const ev of st.events ?? []) {
       if (ev.kind === 'soulLink') this.linkShow.set(ev.amount, LINK_FLASH);
       if (ev.kind === 'card') this.linkOwners.set(ev.user, LINK_ME_SEC);
@@ -431,6 +433,19 @@ export class Hud {
       case 'kingPhase':
         if (ev.amount === 2) this.showBanner('Король в Жёлтом', 'вторая фаза: свита безликих', 3);
         break;
+      case 'kingFall':
+        this.showBanner('Король пал…', `акт  скоро. Выжженная земля глушит постройки: !перенести C4 H7`, 5);
+        break;
+      case 'kingRise':
+        this.showBanner('Король в Жёлтом', `акт `, 3);
+        break;
+      case 'carry':
+        this.floatAt(ev.x, ev.y - 0.6, `разбирают → `, 0xffe0a0, FONT_UI, 18);
+        break;
+      case 'carried':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
+        this.floatAt(ev.x, ev.y - 0.6, 'собрано!', 0xb0ff8a, FONT_UI, 18);
+        break;
       case 'sign':
         this.floatAt(ev.x, ev.y - 0.7, 'Жёлтый знак!', 0xffd23a, FONT_UI, 24);
         this.toasts.push({ text: `👁 Жёлтый знак на ${ev.text}! Развеять: !рз ${ev.text}`, color: 0xffd23a });
@@ -654,6 +669,12 @@ export class Hud {
       this.blasts.rect(LEFT, TOP, COLS * CELL, ROWS * CELL).fill({ color: 0x8a3aff, alpha: 0.18 * Math.max(0, this.curseFlash / 0.6) });
     }
     this.drawStorms();
+    // Burnt ground where the King in Yellow fell: embers glow over the cells
+    // whose buildings stay silent till his next act ends.
+    for (const [x, y] of this.burned ?? []) {
+      const glow = 0.18 + 0.08 * Math.sin(this.t * 3 + x * 1.7 + y * 2.3);
+      this.blasts.rect(LEFT + x * CELL, TOP + y * CELL, CELL, CELL).fill({ color: 0x1a0800, alpha: 0.45 }).stroke({ width: 2, color: 0xff6a1a, alpha: glow });
+    }
     // Warlocks' soul links stay hidden: a faint violet thread shows for a
     // moment when an enemy crosses one, and all of a warlock's while his !me
     // card is up. No bright core, so a web of them never glares.

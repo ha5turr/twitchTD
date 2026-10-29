@@ -302,7 +302,7 @@ type SoulLink struct {
 func (g *Game) soulLinks() []SoulLink {
 	byOwner := map[string][]*Tower{}
 	for _, t := range g.Towers {
-		if t.Kind == "curse" && t.Built && g.artifact(t) {
+		if t.Kind == "curse" && t.Built && g.artifact(t) && !g.burned[t.Cell] && t.moveTo == nil && !t.packed {
 			byOwner[t.Owner] = append(byOwner[t.Owner], t)
 		}
 	}

@@ -1,6 +1,7 @@
 package game
 
 import (
+	"cmp"
 	"fmt"
 	"math"
 	"slices"
@@ -71,7 +72,9 @@ type kbFight struct {
 	strikes int
 	rounds  int
 	repairs int
-	wallFix float64 // clock of the last walls reward
+	wallFix float64   // clock of the last walls reward
+	falls   []float64 // seconds into the fight he fell at the end of each act but the last
+	carries int
 }
 
 type kbMember struct {
@@ -172,13 +175,21 @@ func (g *Game) killboxSetup(biome Biome, team []string, wave int) *kbFight {
 				}
 			}
 		}
-		if n == 0 { // nothing left near the turn: the nearest free cell at all
+		if n == 0 { // nothing left near the turn: the cell that sees most of the rest of the path, the nearest among equals
 			for y := 0; y < GridH; y++ {
 				for x := 0; x < GridW; x++ {
-					if p := (Pos{x, y}); free(p) {
-						if l := center(p).sub(center(path[turn])).len(); l < d {
-							at, d = p, l
+					p := Pos{x, y}
+					if !free(p) {
+						continue
+					}
+					s := 0
+					for _, q := range path {
+						if center(q).sub(center(p)).len() <= r {
+							s++
 						}
+					}
+					if l := center(p).sub(center(path[turn])).len(); s > n || s == n && l < d {
+						at, n, d = p, s, l
 					}
 				}
 			}
@@ -248,7 +259,15 @@ func (g *Game) killboxSetup(biome Biome, team []string, wave int) *kbFight {
 		}
 		return 3
 	}
-	slices.SortStableFunc(orders, func(a, b kbOrder) int { return rank(a) - rank(b) })
+	// Within a rank the shorter reach goes first and takes the cells nearest
+	// the turn: a brazier must stand close, a ballista reaches from further.
+	reach := func(o kbOrder) float64 { return g.Cfg.Towers[o.kind].Range }
+	slices.SortStableFunc(orders, func(a, b kbOrder) int {
+		if r := rank(a) - rank(b); r != 0 {
+			return r
+		}
+		return cmp.Compare(reach(a), reach(b))
+	})
 	for _, o := range orders {
 		role := g.Cfg.Towers[o.kind].Role
 		if role == RoleWall || role == RoleTrap {
@@ -340,6 +359,13 @@ func (g *Game) tickKillbox(dt float64) {
 			m.chatAt = f.clock + 40 + g.rng.Float64()*30
 		}
 	}
+	if g.kingRest != nil { // between his acts: carry off the burnt ground
+		if len(f.falls) < g.kingRest.kingAct {
+			f.falls = append(f.falls, f.clock-f.start)
+		}
+		g.killboxCarry(f, g.kingRest)
+		return
+	}
 	king := g.king()
 	if king == nil {
 		if f.seen && !f.killed && g.Phase == PhaseWave {
@@ -354,7 +380,8 @@ func (g *Game) tickKillbox(dt float64) {
 			f.members[i].strikeAt = f.clock + 2 + g.rng.Float64()*12
 		}
 	}
-	f.hpLeft = king.HP / king.MaxHP
+	f.hpLeft = g.kingShare(king)
+	g.killboxCarry(f, king)
 	for p := 2; p <= king.phase; p++ {
 		if f.phase[p] < 0 {
 			f.phase[p] = f.clock - f.start
@@ -368,11 +395,12 @@ func (g *Game) tickKillbox(dt float64) {
 			continue
 		}
 		g.killboxDrink(f, m, c)
-		if f.clock >= m.strikeAt {
+		if f.clock >= m.strikeAt && g.strikeKey != g.strikeNow() { // the chat sees whether it fell this act
 			m.strikeAt = f.clock + 30 + g.rng.Float64()*25
 			if t := g.rewardTitle("strike"); t != "" {
-				g.Reward(m.key, m.name, t)
-				f.strikes++
+				if !g.Reward(m.key, m.name, t) {
+					f.strikes++
+				}
 			}
 		}
 		if m.class == "warrior" {
@@ -507,13 +535,17 @@ func (k *killbox) finish(g *Game) {
 		}
 		return fmt.Sprintf("%.0f с", s)
 	}
+	acts := ""
+	for i, s := range f.falls {
+		acts += fmt.Sprintf("акт %d пал на %.0f с; ", i+1, s)
+	}
 	res := "поражение, у Короля " + fmt.Sprintf("%.0f%%", 100*f.hpLeft)
 	if won {
 		res = "победа"
 	}
-	line := fmt.Sprintf("Килбокс #%d (%s, %s): %s за %.0f с; фаза II %s, III %s; стены %.0f%%; выпито %d, дождей %d, знаков %d (стёрто %d), починок %d. Счёт команды: %d/%d",
-		k.run, name, f.biome, res, fight, at(f.phase[2]), at(f.phase[3]), 100*g.Walls/g.Cfg.WallsHP,
-		f.drinks, f.strikes, f.signN, f.wiped, f.repairs, t.wins, t.games)
+	line := fmt.Sprintf("Килбокс #%d (%s, %s): %s за %.0f с; %sфаза II %s, III %s; стены %.0f%%; выпито %d, дождей %d, знаков %d (стёрто %d), починок %d, переносов %d. Счёт команды: %d/%d",
+		k.run, name, f.biome, res, fight, acts, at(f.phase[2]), at(f.phase[3]), 100*g.Walls/g.Cfg.WallsHP,
+		f.drinks, f.strikes, f.signN, f.wiped, f.repairs, f.carries, t.wins, t.games)
 	if len(t.fights) > 0 {
 		s := slices.Clone(t.fights)
 		slices.Sort(s)
@@ -521,4 +553,61 @@ func (k *killbox) finish(g *Game) {
 	}
 	k.report(line)
 	g.reply("", line)
+}
+
+// killboxCarry has every player whose mercenary is free carry their best
+// building off burnt ground to the free cell that sees most of the route
+// still ahead of the king.
+func (g *Game) killboxCarry(f *kbFight, king *Enemy) {
+	if len(g.burned) == 0 {
+		return
+	}
+	for i := range f.members {
+		m := &f.members[i]
+		if g.Workers[m.key] != nil {
+			continue
+		}
+		var from *Tower
+		for _, t := range g.Towers {
+			if t.Owner != m.key || !g.burned[t.Cell] || !t.Built || t.moveTo != nil || t.packed || g.Cfg.Towers[t.Kind].OnPath() {
+				continue
+			}
+			if from == nil || t.Level > from.Level || t.Level == from.Level && t.ID < from.ID {
+				from = t
+			}
+		}
+		if from == nil {
+			continue
+		}
+		r := g.Cfg.Towers[from.Kind].Range
+		if r <= 0 {
+			r = max(g.Cfg.Towers[from.Kind].AuraRange, 1.6)
+		}
+		var to Pos
+		best := 0
+		for y := 0; y < GridH; y++ {
+			for x := 0; x < GridW; x++ {
+				p := Pos{x, y}
+				if g.Map.Grid.At(p) != CellBuild || g.Towers[p] != nil || g.burned[p] || g.carriedTo(p) != nil {
+					continue
+				}
+				n := 0
+				for j, q := range g.Map.Path {
+					if g.cellDist[j] >= king.Dist && center(q).sub(center(p)).len() <= r {
+						n++
+					}
+				}
+				if n > best {
+					to, best = p, n
+				}
+			}
+		}
+		if best == 0 {
+			continue
+		}
+		g.HandleChat(ChatMessage{User: m.name, Text: "!перенести " + from.Cell.Name() + " " + to.Name()})
+		if from.moveTo != nil {
+			f.carries++
+		}
+	}
 }

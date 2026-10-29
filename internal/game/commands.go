@@ -94,6 +94,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdCancel(c, key)
 	case "!развеять", "!рз", "!dispel":
 		g.cmdDispel(c, key, args)
+	case "!перенести", "!перенос", "!move":
+		g.cmdMove(c, key, args)
 	case "!me", "!я":
 		cl, _ := classByKey(c.Class)
 		grant := ""
@@ -230,7 +232,7 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	case !spec.OnPath() && g.Map.Grid.At(p) != CellBuild:
 		g.reply(c.Name, p.Name()+": здесь строить нельзя")
 		return
-	case g.Towers[p] != nil:
+	case g.Towers[p] != nil || g.carriedTo(p) != nil:
 		g.reply(c.Name, p.Name()+": клетка занята")
 		return
 	case kind == clownKind && g.clownsOf(key) > 0:

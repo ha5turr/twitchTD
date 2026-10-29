@@ -93,6 +93,14 @@ func (g *Game) Reward(login, display, title string) (refused bool) {
 	if r == nil {
 		return false // someone else's reward, not ours
 	}
+	if r.Action == "strike" && g.strikeKey == g.strikeNow() {
+		when := "на этой волне"
+		if g.kingNow() != nil {
+			when = "в этом акте"
+		}
+		g.reply(display, fmt.Sprintf("«%s» уже был %s, баллы вернутся.", r.Title, when))
+		return true
+	}
 	if r.PerUser > 0 {
 		key := strings.ToLower(r.Title) + "|" + strings.ToLower(login)
 		if g.RewardUses[key] >= r.PerUser {
@@ -119,6 +127,7 @@ func (g *Game) Reward(login, display, title string) (refused bool) {
 		g.Walls = min(g.Cfg.WallsHP, g.Walls+float64(r.Amount))
 		ev.Amount = r.Amount
 	case "strike":
+		g.strikeKey = g.strikeNow() // once a wave, in the final once an act
 		// A volley from the sky: a share of every enemy's max HP, a fifth
 		// of that for bosses so a reward never skips a boss fight.
 		share := float64(r.Amount) / 100

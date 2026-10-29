@@ -253,8 +253,8 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		e.signCD = g.Cfg.KingSignEvery
 		g.placeSign(e)
 	}
-	// The phases.
-	share := e.HP / e.MaxHP
+	// The phases, by his health across all his acts.
+	share := g.kingShare(e)
 	phase := 1
 	if share <= g.Cfg.KingMaskAt {
 		phase = 3
@@ -263,7 +263,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 	}
 	for e.phase < phase {
 		e.phase++
-		e.Title = fmt.Sprintf("%s · %s", g.Cfg.Enemies[kingKind].Name, []string{"", "I", "II", "III"}[e.phase])
+		e.Title = g.kingTitle(e)
 		g.emit(Event{Kind: "kingPhase", Amount: e.phase, X: e.Pos.X, Y: e.Pos.Y})
 		if e.phase == 2 {
 			e.retinueCD, e.songCD = 0, songEvery/2
@@ -455,6 +455,7 @@ func (g *Game) signHeal(t *Tower, dmg float64) {
 func (t *Tower) warm(dmg float64, e *Enemy) {
 	t.heat += dmg
 	if e != nil && e.Kind == kingKind {
+		t.kingDmg += dmg
 		if e.hurtByKind == nil {
 			e.hurtByKind = map[string]float64{}
 		}
@@ -508,6 +509,7 @@ func (g *Game) clearKing() {
 	g.maskLeft, g.songLeft, g.introLeft = 0, 0, 0
 	g.signSupport = false
 	g.brokenLinks = nil
+	g.kingRest, g.restLeft, g.burned, g.strikeKey = nil, 0, nil, 0
 }
 
 // kingCut is what the king's torn cloak and his retinue leave of a hit.

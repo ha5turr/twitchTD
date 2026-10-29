@@ -174,6 +174,11 @@ export class KingScene {
           this.say(FIGHT.fall, true);
         }
         break;
+      case 'kingFall': // he falls between his acts: the same words, and he will rise
+        this.fx.clear();
+        this.stopVoice();
+        this.say(FIGHT.fall, true);
+        break;
       case 'victory':
         this.endMusic(6); // the theme fades after his last words
         break;

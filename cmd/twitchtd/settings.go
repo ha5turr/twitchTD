@@ -17,7 +17,7 @@ import (
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
 	"towerLimit", "towerLimitMax", "smallTeamBonus", "smallRewardSize", "smallWaveMult", "smallKillMult", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "shrineLimit", "shrineLimitCleric", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
-	"donationGoldPerRub", "buildPhaseSec", "matchMinutes", "finalWave", "finalBossMult", "kingHpMult", "kingMaskAt", "kingIntroSec", "tempoGoldPerSec", "tempoGoldMax", "gameOverSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
+	"donationGoldPerRub", "buildPhaseSec", "matchMinutes", "finalWave", "finalBossMult", "kingHpMult", "kingMaskAt", "kingIntroSec", "kingActs", "kingAntractSec", "kingBurnRadius", "kingMoveSec", "kingMoveCost", "kingWallSec", "tempoGoldPerSec", "tempoGoldMax", "gameOverSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
 
