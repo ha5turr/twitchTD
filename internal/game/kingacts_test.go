@@ -254,3 +254,15 @@ func TestMaskAgainInHisLastAct(t *testing.T) {
 		t.Fatal("in his last act it comes off again")
 	}
 }
+
+func TestBearShovesTheKingFromTheDoor(t *testing.T) {
+	g, k := actsGame(t)
+	g.HandleChat(ChatMessage{User: "anna", Text: "!play"})
+	c := g.Chatters["anna"]
+	c.Class = "druid"
+	k.Dist, k.AtGate = g.total, true
+	g.bearForm("anna", c)
+	if k.AtGate || k.Dist > g.total-1.1 {
+		t.Fatalf("the bear shoves even the King back from the door: dist %.2f of %.2f", k.Dist, g.total)
+	}
+}
