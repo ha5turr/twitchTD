@@ -43,6 +43,9 @@ func (g *Game) tickMatch(dt float64) {
 			g.reply("", fmt.Sprintf("до финала %s", minutesLeft(int(m))))
 		}
 	}
+	if s := g.Cfg.KingVoteMin * 60; before > s && left <= s {
+		g.announceActs() // the vote opens in a build phase: call to it now
+	}
 	if left > 0 || g.finalDue {
 		return
 	}
@@ -109,10 +112,14 @@ func (g *Game) teamShare() float64 {
 	return min(1, n/g.Cfg.FinalTeamSize)
 }
 
-// kingTeamMult scales the king's health to the team: its share to the
-// power KingTeamPow, a full team's at most.
+// kingTeamMult scales the king's health to the team: its share of
+// FinalTeamSize to the power KingTeamPow, and above a full team to the
+// power KingTeamPowUp.
 func (g *Game) kingTeamMult() float64 {
-	return math.Pow(g.teamShare(), g.Cfg.KingTeamPow)
+	if g.Cfg.FinalTeamSize <= 0 || g.finalTeam <= g.Cfg.FinalTeamSize {
+		return math.Pow(g.teamShare(), g.Cfg.KingTeamPow)
+	}
+	return math.Pow(g.finalTeam/g.Cfg.FinalTeamSize, g.Cfg.KingTeamPowUp)
 }
 
 // cmdReady is a vote to start the wave early: once more than half the
@@ -188,6 +195,9 @@ func (g *Game) endMatch(won bool) {
 		for key, c := range g.Chatters {
 			if key != StreamerName && c.GameDamage > 0 {
 				g.unlock(key, "victory")
+				if g.acts > g.actsAdvice && g.actsAdvice > 0 {
+					g.unlock(key, "king_bold") // the King held for more acts than advised
+				}
 			}
 		}
 		g.emit(Event{Kind: "victory", Amount: g.Wave})

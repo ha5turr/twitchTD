@@ -78,6 +78,8 @@ type Enemy struct {
 	open      bool               // his cloak is open: nets, slows and stuns take
 	cloakCD   float64            // seconds until it opens or closes again
 	drawLeft  float64            // seconds he stands drawing a Yellow Sign
+	kingAct   int                // bars of health he has lost: his act is kingAct+1 (kingacts.go)
+	maskCD    float64            // seconds until the mask comes off again (his last act)
 
 	// ЭссДиЭф (sdf.go).
 	pause      float64 // stands still for a burp or a fart
@@ -128,6 +130,9 @@ type Tower struct {
 	warLeft     float64 // seconds an artifact drum's war beat still powers this building
 	floodLeft   float64 // seconds left under the leviathan's tide
 	heat        float64 // recent damage, fading: the Yellow Sign looks for the deadliest
+	kingDmg     float64 // damage dealt the King in Yellow this act: his fall burns the ground around the most
+	moveTo      *Pos    // carried there by its mercenary (!перенести): taken apart first
+	packed      bool    // carried and waiting to be put up again
 }
 
 type Projectile struct {
@@ -155,7 +160,11 @@ type Projectile struct {
 
 // levelMult is how much a building's main stat grows with its level.
 func (g *Game) levelMult(t *Tower) float64 {
-	return math.Pow(g.Cfg.Towers[t.Kind].UpgMult, float64(t.Level-1))
+	lvl := t.Level
+	if g.songMutes() {
+		lvl = min(lvl, g.Cfg.Towers[t.Kind].MaxLevel) // an artifact plays as level 5 under the song
+	}
+	return math.Pow(g.Cfg.Towers[t.Kind].UpgMult, float64(lvl-1))
 }
 
 // auraMult is how much an aura grows with its level: +50% per level.
@@ -207,6 +216,7 @@ func (g *Game) StartWave() {
 	boss := ""
 	if g.finalDue {
 		g.finalTeam = max(players, 1)
+		g.chooseActs()
 		g.finalQueue(sq)
 		g.spawnTimer = 0
 		g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: "final"})
@@ -264,6 +274,7 @@ func (g *Game) endWave() {
 		cleared.Text = fmtMult(boost) // the banner tells a small party it is paid more
 	}
 	g.emit(cleared)
+	g.announceActs()
 }
 
 // smallBoost is how much more than usual a party of n players earns, for a
@@ -529,7 +540,11 @@ func (g *Game) hackBarricade(e *Enemy, spec EnemySpec, blows, dt float64) {
 		e.blocked = nil // sold or already broken
 		return
 	}
-	t.HP -= spec.WallDPS * blows * g.siege(e, dt) * g.cramped(e) * dt
+	hit := spec.WallDPS * blows * g.siege(e, dt) * g.cramped(e) * dt
+	if e.Kind == kingKind && g.Cfg.KingWallSec > 0 {
+		hit = max(hit, t.MaxHP/g.Cfg.KingWallSec*dt) // the King in Yellow is through any barricade in KingWallSec
+	}
+	t.HP -= hit
 	if g.artifact(t) && !(e.Kind == kingKind && !e.open) { // the King in Yellow's whole cloak turns them
 		g.damage(e, g.skillHP()*g.Cfg.WallSpikeDPS*dt, t.Owner, false) // its spikes
 	}
@@ -829,6 +844,9 @@ func (g *Game) damage(e *Enemy, dmg float64, owner string, ignoreArmor bool) {
 			}
 			e.hurtBy[owner] += min(dmg, e.HP)
 		}
+	}
+	if g.kingFalls(e, dmg) {
+		return // not yet: he falls and rises for his next act
 	}
 	e.HP -= dmg
 	if e.HP > 0 {

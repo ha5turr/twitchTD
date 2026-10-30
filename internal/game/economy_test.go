@@ -41,7 +41,7 @@ func TestDonationLinking(t *testing.T) {
 	}
 	// The cap holds; the rest goes to the treasury.
 	g.Donate(Donation{Name: "Василий", Amount: 100, Currency: "RUB"})
-	if c.Gold != g.Cfg.WalletCap || g.Treasury != 600 {
+	if c.Gold != g.Cfg.WalletCap || g.Treasury != 600+1000-g.Cfg.WalletCap {
 		t.Fatalf("gold %d treasury %d", c.Gold, g.Treasury)
 	}
 }

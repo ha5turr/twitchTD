@@ -69,10 +69,16 @@ func (g *Game) cmdCancel(c *Chatter, key string) {
 		return
 	}
 	sites, ups, gold := 0, 0, 0
+	var carried []Pos
 	for _, p := range slices.Compact(slices.Clone(w.Orders)) {
 		t := g.Towers[p]
 		switch {
 		case t == nil || t.Owner != key:
+		case t.moveTo != nil:
+			t.moveTo = nil // the carry is off, the building stays
+			ups++
+		case t.packed:
+			carried = append(carried, p) // in pieces already: it must go up
 		case !t.Built:
 			gold += g.sellTower(t, c.Name) // an unfinished building comes back whole
 			sites++
@@ -98,6 +104,9 @@ func (g *Game) cmdCancel(c *Chatter, key string) {
 	if w.State == WorkerWalk || w.State == WorkerBuild {
 		w.State = WorkerReturn // home, empty-handed
 	}
+	for _, p := range carried {
+		g.order(key, c.Name, p)
+	}
 	g.reply(c.Name, fmt.Sprintf("приказы отменены: стройплощадок %d, улучшений и починок %d, вернулось %d золота", sites, ups, gold))
 }
 
@@ -115,6 +124,9 @@ func (g *Game) removeTower(t *Tower) {
 
 // needsWork reports whether the tower at cell still has unfinished work.
 func (g *Game) needsWork(cell Pos) *Tower {
+	if t := g.carryWork(cell); t != nil {
+		return t // a building to take apart or put up again
+	}
 	t := g.Towers[cell]
 	if t == nil || (t.Built && t.PendingCost == 0 && !t.repairing) {
 		return nil
@@ -167,7 +179,9 @@ func (g *Game) tickWorkers(dt float64) {
 			}
 			t := g.Towers[w.Orders[0]]
 			total := g.Cfg.BuildTimeSec
-			if t.Built {
+			if g.carryWork(t.Cell) != nil {
+				total = g.Cfg.KingMoveSec
+			} else if t.Built {
 				total = g.Cfg.UpgradeTimeSec * float64(max(t.PendingUp, 1)) // each level takes its time
 			}
 			w.work += dt
@@ -202,6 +216,10 @@ func (g *Game) tickWorkers(dt float64) {
 }
 
 func (g *Game) finish(t *Tower, w *Worker) {
+	if g.carryWork(t.Cell) != nil {
+		g.carryDone(t, w)
+		return
+	}
 	cp := center(t.Cell)
 	t.Progress = 0
 	if t.repairing {

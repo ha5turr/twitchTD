@@ -13,6 +13,7 @@ func kingGame(t *testing.T, biome Biome) (*Game, *Enemy) {
 	g.NewGame(biome)
 	g.Phase = PhaseWave
 	g.Cfg.EnemyRegen = 0
+	g.Cfg.KingActs = 1 // one bar: the acts have their own tests (kingacts_test.go)
 	k := g.spawnBoss(kingKind, 100000)
 	return g, k
 }
@@ -430,7 +431,7 @@ func TestFinalScalesWithTheTeam(t *testing.T) {
 		}
 		g.finalDue = true
 		g.StartWave()
-		return len(g.queue), g.queue[kingIndex(g)].hp
+		return len(g.queue), g.queue[kingIndex(g)].hp * float64(g.kingActs()) // all his bars
 	}
 	duoN, duoHP := size([]string{"anna", "boris"})
 	fullN, fullHP := size([]string{"anna", "boris", "vera", "gleb", "dina"})

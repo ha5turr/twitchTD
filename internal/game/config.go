@@ -52,10 +52,11 @@ type Config struct {
 	// keeps its free, instant building either way.
 	StreamerPlays bool `json:"streamerPlays"`
 	// The King in Yellow (king.go): the scene before the final, his health
-	// in bosses of the final's strength, the Yellow Sign's period and life,
+	// in bosses of the final's strength (all his acts together, as many as
+	// advised; 0.27, before it a bar's), the Yellow Sign's period and life,
 	// and the share of his health at which the mask comes off.
 	KingIntroSec  float64 `json:"kingIntroSec"`
-	KingHPMult    float64 `json:"kingHpMult"`
+	KingHP        float64 `json:"kingHp"`
 	KingSignEvery float64 `json:"kingSignEvery"`
 	KingSignSec   float64 `json:"kingSignSec"`
 	KingMaskAt    float64 `json:"kingMaskAt"`
@@ -64,6 +65,26 @@ type Config struct {
 	// healing, a share of his max HP per second, instead of EnemyRegen.
 	KingCloak float64 `json:"kingCloak"`
 	KingRegen float64 `json:"kingRegen"`
+	// His acts (kingacts.go): bars of health (0: the chat picks, kingvote.go),
+	// the interlude between them, the burnt ground around where he was hurt most, and carrying a
+	// building (!перенести): seconds of work at each end and its price.
+	KingActs       int     `json:"kingActsFixed"`
+	KingAntractSec float64 `json:"kingAntractSec"`
+	KingBurnRadius float64 `json:"kingBurnRadius"`
+	KingMoveSec    float64 `json:"kingMoveSec"`
+	KingMoveCost   int     `json:"kingMoveCost"`
+	// KingWallSec: the king hacks through any barricade in at most this long,
+	// and one he is hacking at cannot be mended (0: as any boss).
+	KingWallSec float64 `json:"kingWallSec"`
+	// 0.26: KingSignPerAct more signs at a time with every act; KingSongArt
+	// makes the song hold artifacts; KingRetinueHP is a faceless one.s health
+	// in shares of his (0: as summons); the mask comes off for KingMaskSec
+	// every KingMaskEvery seconds in his last act (0: once).
+	KingSignPerAct int     `json:"kingSignPerAct"`
+	KingSongArt    bool    `json:"kingSongArt"`
+	KingRetinueHP  float64 `json:"kingRetinueHp"`
+	KingMaskEvery  float64 `json:"kingMaskEvery"`
+	KingMaskSec    float64 `json:"kingMaskSec"`
 	// His cloak breathes: KingGuardSec nothing holds him, then for
 	// KingOpenSec nets, slows and stuns take (0: never open).
 	KingGuardSec float64 `json:"kingGuardSec"`
@@ -79,6 +100,25 @@ type Config struct {
 	FinalTeamSize  float64 `json:"finalTeamSize"`
 	FinalEscortMin float64 `json:"finalEscortMin"`
 	KingTeamPow    float64 `json:"kingTeamPow"`
+	// 0.27: above FinalTeamSize his health grows with the team's share to
+	// the power KingTeamPowUp, close to its size.
+	KingTeamPowUp float64 `json:"kingTeamPowUp"`
+	// 0.27: the chat picks his acts (kingvote.go) when KingActs is 0: one
+	// act per KingActsPer players is advised, KingActsSpread either way may
+	// be picked, never more than KingActsMax. The vote opens KingVoteMin
+	// minutes before the final. A win pays KingActSouls more souls for each
+	// act above the advice (less below). After the first act his powers come
+	// back KingActCD times sooner with every act, down to KingActCDMin.
+	KingActsPer    float64 `json:"kingActsPer"`
+	KingActsSpread int     `json:"kingActsSpread"`
+	KingActsMax    int     `json:"kingActsMax"`
+	KingVoteMin    float64 `json:"kingVoteMin"`
+	KingActSouls   float64 `json:"kingActSouls"`
+	KingActCD      float64 `json:"kingActCd"`
+	KingActCDMin   float64 `json:"kingActCdMin"`
+	// 0.27: his health is split between his acts; acts other than the
+	// advice make all of it (acts/advice) to the power KingActHPPow.
+	KingActHPPow float64 `json:"kingActHpPow"`
 	// TwitchChannelID, the channel's numeric Twitch ID, lets the overlay load
 	// its 7TV, BTTV and FFZ emotes itself for !s lines, on top of those
 	// Streamer.bot resolves.
@@ -425,7 +465,7 @@ func DefaultConfig() Config {
 		WallsHP:              1000,
 		GateDPS:              12,
 		StartGold:            120,
-		WalletCap:            1000,
+		WalletCap:            1500,
 		KeepTreasury:         true,
 		TowerLimit:           5,
 		TowerLimitMax:        10,
@@ -684,19 +724,39 @@ func DefaultConfig() Config {
 				StrikeEvery: 8, StrikeDmg: 2.5, StrikeRadius: 1, StrikeArt: true, UpgMult: 1.48, MaxLevel: 5},
 			"clown": {Name: "Клоун", Role: RoleShooter, Cost: 100, Range: 99, Rate: 1, ProjSpd: 9, Magic: true, Only: "sdf", BossPct: 0.005, UpgMult: 1.35, MaxLevel: 5},
 		},
-		KingIntroSec:   60, // a cap: the overlay ends the scene when its lines are said
-		KingHPMult:     1.2,
+		KingIntroSec:   60,  // a cap: the overlay ends the scene when its lines are said
+		KingHP:         1.0, // all his acts together, split into bars
 		KingSignEvery:  20,
 		KingSignSec:    25,
 		KingMaskAt:     0.3,
 		KingCloak:      0.5,
 		KingRegen:      0,
+		KingActs:       0, // the chat picks them (kingvote.go)
+		KingAntractSec: 15,
+		KingBurnRadius: 2.5,
+		KingMoveSec:    6,
+		KingMoveCost:   100,
+		KingWallSec:    5,
+		KingSignPerAct: 1,
+		KingSongArt:    true,
+		KingRetinueHP:  0.025,
+		KingMaskEvery:  35,
+		KingMaskSec:    12,
 		KingGuardSec:   8,
 		KingOpenSec:    7,
 		KingSignPause:  2,
 		FinalTeamSize:  5,
 		FinalEscortMin: 0.05,
 		KingTeamPow:    1.2,
+		KingTeamPowUp:  0.8,
+		KingActsPer:    2,
+		KingActsSpread: 1,
+		KingActsMax:    10,
+		KingVoteMin:    5,
+		KingActSouls:   0.25,
+		KingActCD:      0.9,
+		KingActCDMin:   0.5,
+		KingActHPPow:   0.5,
 		WebcamFrom:     "N1",
 		WebcamTo:       "P5",
 	}
