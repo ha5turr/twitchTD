@@ -171,11 +171,15 @@ type Game struct {
 	nameWarned  bool                 // the chat was told not to say his name
 	demoDispel  []string             // the -kingdemo players who wipe the signs (kingdemo.go)
 	killbox     *killbox             // the -killbox demo of finals one after another (killbox.go)
+	kbGame      *kbGame              // killbox players for whole games (killboxgame.go, cmd/balance -killbox)
 	kingRest    *Enemy               // the King in Yellow between his acts, off the field (kingacts.go)
 	restLeft    float64              // seconds of that interlude left
 	burned      map[Pos]bool         // ground he burned when he fell: buildings on it are silent
 	strikeKey   int                  // the wave (and act) the rain of arrows last fell in, plus one
 	finalTeam   float64              // players the final was sized for (teamShare)
+	actVotes    map[string]int       // !акты: the acts each player wants, saved (kingvote.go)
+	acts        int                  // the acts the final plays, 0 till it starts
+	actsAdvice  int                  // the acts advised for the team then
 	cellDist    []float64            // route distance to the centre of each path cell
 	waveHP      float64              // base enemy HP of the current wave
 	rushLeft    float64              // seconds of the frost demon's speed-up left
@@ -249,6 +253,7 @@ func (g *Game) NewGame(biome Biome) {
 	g.Dice = nil
 	g.jailVote, g.mapVote = nil, nil
 	g.matchElapsed, g.finalDue, g.finalWave = 0, false, false
+	g.actVotes, g.acts, g.actsAdvice = nil, 0, 0
 	g.ready, g.readyGo, g.tempoSaved = nil, false, 0
 	g.clearKing()
 	if g.muted {

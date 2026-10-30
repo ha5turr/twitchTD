@@ -431,7 +431,7 @@ func TestFinalScalesWithTheTeam(t *testing.T) {
 		}
 		g.finalDue = true
 		g.StartWave()
-		return len(g.queue), g.queue[kingIndex(g)].hp
+		return len(g.queue), g.queue[kingIndex(g)].hp * float64(g.kingActs()) // all his bars
 	}
 	duoN, duoHP := size([]string{"anna", "boris"})
 	fullN, fullHP := size([]string{"anna", "boris", "vera", "gleb", "dina"})

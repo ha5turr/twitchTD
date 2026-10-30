@@ -351,6 +351,13 @@ func (g *Game) tickKillbox(dt float64) {
 		}
 		return
 	}
+	g.killboxFight(f, k.points, dt)
+}
+
+// killboxFight plays the team in the final: they chat, drink, redeem the
+// rewards (with points), wipe the Yellow Signs, mend barricades and carry
+// their buildings off burnt ground.
+func (g *Game) killboxFight(f *kbFight, points bool, dt float64) {
 	f.clock += dt
 	for i := range f.members {
 		m := &f.members[i]
@@ -397,7 +404,7 @@ func (g *Game) tickKillbox(dt float64) {
 		g.killboxDrink(f, m, c)
 		if f.clock >= m.strikeAt && g.strikeKey != g.strikeNow() { // the chat sees whether it fell this act
 			m.strikeAt = f.clock + 30 + g.rng.Float64()*25
-			if t := g.rewardTitle("strike"); t != "" {
+			if t := g.rewardTitle("strike", points); t != "" {
 				if !g.Reward(m.key, m.name, t) {
 					f.strikes++
 				}
@@ -408,14 +415,14 @@ func (g *Game) tickKillbox(dt float64) {
 		}
 	}
 	if f.rounds == 0 && f.clock-f.start > 25 {
-		if t := g.rewardTitle("round"); t != "" {
+		if t := g.rewardTitle("round", points); t != "" {
 			m := f.members[g.rng.IntN(len(f.members))]
 			g.Reward(m.key, m.name, t)
 			f.rounds++
 		}
 	}
 	if g.Walls < 0.4*g.Cfg.WallsHP && f.clock-f.wallFix > 30 {
-		if t := g.rewardTitle("repair"); t != "" {
+		if t := g.rewardTitle("repair", points); t != "" {
 			m := f.members[g.rng.IntN(len(f.members))]
 			g.Reward(m.key, m.name, t)
 			f.wallFix = f.clock
@@ -443,8 +450,11 @@ func (g *Game) killboxDrink(f *kbFight, m *kbMember, c *Chatter) {
 		kind = "эль"
 	}
 	if kind != "" {
+		before := c.Drunk
 		g.HandleChat(ChatMessage{User: m.name, Text: "!выпить " + kind})
-		f.drinks++
+		if c.Drunk > before { // served, not refused
+			f.drinks++
+		}
 	}
 }
 
@@ -500,9 +510,9 @@ func (g *Game) killboxSigns(f *kbFight) {
 }
 
 // rewardTitle is the title of the first channel point reward with this action,
-// "" when there is none or the demo plays without them.
-func (g *Game) rewardTitle(action string) string {
-	if !g.killbox.points {
+// "" when there is none or the players play without points.
+func (g *Game) rewardTitle(action string, points bool) string {
+	if !points {
 		return ""
 	}
 	for _, r := range g.Cfg.Rewards {

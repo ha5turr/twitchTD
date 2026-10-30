@@ -216,6 +216,7 @@ func (g *Game) StartWave() {
 	boss := ""
 	if g.finalDue {
 		g.finalTeam = max(players, 1)
+		g.chooseActs()
 		g.finalQueue(sq)
 		g.spawnTimer = 0
 		g.emit(Event{Kind: "waveStart", Amount: g.Wave, Text: "final"})
@@ -273,6 +274,7 @@ func (g *Game) endWave() {
 		cleared.Text = fmtMult(boost) // the banner tells a small party it is paid more
 	}
 	g.emit(cleared)
+	g.announceActs()
 }
 
 // smallBoost is how much more than usual a party of n players earns, for a

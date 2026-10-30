@@ -67,6 +67,7 @@ type StateMsg struct {
 	JailVote  *JailVoteView  `json:"jailVote,omitempty"`
 	Match     *MatchView     `json:"match,omitempty"`
 	MapVote   *JailVoteView  `json:"mapVote,omitempty"` // Target is the biome's name, "" for a random one
+	ActVote   *ActVoteView   `json:"actVote,omitempty"` // the call to pick the King's acts (kingvote.go)
 	Memes     []*MemeRequest `json:"memes,omitempty"`   // memecoin requests for the panel
 	Panthers  []PantherView  `json:"panthers,omitempty"`
 	Runs      []RunView      `json:"runs,omitempty"`   // charging warriors and shadow-stepping rogues
@@ -240,6 +241,7 @@ func (g *Game) StateMessage() StateMsg {
 	if g.Cfg.MatchMinutes > 0 {
 		s.Match = &MatchView{math.Ceil(g.matchLeft()), g.finalDue || g.finalWave, len(g.ready), g.readyNeed()}
 	}
+	s.ActVote = g.actVoteView()
 	if v := g.mapVote; v != nil {
 		s.MapVote = &JailVoteView{biomeName(v.Biome), v.ByName, math.Ceil(v.left), len(v.yes), len(v.no)}
 	}

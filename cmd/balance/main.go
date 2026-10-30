@@ -30,6 +30,12 @@ func main() {
 	kingFlag := flag.Bool("king", false, "play only the final against the King in Yellow, a -team of artifact builders, -games per biome")
 	teamFlag := flag.String("team", "rogue,ranger,mage,pyro,warrior", "-king: one player of each of these classes")
 	trapsFlag := flag.String("traps", "art", "-king: the rogue's traps are art (artifacts), plain (level 5) or none")
+	killboxFlag := flag.Bool("killbox", false, "play whole games with a team of killbox players (see killbox.go)")
+	pointsFlag := flag.Bool("killboxpoints", true, "-killbox: the players redeem channel point rewards")
+	copiesFlag := flag.Int("killboxx", 2, "-killbox: how many times over each team plays")
+	shrinesFlag := flag.Bool("killboxshrines", false, "-killbox: every player also builds shrines up to their limit")
+	flag.IntVar(&killboxN, "killboxn", 0, "-killbox: players in each team (the first of it, over again as needed) instead of -killboxx fives")
+	flag.IntVar(&killboxVote, "killboxvote", 0, "-killbox: the players vote for the advised King's acts plus this (0: nobody votes, the advice plays)")
 	flag.Parse()
 	biome = game.Biome(*biomeFlag)
 	hurry = *readyFlag
@@ -47,6 +53,10 @@ func main() {
 		}
 	}
 
+	if *killboxFlag {
+		runKillbox(cfg, *games, *copiesFlag, *pointsFlag, *shrinesFlag)
+		return
+	}
 	if *kingFlag {
 		trapMode = *trapsFlag
 		runKing(cfg, *games, strings.Split(*teamFlag, ","))

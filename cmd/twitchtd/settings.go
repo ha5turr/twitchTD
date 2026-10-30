@@ -17,7 +17,7 @@ import (
 // rest (integrations, database) still need config.json and a restart.
 var editable = []string{
 	"towerLimit", "towerLimitMax", "smallTeamBonus", "smallRewardSize", "smallWaveMult", "smallKillMult", "grantFromWave", "grantPct", "passOutMugs", "passOutSec", "shrineAssistPct", "shrineLimit", "shrineLimitCleric", "wallHoldMax", "siegeRageSec", "streamerPlays", "wallRepairCdSec", "walletCap", "keepGold", "keepTreasury", "startGold", "chatGold", "bitsGold", "subGold",
-	"donationGoldPerRub", "buildPhaseSec", "matchMinutes", "finalWave", "finalBossMult", "kingHpMult", "kingMaskAt", "kingIntroSec", "kingActs", "kingAntractSec", "kingBurnRadius", "kingMoveSec", "kingMoveCost", "kingWallSec", "kingSignPerAct", "kingSongArt", "kingRetinueHp", "kingMaskEvery", "kingMaskSec", "tempoGoldPerSec", "tempoGoldMax", "gameOverSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
+	"donationGoldPerRub", "buildPhaseSec", "matchMinutes", "finalWave", "finalBossMult", "kingHp", "kingMaskAt", "kingIntroSec", "kingActsFixed", "kingActsPer", "kingActsSpread", "kingActsMax", "kingVoteMin", "kingActSouls", "kingActCd", "kingActCdMin", "kingActHpPow", "kingTeamPowUp", "kingAntractSec", "kingBurnRadius", "kingMoveSec", "kingMoveCost", "kingWallSec", "kingSignPerAct", "kingSongArt", "kingRetinueHp", "kingMaskEvery", "kingMaskSec", "tempoGoldPerSec", "tempoGoldMax", "gameOverSec", "bossEvery", "sdfChance", "sdfFromWave", "eventChance", "eventFromWave", "pathCurve", "baseHP", "hpGrowth", "chatterHPCoef",
 	"webcamFrom", "webcamTo", "volume", "muted", "ambient", "ambientVolume", "soundGroups",
 }
 
@@ -145,7 +145,7 @@ func validate(cfg appConfig) error {
 		return fmt.Errorf("лимит построек, потолок кошелька, фаза стройки (от 5 с) и частота боссов должны быть положительными")
 	case cfg.MatchMinutes < 0, cfg.FinalWave < 1, cfg.FinalBossMult <= 0, cfg.TempoGoldPerSec < 0, cfg.TempoGoldMax < 0, cfg.GameOverSec < 0:
 		return fmt.Errorf("партия: минуты, награда за темп и автозапуск не могут быть отрицательными, волна финала — от 1, сила боссов — больше 0")
-	case cfg.KingHPMult <= 0, cfg.KingMaskAt < 0, cfg.KingMaskAt > 1, cfg.KingIntroSec < 0:
+	case cfg.KingHP <= 0, cfg.KingMaskAt < 0, cfg.KingMaskAt > 1, cfg.KingIntroSec < 0:
 		return fmt.Errorf("король: ХП больше 0, маска на доле ХП от 0 до 1, сцена не может быть отрицательной")
 	case cfg.TowerLimitMax < 0, cfg.SmallTeamBonus < 0, cfg.WallHoldMax < 0, cfg.SiegeRageSec < 0:
 		return fmt.Errorf("потолок лимита, бонус малой команды, золото за удержание и время до ярости не могут быть отрицательными")

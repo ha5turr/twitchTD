@@ -12,8 +12,9 @@ import (
 //
 //   - His health is KingActs bars. When a bar runs out he falls and leaves
 //     the field for an interlude (KingAntractSec); then he rises a few
-//     cells further along the route with a full bar, and his phases follow
-//     the health of all his bars together.
+//     cells further along the route with a full bar. His phases follow
+//     the health of his first bar; in later acts they are all on at once,
+//     as skills on cooldowns that come back sooner with every act (0.27).
 //   - Where he fell, the ground burns: the cells within KingBurnRadius of
 //     where the buildings hurt him most this act. Buildings on burnt ground
 //     do nothing until the next act ends.
@@ -25,10 +26,23 @@ import (
 //   - The rain of arrows for channel points falls once a wave, in the final
 //     once an act.
 
-const kingStride = 4.0 // cells further along the route he rises after a fall
+// kingStride is how many cells further along the route he rises after a
+// fall with two acts; with more each stride is shorter (0.27), so all of
+// them together grow slowly with his acts: 5.3 cells for 3, 6.4 for 5.
+const kingStride = 4.0
 
-// kingActs is how many bars of health the king has.
-func (g *Game) kingActs() int { return max(1, g.Cfg.KingActs) }
+// kingActs is how many bars of health the king has: as the chat picked
+// (kingvote.go), or KingActs.
+func (g *Game) kingActs() int {
+	if g.acts > 0 {
+		return g.acts
+	}
+	if g.Cfg.KingActs <= 0 && g.Cfg.KingActsPer > 0 {
+		advice, _, _ := g.actsNow()
+		return advice
+	}
+	return max(1, g.Cfg.KingActs)
+}
 
 // kingShare is the share of his health left across all his bars: his
 // phases and the mask follow it.
@@ -51,7 +65,8 @@ func (g *Game) kingFalls(e *Enemy, dmg float64) bool {
 	e.blocked, e.linked, e.traps = nil, nil, nil
 	g.kingRest, g.restLeft = e, g.Cfg.KingAntractSec
 	g.burnGround()
-	e.Dist = max(e.Dist, min(e.Dist+kingStride, g.total-3)) // never back, never at the gate
+	stride := kingStride * 2 / float64(max(2, g.kingActs()))
+	e.Dist = max(e.Dist, min(e.Dist+stride, g.total-3)) // never back, never at the gate
 	e.Pos = g.routePos(e.Dist)
 	g.emit(Event{Kind: "kingFall", X: e.Pos.X, Y: e.Pos.Y, Amount: e.kingAct + 1})
 	g.reply("", fmt.Sprintf("Король пал… но это ещё не конец. Через %d с начнётся акт %d. Земля, где его ранили, выжжена: постройки на ней молчат. Унести постройку: !перенести C4 H7",
@@ -104,10 +119,17 @@ func (g *Game) tickKingActs(dt float64) {
 	}
 	g.kingRest = nil
 	e.dead = false
+	// His skills come back on their cooldowns of the new act: the retinue at
+	// once, the song and the mask in a while.
+	e.retinueCD, e.songCD, e.maskCD = 0, songEvery*g.actCD(e)/2, 0
 	g.Enemies = append(g.Enemies, e)
 	e.Title = g.kingTitle(e)
-	g.emit(Event{Kind: "kingRise", X: e.Pos.X, Y: e.Pos.Y, Amount: e.kingAct + 1})
-	g.reply("", fmt.Sprintf("Король встаёт: акт %d", e.kingAct+1))
+	rise := Event{Kind: "kingRise", X: e.Pos.X, Y: e.Pos.Y, Amount: e.kingAct + 1}
+	if e.kingAct == g.kingActs()-1 {
+		rise.Text = "last"
+	}
+	g.emit(rise)
+	g.reply("", fmt.Sprintf("Король встаёт: акт %d из %d. Свита, песнь и маска приходят чаще", e.kingAct+1, g.kingActs()))
 }
 
 // kingTitle is the king's name on his health bar: his act, if he has more
@@ -116,7 +138,7 @@ func (g *Game) kingTitle(e *Enemy) string {
 	name := g.Cfg.Enemies[kingKind].Name
 	roman := []string{"", "I", "II", "III"}[max(e.phase, 1)]
 	if g.kingActs() > 1 {
-		return fmt.Sprintf("%s · акт %d · %s", name, e.kingAct+1, roman)
+		return fmt.Sprintf("%s · акт %d/%d · %s", name, e.kingAct+1, g.kingActs(), roman)
 	}
 	return fmt.Sprintf("%s · %s", name, roman)
 }
@@ -292,18 +314,20 @@ func (g *Game) summonRetinue(king *Enemy, n int) {
 	}
 }
 
-// tickMaskAgain takes the mask off again and again in his last act.
+// tickMaskAgain takes the mask off again and again from his second act on
+// (in his only act, if he has one), sooner with every act.
 func (g *Game) tickMaskAgain(e *Enemy, dt float64) {
-	if !e.masked || e.kingAct < g.kingActs()-1 || g.Cfg.KingMaskEvery <= 0 {
+	if !e.masked || e.kingAct == 0 && g.kingActs() > 1 || g.Cfg.KingMaskEvery <= 0 {
 		return
 	}
+	every := g.Cfg.KingMaskEvery * g.actCD(e)
 	if e.maskCD == 0 {
-		e.maskCD = g.Cfg.KingMaskEvery // counted from the first time it came off
+		e.maskCD = every // counted from the first time it came off, or from his rise
 	}
 	if e.maskCD -= dt; e.maskCD > 0 {
 		return
 	}
-	e.maskCD = g.Cfg.KingMaskEvery
+	e.maskCD = every
 	g.maskLeft = max(g.maskLeft, g.Cfg.KingMaskSec)
 	g.emit(Event{Kind: "maskAgain", X: e.Pos.X, Y: e.Pos.Y, Amount: int(math.Ceil(g.Cfg.KingMaskSec))})
 }

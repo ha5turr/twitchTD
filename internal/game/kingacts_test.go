@@ -45,23 +45,51 @@ func TestKingFallsAndRises(t *testing.T) {
 	}
 }
 
-func TestKingPhasesSpanHisActs(t *testing.T) {
+func TestKingPhasesInHisFirstAct(t *testing.T) {
 	g, k := actsGame(t)
-	k.HP = k.MaxHP * 0.5
+	k.HP = k.MaxHP * 0.8
 	run(g, 0.1)
 	if k.phase != 1 {
-		t.Fatalf("half his first bar is three quarters of him: phase %d", k.phase)
+		t.Fatalf("80%% of his first bar: phase %d", k.phase)
 	}
-	k.HP = k.MaxHP * 0.35
-	run(g, 0.1)
-	if k.phase != 2 {
-		t.Fatalf("below 70%% of all his health the second phase: %d", k.phase)
-	}
-	k.kingAct = 1
 	k.HP = k.MaxHP * 0.5
 	run(g, 0.1)
+	if k.phase != 2 {
+		t.Fatalf("below 70%% of his first bar the second phase: %d", k.phase)
+	}
+	k.HP = k.MaxHP * 0.25
+	run(g, 0.1)
 	if k.phase != 3 || g.maskLeft <= 0 {
-		t.Fatal("half his last bar is a quarter of him: the mask comes off")
+		t.Fatal("below 30%% of his first bar the mask comes off")
+	}
+}
+
+func TestLaterActsHaveAllHisSkills(t *testing.T) {
+	g, k := actsGame(t)
+	g.Cfg.KingActs = 3
+	k.kingAct = 1
+	run(g, 0.1)
+	if k.phase != 3 || !k.masked {
+		t.Fatalf("his second act opens with all his phases: %d %v", k.phase, k.masked)
+	}
+	faceless := func() int {
+		n := 0
+		for _, e := range g.Enemies {
+			if e.Kind == facelessKind && !e.dead {
+				n++
+			}
+		}
+		return n
+	}
+	if faceless() == 0 {
+		t.Fatal("the retinue comes in later acts too, under the mask")
+	}
+	if cd := g.actCD(k); cd >= 1 || k.retinueCD > retinueEvery*cd {
+		t.Fatalf("and sooner: %.2f %.1f", cd, k.retinueCD)
+	}
+	k.kingAct = 2
+	if g.actCD(k) >= g.Cfg.KingActCD {
+		t.Fatal("sooner still in the third")
 	}
 }
 
@@ -237,10 +265,9 @@ func TestRetinueHasHisHealth(t *testing.T) {
 	}
 }
 
-func TestMaskAgainInHisLastAct(t *testing.T) {
+func TestMaskAgainInLaterActs(t *testing.T) {
 	g, k := actsGame(t)
-	k.kingAct = 1
-	k.HP = k.MaxHP * 0.5 // a quarter of him: the mask comes off
+	k.kingAct = 1 // the mask comes off as he rises
 	run(g, 0.1)
 	if !k.masked {
 		t.Fatal("the mask is off")
@@ -249,9 +276,9 @@ func TestMaskAgainInHisLastAct(t *testing.T) {
 	if g.maskLeft > 0 {
 		t.Fatal("and back on")
 	}
-	run(g, g.Cfg.KingMaskEvery-maskSec-1+1) // just past KingMaskEvery since it first came off
+	run(g, g.Cfg.KingMaskEvery*g.actCD(k)-maskSec-1+1) // just past its cooldown since it first came off
 	if g.maskLeft <= 0 {
-		t.Fatal("in his last act it comes off again")
+		t.Fatal("after his first act it comes off again")
 	}
 }
 

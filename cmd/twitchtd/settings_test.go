@@ -91,13 +91,13 @@ func TestKingSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.apply = func(appConfig, map[string]any) {}
-	if err := s.Set(json.RawMessage(`{"kingHpMult": 9, "kingMaskAt": 0.25, "kingIntroSec": 45}`)); err != nil {
+	if err := s.Set(json.RawMessage(`{"kingHp": 9, "kingMaskAt": 0.25, "kingIntroSec": 45}`)); err != nil {
 		t.Fatal(err)
 	}
-	if c := s.Current(); c.KingHPMult != 9 || c.KingMaskAt != 0.25 || c.KingIntroSec != 45 {
-		t.Fatalf("king settings %v %v %v", c.KingHPMult, c.KingMaskAt, c.KingIntroSec)
+	if c := s.Current(); c.KingHP != 9 || c.KingMaskAt != 0.25 || c.KingIntroSec != 45 {
+		t.Fatalf("king settings %v %v %v", c.KingHP, c.KingMaskAt, c.KingIntroSec)
 	}
-	for _, bad := range []string{`{"kingHpMult": 0}`, `{"kingMaskAt": 1.5}`, `{"kingIntroSec": -1}`} {
+	for _, bad := range []string{`{"kingHp": 0}`, `{"kingMaskAt": 1.5}`, `{"kingIntroSec": -1}`} {
 		if s.Set(json.RawMessage(bad)) == nil {
 			t.Errorf("%s must be refused", bad)
 		}

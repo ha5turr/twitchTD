@@ -135,6 +135,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdJail(c, key, args)
 	case "!готов", "!go", "!ready":
 		g.cmdReady(c, key)
+	case "!акты", "!акт", "!acts":
+		g.cmdActs(c, key, args)
 	case "!новаякарта", "!нк", "!newmap":
 		g.cmdNewMap(c, key, m.Mod || m.Broadcaster, args)
 	case "!за", "!yes":
@@ -637,6 +639,7 @@ var gameCommands = map[string]bool{
 	"!тюрьма": true, "!jail": true, "!посадить": true,
 	"!новаякарта": true, "!нк": true, "!newmap": true,
 	"!готов": true, "!go": true, "!ready": true,
+	"!акты": true, "!акт": true, "!acts": true,
 }
 
 // join seats a chatter in the tavern for this session.
