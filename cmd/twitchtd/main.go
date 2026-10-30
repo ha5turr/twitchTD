@@ -30,6 +30,10 @@ func main() {
 	fresh := flag.Bool("fresh", false, "ignore the saved game and start a new one (wallets are kept)")
 	kingDemo := flag.String("kingdemo", "", "development: start at the King in Yellow's final with five artifact players, in this biome (any: a random one)")
 	kingParty := flag.String("kingparty", "warrior", "with -kingdemo: the fifth player, warrior (barricades) or warlock (a net of soul links)")
+	killbox := flag.String("killbox", "", "development: finals against the King in Yellow one after another, teams of five walling in one turn of the path, in this biome (any: every biome in turn)")
+	killboxTeams := flag.String("killboxteams", "", "with -killbox: teams separated by ; of classes separated by , (default: a built-in set)")
+	killboxWave := flag.Int("killboxwave", 37, "with -killbox: waves held before the final")
+	killboxPoints := flag.Bool("killboxpoints", true, "with -killbox: the players redeem channel point rewards (rain of arrows, a round, walls)")
 	flag.Parse()
 
 	cfg, err := loadConfig(*cfgPath)
@@ -174,6 +178,22 @@ func main() {
 		}
 		srv.Do(func(g *game.Game) { g.KingDemo(biome, *kingParty == "warlock") })
 		log.Printf("King in Yellow demo: %s", *kingDemo)
+	}
+	if *killbox != "" {
+		biome := game.Biome(*killbox)
+		if *killbox == "any" {
+			biome = ""
+		}
+		var teams [][]string
+		for _, t := range strings.Split(*killboxTeams, ";") {
+			if t = strings.TrimSpace(t); t != "" {
+				teams = append(teams, strings.Split(strings.ReplaceAll(t, " ", ""), ","))
+			}
+		}
+		srv.Do(func(g *game.Game) {
+			g.KillboxDemo(biome, teams, *killboxWave, *killboxPoints, func(s string) { log.Print(s) })
+		})
+		log.Printf("killbox demo: %s", *killbox)
 	}
 	if *bots > 0 {
 		sim.Run(ctx, *bots, srv.Chat, srv.CurrentMap)

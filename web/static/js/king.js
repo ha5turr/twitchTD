@@ -57,6 +57,13 @@ function introLines(d) {
     const w = d.waves ?? 0;
     out.push({ text: `${w} ${plural(w, 'волна', 'волны', 'волн')} за час. Неплохо… для смертных.`, voice: 'king_waves', pose: 'king_cat_idle' });
   }
+  // The acts the chat picked, against what was advised (kingvote.go).
+  if (d.advice) {
+    const n = `${d.acts} ${plural(d.acts, 'акт', 'акта', 'актов')}`;
+    if (d.acts < d.advice) out.push({ text: `${n}? Как скромно.`, voice: 'king_acts_few', pose: 'king_cat_grin' });
+    else if (d.acts > d.advice) out.push({ text: `${n}? Смелые… или глупые.`, voice: 'king_acts_many', pose: 'king_cat_point' });
+    else out.push({ text: `${n}. Что ж… сыграем по правилам.`, voice: 'king_acts_fair', pose: 'king_cat_idle' });
+  }
   out.push({ text: 'А теперь… снимем маски.', voice: 'king_transform', pose: 'king_transform', transform: true });
   out.push({ text: 'Узрите Короля в Жёлтом.', voice: 'king_dark', pose: 'king_dark', dark: true });
   return out;
@@ -86,6 +93,9 @@ const FIGHT = {
   named: { text: 'Ты звал меня?', voice: 'king_name' },
   signOff: { text: 'Знак… стёрт. Ненадолго.', voice: 'king_sign_lost' },
   fall: { text: 'Это… ещё… не конец.', voice: 'king_fall' },
+  rise: { text: 'Занавес поднимается снова.', voice: 'king_rise' },
+  riseLast: { text: 'Последний акт. Финал будет моим.', voice: 'king_rise_last' },
+  death: { text: 'Занавес… опускается.', voice: 'king_death' },
   rules: { text: 'Король правит. Таверна моя.', voice: 'king_rules' },
 };
 
@@ -171,8 +181,16 @@ export class KingScene {
         if (ev.text === 'king') {
           this.fx.clear();
           this.stopVoice();
-          this.say(FIGHT.fall, true);
+          this.say(FIGHT.death, true);
         }
+        break;
+      case 'kingFall': // he falls between his acts, and he will rise
+        this.fx.clear();
+        this.stopVoice();
+        this.say(FIGHT.fall, true);
+        break;
+      case 'kingRise':
+        this.say(ev.text === 'last' ? FIGHT.riseLast : FIGHT.rise, true);
         break;
       case 'victory':
         this.endMusic(6); // the theme fades after his last words

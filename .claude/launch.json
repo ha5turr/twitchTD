@@ -103,6 +103,24 @@
         "127.0.0.1:8793"
       ],
       "port": 8793
+    },
+    {
+      "name": "twitchtd-killbox",
+      "runtimeExecutable": "go",
+      "runtimeArgs": [
+        "run",
+        "./cmd/twitchtd",
+        "-fresh",
+        "-killbox",
+        "any",
+        "-web",
+        "web/static",
+        "-config",
+        "configs/dev-fast.json",
+        "-addr",
+        "127.0.0.1:8792"
+      ],
+      "port": 8792
     }
   ]
 }

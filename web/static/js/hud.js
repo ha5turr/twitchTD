@@ -99,6 +99,11 @@ export class Hud {
     this.toasts = [];
     this.toastTime = 0;
 
+    // The call to pick the King's acts: a plaque at the top of the field in
+    // the build phases before the final (kingvote.go).
+    this.actVote = new ActVotePlaque();
+    this.ui.addChild(this.actVote.root);
+
     this.summary = new SummaryPanel();
     // A white flash over the field when a reward rains arrows from the sky.
     this.flash = new Graphics();
@@ -147,10 +152,13 @@ export class Hud {
     this.shieldMax = st.shieldMax ?? 0;
     this.storms = st.storms ?? [];
     this.links = st.links ?? [];
+    this.burned = st.burned ?? [];
+    this.kingRest = st.kingRest ?? 0;
     for (const ev of st.events ?? []) {
       if (ev.kind === 'soulLink') this.linkShow.set(ev.amount, LINK_FLASH);
       if (ev.kind === 'card') this.linkOwners.set(ev.user, LINK_ME_SEC);
     }
+    this.actVote.update(st.phase === 'build' ? st.actVote : null);
     this.drawWalls(st.walls, st.wallsMax);
     this.drawBoss(boss);
     if (st.phase === 'gameover' && st.summary) this.summary.show(st.summary, st.timer);
@@ -422,6 +430,9 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.8, `+голова! (${ev.amount})`, 0xff6a5a, FONT_UI, 22);
         this.toasts.push({ text: `🐍 У гидры отросла голова: их уже ${ev.amount}! Поджигайте раны`, color: 0xff8a7a });
         break;
+      case 'actVoteOpen':
+        this.actVote.flash = 1;
+        break;
       case 'kingGo':
         this.showBanner('ФИНАЛ', 'Король в Жёлтом идёт на таверну', 5);
         break;
@@ -430,6 +441,19 @@ export class Hud {
         break;
       case 'kingPhase':
         if (ev.amount === 2) this.showBanner('Король в Жёлтом', 'вторая фаза: свита безликих', 3);
+        break;
+      case 'kingFall':
+        this.showBanner('Король пал…', `акт ${ev.amount} скоро. Выжженная земля глушит постройки: !перенести C4 H7`, 5);
+        break;
+      case 'kingRise':
+        this.showBanner('Король в Жёлтом', `акт ${ev.amount}${ev.text === 'last' ? ': последний' : ''}`, 3);
+        break;
+      case 'carry':
+        this.floatAt(ev.x, ev.y - 0.6, `разбирают → ${ev.text}`, 0xffe0a0, FONT_UI, 18);
+        break;
+      case 'carried':
+        this.rings.push({ ...toPx(ev.x, ev.y), life: 0.35 });
+        this.floatAt(ev.x, ev.y - 0.6, 'собрано!', 0xb0ff8a, FONT_UI, 18);
         break;
       case 'sign':
         this.floatAt(ev.x, ev.y - 0.7, 'Жёлтый знак!', 0xffd23a, FONT_UI, 24);
@@ -449,7 +473,10 @@ export class Hud {
         this.floatAt(ev.x, ev.y - 0.6, `−1 ур. (${ev.amount})`, 0xff8a6a, FONT_UI, 20);
         break;
       case 'song':
-        this.toasts.push({ text: '🎶 Песнь Кассильды: навыки наёмников сбоят', color: 0xe0c0ff });
+        this.toasts.push({ text: '🎶 Песнь Кассильды: навыки наёмников сбоят, артефакты молчат', color: 0xe0c0ff });
+        break;
+      case 'maskAgain':
+        this.toasts.push({ text: `🎭 Маска снова снята на ${ev.amount} с: святилища и барабаны ослабляют постройки`, color: 0xe0c0ff });
         break;
       case 'unmask':
         this.showBanner('Маска снята', 'третья фаза: свиты больше нет, святилища и барабаны ослабляют постройки', 4);
@@ -601,6 +628,7 @@ export class Hud {
 
   frame(dt) {
     this.t += dt;
+    this.actVote.frame(dt);
     this.floaters = this.floaters.filter((f) => {
       f.life -= dt;
       f.t.y -= 40 * dt;
@@ -654,6 +682,12 @@ export class Hud {
       this.blasts.rect(LEFT, TOP, COLS * CELL, ROWS * CELL).fill({ color: 0x8a3aff, alpha: 0.18 * Math.max(0, this.curseFlash / 0.6) });
     }
     this.drawStorms();
+    // Burnt ground where the King in Yellow fell: embers glow over the cells
+    // whose buildings stay silent till his next act ends.
+    for (const [x, y] of this.burned ?? []) {
+      const glow = 0.18 + 0.08 * Math.sin(this.t * 3 + x * 1.7 + y * 2.3);
+      this.blasts.rect(LEFT + x * CELL, TOP + y * CELL, CELL, CELL).fill({ color: 0x1a0800, alpha: 0.45 }).stroke({ width: 2, color: 0xff6a1a, alpha: glow });
+    }
     // Warlocks' soul links stay hidden: a faint violet thread shows for a
     // moment when an enemy crosses one, and all of a warlock's while his !me
     // card is up. No bright core, so a web of them never glares.
@@ -890,4 +924,49 @@ function jagged(a, b, n, amp) {
   }
   pts.push([b.x, b.y]);
   return pts;
+}
+
+// ActVotePlaque calls the chat to pick the King's acts: a yellow-edged
+// plaque at the top of the field that breathes, and flares when the call
+// goes out.
+class ActVotePlaque {
+  constructor() {
+    this.root = new Container();
+    this.root.position.set(FIELD_CX, TOP + 86);
+    this.root.visible = false;
+    this.bg = new Graphics();
+    this.title = new Text({ text: 'Король в Жёлтом близко', style: ui(30, 0xffd23a) });
+    this.title.anchor.set(0.5, 0);
+    this.title.y = 12;
+    this.cmd = new Text({ text: '', style: ui(34, 0xfff1c0) });
+    this.cmd.anchor.set(0.5, 0);
+    this.cmd.y = 50;
+    this.info = new Text({ text: '', style: ui(22, 0xc9b98f) });
+    this.info.anchor.set(0.5, 0);
+    this.info.y = 94;
+    this.root.addChild(this.bg, this.title, this.cmd, this.info);
+    this.t = 0;
+    this.flash = 0;
+  }
+
+  update(v) {
+    this.root.visible = !!v;
+    if (!v) return;
+    const range = v.lo === v.hi ? `${v.lo}` : `${v.lo}–${v.hi}`;
+    this.cmd.text = `Сколько актов выдержите?  !акты ${range}`;
+    const votes = v.votes ? `сейчас ${v.now} · ${v.votes} ${plural(v.votes, 'голос', 'голоса', 'голосов')}` : 'пока никто не голосовал';
+    this.info.text = `совет: ${v.advice}  ·  ${votes}  ·  больше актов — больше душ за победу`;
+  }
+
+  frame(dt) {
+    if (!this.root.visible) return;
+    this.t += dt;
+    this.flash = Math.max(0, this.flash - dt * 0.5);
+    const w = Math.max(this.cmd.width, this.info.width) + 64;
+    const glow = 0.55 + 0.45 * Math.sin(this.t * 3) ** 2 + this.flash;
+    this.bg.clear();
+    this.bg.roundRect(-w / 2, 0, w, 132, 10).fill({ color: 0x15130f, alpha: 0.88 });
+    this.bg.roundRect(-w / 2, 0, w, 132, 10).stroke({ width: 3 + 3 * this.flash, color: 0xffd23a, alpha: Math.min(1, glow) });
+    this.root.scale.set(1 + 0.06 * this.flash);
+  }
 }

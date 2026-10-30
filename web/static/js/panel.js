@@ -29,13 +29,56 @@ const BOSSES = [
   ['tax_collector', 'Сборщик податей'], ['golden_golem', 'Золотой голем'], ['sdf', 'ЭссДиЭф'],
 ];
 const CLASSES = { ranger: 'Следопыт', mage: 'Маг', pyro: 'Пиромант', cleric: 'Жрец', rogue: 'Разбойник', bard: 'Бард', warrior: 'Воитель', druid: 'Друид', warlock: 'Чернокнижник', shaman: 'Шаман' };
-const SETTINGS = [
-  ['towerLimit', 'Лимит построек (старт)', 'int'], ['towerLimitMax', 'Лимит построек: потолок (+1 за босса)', 'int'], ['smallTeamBonus', 'Лимит: бонус команде из 1–2 игроков', 'int'], ['smallRewardSize', 'Малая команда: награды обычные с N игроков', 'int'], ['smallWaveMult', 'Малая команда: награда за волну соло (×)', 'num'], ['smallKillMult', 'Малая команда: награда за убийства соло (×)', 'num'], ['grantFromWave', 'Подъёмные новичкам с волны', 'int'], ['grantPct', 'Подъёмные: доля медианы вложенного (0–1)', 'num'], ['passOutMugs', 'Отключка: кружек в крови', 'num'], ['shrineAssistPct', 'Святилища: доля от вклада в урон (0–1)', 'num'], ['shrineLimit', 'Святилищ на игрока (0 — без лимита)', 'int'], ['shrineLimitCleric', 'Святилищ у жреца', 'int'], ['passOutSec', 'Отключка: длительность, с', 'num'], ['wallHoldMax', 'Золото баррикады за удержание, макс. за волну', 'num'], ['siegeRageSec', 'Ярость у баррикады через, с', 'num'], ['streamerPlays', 'Стример играет из чата на равных', 'bool'], ['wallRepairCdSec', 'Кд починки баррикады, с', 'num'], ['walletCap', 'Потолок кошелька', 'int'], ['startGold', 'Стартовое золото', 'int'],
-  ['keepGold', 'Хранить золото между играми', 'bool'], ['keepTreasury', 'Хранить казну между играми', 'bool'], ['chatGold', 'Золото за сообщение', 'int'], ['bitsGold', 'Золото за бит', 'num'],
-  ['subGold', 'Золото за подписку', 'int'], ['donationGoldPerRub', 'Золото за 1 ₽', 'num'], ['buildPhaseSec', 'Фаза стройки, с', 'num'], ['matchMinutes', 'Партия, минут до финала (0 — без финала)', 'num'], ['finalWave', 'Финал силён, как волна №', 'int'], ['finalBossMult', 'Финал: сила боссов (×)', 'num'], ['kingHpMult', 'Король в Жёлтом: ХП в боссах финала', 'num'], ['kingMaskAt', 'Король: маска снята на доле ХП (0–1)', 'num'], ['kingIntroSec', 'Король: сцена перед финалом, максимум с', 'num'], ['tempoGoldPerSec', 'Награда за темп, золота за секунду', 'num'], ['tempoGoldMax', 'Награда за темп, максимум за волну', 'num'], ['gameOverSec', 'Новая карта сама через, с (0 — ждать !нк)', 'num'],
-  ['bossEvery', 'Босс каждые N волн', 'int'], ['sdfChance', 'Шанс ЭссДиЭфа на волне босса (0–1)', 'num'], ['sdfFromWave', 'ЭссДиЭф не раньше волны', 'int'], ['eventChance', 'Шанс гостя на обычной волне (0–1)', 'num'], ['pathCurve', 'Извилистость трассы (0–1, со следующей карты)', 'num'], ['eventFromWave', 'Гости не раньше волны', 'int'],['baseHP', 'Базовое ХП врагов', 'num'], ['hpGrowth', 'Рост ХП за волну', 'num'],
-  ['chatterHPCoef', 'ХП от числа чатерсов', 'num'], ['webcamFrom', 'Вебка: от клетки', 'text'], ['webcamTo', 'Вебка: до клетки', 'text'],
+// The balance settings by what they are about, each group a foldable block.
+const SETTING_GROUPS = [
+  ['Партия и волны', [
+    ['matchMinutes', 'Партия, минут до финала (0 — без финала)', 'num'], ['buildPhaseSec', 'Фаза стройки, с', 'num'], ['bossEvery', 'Босс каждые N волн', 'int'],
+    ['gameOverSec', 'Новая карта сама через, с (0 — ждать !нк)', 'num'], ['pathCurve', 'Извилистость трассы (0–1, со следующей карты)', 'num'],
+  ]],
+  ['Сила врагов', [
+    ['baseHP', 'Базовое ХП врагов', 'num'], ['hpGrowth', 'Рост ХП за волну', 'num'], ['chatterHPCoef', 'ХП от числа чатерсов', 'num'],
+    ['finalWave', 'Финал силён, как волна №', 'int'], ['finalBossMult', 'Финал: сила боссов (×)', 'num'],
+  ]],
+  ['Король в Жёлтом', [
+    ['kingHp', 'ХП в боссах финала (все акты по совету)', 'num'], ['kingMaskAt', 'Маска снята на доле ХП (0–1)', 'num'], ['kingIntroSec', 'Сцена перед финалом, максимум с', 'num'],
+    ['kingActsFixed', 'Актов ровно (0 — выбирает чат)', 'int'],['kingAntractSec', 'Антракт между актами, с', 'num'], ['kingBurnRadius', 'Радиус выжженной земли, клеток', 'num'],
+    ['kingMoveSec', 'Перенос: работа на каждом конце, с', 'num'], ['kingMoveCost', 'Перенос: цена из казны', 'int'],
+    ['kingWallSec', 'Баррикаду проламывает максимум за, с', 'num'], ['kingSignPerAct', 'Знаков разом: +N за каждый акт', 'int'], ['kingSongArt', 'Песнь глушит артефакты', 'bool'],
+    ['kingRetinueHp', 'Безликий: доля ХП Короля (0 — как призыв)', 'num'], ['kingMaskEvery', 'Со 2-го акта: маска снова каждые, с', 'num'], ['kingMaskSec', 'Со 2-го акта: маска на, с', 'num'],
+    ['kingActsPer', 'Совет: игроков на один акт', 'num'], ['kingActsSpread', 'Выбор: актов ± от совета', 'int'], ['kingActsMax', 'Актов не больше', 'int'],
+    ['kingVoteMin', 'Голосование за акты: минут до финала', 'num'], ['kingActSouls', 'Души за победу: ± за акт от совета (доля)', 'num'],
+    ['kingActHpPow', 'ХП от актов сверх совета: степень', 'num'], ['kingActCd', 'Навыки: перезарядка × за акт', 'num'], ['kingActCdMin', 'Навыки: перезарядка не меньше доли', 'num'],
+    ['kingTeamPowUp', 'ХП против команды больше 5: степень', 'num'],
+  ]],
+  ['Гости', [
+    ['eventChance', 'Шанс гостя на обычной волне (0–1)', 'num'], ['eventFromWave', 'Гости не раньше волны', 'int'],
+    ['sdfChance', 'Шанс ЭссДиЭфа на волне босса (0–1)', 'num'], ['sdfFromWave', 'ЭссДиЭф не раньше волны', 'int'],
+  ]],
+  ['Постройки', [
+    ['towerLimit', 'Лимит построек (старт)', 'int'], ['towerLimitMax', 'Лимит построек: потолок (+1 за босса)', 'int'],
+    ['shrineLimit', 'Святилищ на игрока (0 — без лимита)', 'int'], ['shrineLimitCleric', 'Святилищ у жреца', 'int'], ['shrineAssistPct', 'Святилища: доля от вклада в урон (0–1)', 'num'],
+  ]],
+  ['Баррикады', [
+    ['wallHoldMax', 'Золото за удержание, макс. за волну', 'num'], ['siegeRageSec', 'Ярость у баррикады через, с', 'num'], ['wallRepairCdSec', 'Кд починки, с', 'num'],
+  ]],
+  ['Золото', [
+    ['startGold', 'Стартовое золото', 'int'], ['walletCap', 'Потолок кошелька', 'int'], ['keepGold', 'Хранить золото между играми', 'bool'], ['keepTreasury', 'Хранить казну между играми', 'bool'],
+    ['tempoGoldPerSec', 'Награда за темп, золота за секунду', 'num'], ['tempoGoldMax', 'Награда за темп, максимум за волну', 'num'],
+    ['grantFromWave', 'Подъёмные новичкам с волны', 'int'], ['grantPct', 'Подъёмные: доля медианы вложенного (0–1)', 'num'],
+  ]],
+  ['Малая команда', [
+    ['smallTeamBonus', 'Бонус к лимиту команде из 1–2 игроков', 'int'], ['smallRewardSize', 'Награды обычные с N игроков', 'int'],
+    ['smallWaveMult', 'Награда за волну соло (×)', 'num'], ['smallKillMult', 'Награда за убийства соло (×)', 'num'],
+  ]],
+  ['Поддержка зрителей', [
+    ['chatGold', 'Золото за сообщение', 'int'], ['bitsGold', 'Золото за бит', 'num'], ['subGold', 'Золото за подписку', 'int'], ['donationGoldPerRub', 'Золото за 1 ₽', 'num'],
+  ]],
+  ['Таверна и стример', [
+    ['passOutMugs', 'Отключка: кружек в крови', 'num'], ['passOutSec', 'Отключка: длительность, с', 'num'], ['streamerPlays', 'Стример играет из чата на равных', 'bool'],
+    ['webcamFrom', 'Вебка: от клетки', 'text'], ['webcamTo', 'Вебка: до клетки', 'text'],
+  ]],
 ];
+const SETTINGS = SETTING_GROUPS.flatMap(([, fields]) => fields);
 
 let tool = 'arrow';
 let map = null;
@@ -251,15 +294,32 @@ let built = false;
 function renderSettings() {
   const form = $('settings');
   if (!built) {
-    for (const [key, label, type] of SETTINGS) {
-      const l = document.createElement('label');
-      const input = document.createElement('input');
-      input.name = key;
-      input.type = type === 'bool' ? 'checkbox' : type === 'text' ? 'text' : 'number';
-      if (type === 'num') input.step = 'any';
-      if (type === 'text') input.size = 4;
-      l.append(label, input);
-      form.append(l);
+    let folded = [];
+    try { folded = JSON.parse(localStorage.getItem('settingsFolded') ?? '[]'); } catch {}
+    for (const [title, fields] of SETTING_GROUPS) {
+      const group = document.createElement('details');
+      group.open = !folded.includes(title);
+      group.ontoggle = () => {
+        const shut = [...form.querySelectorAll('details')].filter((d) => !d.open).map((d) => d.dataset.title);
+        try { localStorage.setItem('settingsFolded', JSON.stringify(shut)); } catch {}
+      };
+      group.dataset.title = title;
+      const summary = document.createElement('summary');
+      summary.textContent = title;
+      const grid = document.createElement('div');
+      grid.className = 'grid';
+      for (const [key, label, type] of fields) {
+        const l = document.createElement('label');
+        const input = document.createElement('input');
+        input.name = key;
+        input.type = type === 'bool' ? 'checkbox' : type === 'text' ? 'text' : 'number';
+        if (type === 'num') input.step = 'any';
+        if (type === 'text') input.size = 4;
+        l.append(label, input);
+        grid.append(l);
+      }
+      group.append(summary, grid);
+      form.append(group);
     }
     built = true;
   }

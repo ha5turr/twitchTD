@@ -23,6 +23,8 @@ const HIGHLIGHT_SEC = 6;
 
 // A shieldbearer covers everyone within GUARD cells (enemy guard in config.go).
 const GUARD = 1.2;
+// His cover rolls out as a ring every GUARD_EVERY seconds, like the drums'.
+const GUARD_EVERY = 1.6;
 
 // Drums of war: their aura reaches DRUM_RANGE cells (the drums' auraRange in
 // config.go), shown as a pulse every DRUM_EVERY seconds.
@@ -52,6 +54,14 @@ export class Entities {
 
   update(state) {
     sync(this.enemies, state.enemies, (e) => new EnemyView(e, this), (v, e) => v.set(e));
+    // A building carried to another cell (!перенести) is drawn anew there.
+    for (const t of state.towers) {
+      const v = this.towers.get(t.id);
+      if (v && (v.x !== t.x || v.y !== t.y)) {
+        v.destroy();
+        this.towers.delete(t.id);
+      }
+    }
     sync(this.towers, state.towers, (t) => new TowerView(t, this), (v, t) => v.set(t));
     sync(this.proj, state.proj, (p) => new ProjView(p, this), (v, p) => v.set(p));
     // A mercenary resting after a scare is back inside: it sits in the tavern,
@@ -235,7 +245,7 @@ class EnemyView {
       this.opened = 0;
     }
     this.open = !!e.open;
-    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.kind === 'shieldbearer' ? 'g' : '') + (e.swim ? 'w' : '') + (e.dive ? 'd' : '') + (e.open ? 'o' : '');
+    const flags = (e.slow ? 's' : '') + (e.shield ? 'h' : '') + (e.net ? 'n' : '') + (e.stun ? 'z' : '') + (e.swim ? 'w' : '') + (e.dive ? 'd' : '') + (e.open ? 'o' : '');
     if (flags !== this.flags) {
       this.flags = flags;
       const r = this.r;
@@ -246,10 +256,6 @@ class EnemyView {
         this.fx.ellipse(0, r * 0.4, r * 1.5, r * 0.5).stroke({ width: 2, color: 0xbfe8ff, alpha: 0.35 });
       }
       if (e.slow) this.fx.ellipse(0, r * 0.8, r * 1.1, r * 0.35).stroke({ width: 3, color: 0x8fd4ff });
-      if (e.kind === 'shieldbearer') {
-        // The cover he gives: a faint dome over everyone within GUARD cells.
-        this.fx.circle(0, 0, GUARD * CELL).fill({ color: 0x9ac8ff, alpha: 0.08 }).stroke({ width: 2, color: 0x9ac8ff, alpha: 0.35 });
-      }
       if (e.shield) this.fx.arc(0, 0, r + 8, -2.2, 2.2).stroke({ width: 5, color: 0xffe08a });
       if (e.stun) {
         // Dazed by holy light: a soft golden halo over the head.
@@ -304,6 +310,21 @@ class EnemyView {
     else this.body.tint = this.burn && Math.sin(t * 20) > 0 ? 0xffa060 : this.baseTint;
     this.bar.position.set(r.x, r.y - this.r - (this.boss ? 34 : 14));
     if (this.breath) this.breathe(k, t);
+    if (this.kind === 'shieldbearer') this.guardPulse(t);
+  }
+
+  // guardPulse shows the cover a shieldbearer gives: a faint ring rolling out
+  // to GUARD cells every GUARD_EVERY seconds, as the drums' pulse does.
+  guardPulse(t) {
+    if (!this.guard) {
+      this.guard = new Graphics();
+      this.root.addChildAt(this.guard, 0);
+      this.guardPhase = Math.random() * GUARD_EVERY;
+    }
+    const k = ((t + this.guardPhase) % GUARD_EVERY) / 1.2; // the ring lives 1.2 s
+    this.guard.clear();
+    if (k >= 1) return;
+    this.guard.circle(0, 0, (0.25 + 0.75 * k) * GUARD * CELL).stroke({ width: 3, color: 0x9ac8ff, alpha: 0.35 * (1 - k) });
   }
 
   // breathe swells the open cloak's light in and out, fading it in as the
@@ -364,6 +385,8 @@ class TowerView {
   constructor(t, layer) {
     this.kind = t.kind;
     this.owner = t.owner;
+    this.x = t.x;
+    this.y = t.y;
     const p = toPx(t.x, t.y);
     this.cx = p.x + CELL / 2;
     this.cy = p.y + CELL / 2;
@@ -450,6 +473,8 @@ class TowerView {
     this.hex = !!t.hex;
     this.flood = !!t.flood;
     this.signed = !!t.sign;
+    this.burnt = !!t.burnt; // on ground the King in Yellow burned
+    this.carry = !!t.carry; // being carried elsewhere by its mercenary
     // One bar above the cell: construction progress, or a barricade's health.
     const key = `${t.progress ?? 0}|${t.hp ?? 0}`;
     if (key !== this.barKey) {
@@ -499,8 +524,8 @@ class TowerView {
     this.drawGlow(t);
     // A disabled building turns grey, the colour the design keeps for that.
     this.root.tint = this.disabled ? 0x777777 : 0xffffff;
-    this.root.alpha = !this.built ? 0.85 : this.empty ? 0.45 : 1;
-    this.web.visible = this.disabled && !this.hex && !this.flood;
+    this.root.alpha = !this.built ? 0.85 : this.carry ? 0.5 : this.empty ? 0.45 : 1;
+    this.web.visible = this.disabled && !this.hex && !this.flood && !this.burnt && !this.carry; // silenced, not webbed
     // Under the tide the building sinks into the water.
     this.wave.visible = this.flood;
     this.signMark.visible = this.signed;

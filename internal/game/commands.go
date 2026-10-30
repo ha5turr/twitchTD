@@ -94,6 +94,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdCancel(c, key)
 	case "!развеять", "!рз", "!dispel":
 		g.cmdDispel(c, key, args)
+	case "!перенести", "!перенос", "!move":
+		g.cmdMove(c, key, args)
 	case "!me", "!я":
 		cl, _ := classByKey(c.Class)
 		grant := ""
@@ -133,6 +135,8 @@ func (g *Game) HandleChat(m ChatMessage) {
 		g.cmdJail(c, key, args)
 	case "!готов", "!go", "!ready":
 		g.cmdReady(c, key)
+	case "!акты", "!акт", "!acts":
+		g.cmdActs(c, key, args)
 	case "!новаякарта", "!нк", "!newmap":
 		g.cmdNewMap(c, key, m.Mod || m.Broadcaster, args)
 	case "!за", "!yes":
@@ -230,7 +234,7 @@ func (g *Game) cmdBuild(c *Chatter, key string, args []string) {
 	case !spec.OnPath() && g.Map.Grid.At(p) != CellBuild:
 		g.reply(c.Name, p.Name()+": здесь строить нельзя")
 		return
-	case g.Towers[p] != nil:
+	case g.Towers[p] != nil || g.carriedTo(p) != nil:
 		g.reply(c.Name, p.Name()+": клетка занята")
 		return
 	case kind == clownKind && g.clownsOf(key) > 0:
@@ -635,6 +639,7 @@ var gameCommands = map[string]bool{
 	"!тюрьма": true, "!jail": true, "!посадить": true,
 	"!новаякарта": true, "!нк": true, "!newmap": true,
 	"!готов": true, "!go": true, "!ready": true,
+	"!акты": true, "!акт": true, "!acts": true,
 }
 
 // join seats a chatter in the tavern for this session.

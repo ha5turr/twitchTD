@@ -39,6 +39,7 @@ const (
 	kingSignWall     = 1.0  // and before anything else on a barricade this close
 	kingSignHeal     = 0.5  // a marked shooter heals him this share of its damage
 	kingSignDrainSec = 5.0  // a marked support loses a level this often
+	kingSignActs     = 2    // signs grow with his acts up to the third (0.27): five at once broke any team
 	kingHeatHalfLife = 30.0 // seconds over which a building's recent damage halves
 
 	kingNameHeal  = 0.01 // every "Хастур" heals him this share of his max HP
@@ -80,6 +81,8 @@ type kingIntro struct {
 	Towers  int        `json:"towers"`
 	Waves   int        `json:"waves"`
 	Drinks  int        `json:"drinks"`
+	Acts    int        `json:"acts,omitempty"`   // the acts the chat picked
+	Advice  int        `json:"advice,omitempty"` // and the acts advised, 0 with no vote
 	Spots   []kingSpot `json:"spots,omitempty"`
 }
 
@@ -131,7 +134,7 @@ func (g *Game) king() *Enemy {
 // startKingIntro holds the final wave for the scene and gives the overlay
 // what the king will talk about.
 func (g *Game) startKingIntro() {
-	in := kingIntro{Players: len(g.mapVoters()), Waves: g.Wave - 1, Spots: g.kingSpots()}
+	in := kingIntro{Players: len(g.mapVoters()), Waves: g.Wave - 1, Spots: g.kingSpots(), Acts: g.kingActs(), Advice: g.actsAdvice}
 	for _, c := range g.Chatters {
 		in.Drinks += c.GameDrinks
 	}
@@ -191,9 +194,10 @@ func (g *Game) skipKingIntro() {
 	g.emit(Event{Kind: "kingGo"})
 }
 
-// kingHP is the king's health in the final: KingHPMult bosses of the final's strength.
+// kingHP is the health of one of the king's bars in the final: KingHP
+// bosses of the final's strength in all, split between his acts (actsHP).
 func (g *Game) kingHP(waveHP float64) float64 {
-	return waveHP * g.Cfg.BossHPMult * g.Cfg.FinalBossMult * g.Cfg.KingHPMult * g.Cfg.Enemies[kingKind].HPMult
+	return waveHP * g.Cfg.BossHPMult * g.Cfg.FinalBossMult * g.Cfg.KingHP * g.Cfg.Enemies[kingKind].HPMult * g.actsHP()
 }
 
 // guarded reports whether the enemy is the king under his whole cloak,
@@ -251,10 +255,18 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 	// The sign, all fight long.
 	if e.signCD -= dt; e.signCD <= 0 {
 		e.signCD = g.Cfg.KingSignEvery
-		g.placeSign(e)
+		for i := 0; i <= min(e.kingAct, kingSignActs)*max(g.Cfg.KingSignPerAct, 0); i++ {
+			g.placeSign(e) // more of them with every act
+		}
 	}
-	// The phases.
+	// The phases, by his health in his first act. From the second on he
+	// comes in with all of them, and they are skills on cooldowns that come
+	// back sooner with every act (actCD).
 	share := e.HP / e.MaxHP
+	if e.kingAct > 0 {
+		share = 0
+	}
+	cd := g.actCD(e)
 	phase := 1
 	if share <= g.Cfg.KingMaskAt {
 		phase = 3
@@ -263,7 +275,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 	}
 	for e.phase < phase {
 		e.phase++
-		e.Title = fmt.Sprintf("%s · %s", g.Cfg.Enemies[kingKind].Name, []string{"", "I", "II", "III"}[e.phase])
+		e.Title = g.kingTitle(e)
 		g.emit(Event{Kind: "kingPhase", Amount: e.phase, X: e.Pos.X, Y: e.Pos.Y})
 		if e.phase == 2 {
 			e.retinueCD, e.songCD = 0, songEvery/2
@@ -271,13 +283,16 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		}
 	}
 	if e.phase >= 2 {
-		// The faceless come only in the second phase; the song plays on to the end.
-		if e.retinueCD -= dt; e.phase == 2 && e.retinueCD <= 0 {
-			e.retinueCD = retinueEvery
-			g.summon(e, facelessKind, max(1, int(math.Round(retinueN*g.teamShare()))))
+		// In the first act the faceless come only in the second phase; the
+		// song plays on to the end. In later acts both keep coming, the
+		// retinue only while the mask is on, one faceless larger every two
+		// acts.
+		if e.retinueCD -= dt; (e.phase == 2 || e.kingAct > 0 && g.maskLeft <= 0) && e.retinueCD <= 0 {
+			e.retinueCD = retinueEvery * cd
+			g.summonRetinue(e, max(1, int(math.Round(retinueN*g.teamShare())))+e.kingAct/2)
 		}
 		if e.songCD -= dt; e.songCD <= 0 {
-			e.songCD = songEvery
+			e.songCD = songEvery * cd
 			g.songLeft = songSec
 			g.emit(Event{Kind: "song", X: e.Pos.X, Y: e.Pos.Y})
 		}
@@ -288,6 +303,7 @@ func (g *Game) tickKing(e *Enemy, dt float64) {
 		g.emit(Event{Kind: "unmask", X: e.Pos.X, Y: e.Pos.Y})
 		g.reply("", "Маска снята! Свита больше не приходит, но святилища и барабаны ослабляют постройки")
 	}
+	g.tickMaskAgain(e, dt)
 	g.kingBiome(e, dt)
 }
 
@@ -455,6 +471,7 @@ func (g *Game) signHeal(t *Tower, dmg float64) {
 func (t *Tower) warm(dmg float64, e *Enemy) {
 	t.heat += dmg
 	if e != nil && e.Kind == kingKind {
+		t.kingDmg += dmg
 		if e.hurtByKind == nil {
 			e.hurtByKind = map[string]float64{}
 		}
@@ -508,6 +525,7 @@ func (g *Game) clearKing() {
 	g.maskLeft, g.songLeft, g.introLeft = 0, 0, 0
 	g.signSupport = false
 	g.brokenLinks = nil
+	g.kingRest, g.restLeft, g.burned, g.strikeKey = nil, 0, nil, 0
 }
 
 // kingCut is what the king's torn cloak and his retinue leave of a hit.

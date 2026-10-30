@@ -36,6 +36,7 @@ var Achievements = []Achievement{
 	{"artifact", "Хранитель реликвии", 5, false},
 	{"monogamist", "Однолюб", 4, false},
 	{"victory", "Час выстоян", 8, false},
+	{"king_bold", "Смелые или глупые", 6, false},
 	{"lucky", "Везунчик", 4, false},
 	{"high_roller", "Крупная ставка", 4, false},
 	// Hidden ones, mostly about the guest boss: chat finds them by itself.
@@ -117,7 +118,7 @@ func (g *Game) onKill(key string, c *Chatter, e *Enemy) {
 func (g *Game) awardSouls(held int, won bool) {
 	mult := 1.0
 	if won {
-		mult = max(1, g.Cfg.SoulsWinMult)
+		mult = max(1, g.Cfg.SoulsWinMult) * g.actsStake() // more acts than advised pay more
 	}
 	type earned struct {
 		name  string
